@@ -1,0 +1,22 @@
+{
+  "name": "mycelium-td",
+  "version": "0.1.0",
+  "description": "A mycelium-themed tower defense game",
+  "main": "index.js",
+  "scripts": {
+    "test": "ts-node src/test_upgrade.ts && ts-node src/test_economy.ts && ts-node src/systems/test_gameRunner.ts && ts-node src/systems/test_death_reward.ts",
+    "test-all": "ts-node src/test_path.ts && ts-node src/test_targeting.ts && ts-node src/test_wave.ts && ts-node src/test_waveEnemyIntegration.ts && ts-node src/test_tower.ts && ts-node src/test_enemy.ts && ts-node src/test_upgrade.ts && ts-node src/test_economy.ts && ts-node src/test_input.ts && ts-node src/test_collision.ts && ts-node src/systems/test_mapLevel.ts && ts-node src/systems/test_mapSelectionRender.ts && ts-node src/systems/test_gameRunner.ts && ts-node src/systems/test_death_reward.ts && ts-node src/systems/test_gameSpeed.ts && ts-node src/systems/test_myceliumNetwork.ts && ts-node src/systems/test_waveAnnouncementIntegration.ts && ts-node src/systems/test_waveProgressIntegration.ts && ts-node src/systems/test_pauseMenuRender.ts && ts-node src/systems/test_pauseMenuIntegration.ts && ts-node src/systems/test_pauseMenuButtonClick.ts && ts-node src/systems/test_targetingModeSelection.ts && ts-node src/systems/test_targetingModeButtonClick.ts && ts-node src/systems/test_gameOverVictoryRender.ts && ts-node src/systems/test_gameOverVictoryIntegration.ts && ts-node src/systems/test_towerInfoPanel.ts && ts-node src/systems/test_towerInfoPanelIntegration.ts && ts-node src/systems/test_livesMoneyDisplayRender.ts && ts-node src/systems/test_livesMoneyDisplayIntegration.ts && ts-node src/systems/test_enemyCountDisplayRender.ts && ts-node src/systems/test_enemyCountDisplayIntegration.ts && ts-node src/systems/test_hotkeys.ts && ts-node src/systems/test_hotkeys_integration.ts && ts-node src/systems/test_gameRenderer.ts && ts-node src/systems/test_gameLoop.ts && ts-node src/systems/test_roundManager.ts && ts-node src/systems/test_towerPurchaseRender.ts && ts-node src/systems/test_ui_event_bindings.ts && ts-node src/systems/test_hero.ts && ts-node src/systems/test_heroRender.ts",
+    "build": "esbuild src/main.ts --bundle --outfile=public/bundle.js --platform=browser --target=es2020 --format=iife --minify",
+    "serve": "npx http-server . -p 8080 -c \"text/html\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "esbuild": "^0.28.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}

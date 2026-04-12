@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mushroom Tower Defense</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        #gameCanvas {
+            display: block;
+            background: #0f0f1a;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+        #hotkeyBar {
+            position: absolute;
+            bottom: -40px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+        #hotkeyBar kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+        <div id="hotkeyBar">
+            <span><kbd>1</kbd>-<kbd>5</kbd> Towers</span>
+            <span><kbd>Space</kbd> Pause</span>
+            <span><kbd>F1</kbd>-<kbd>F3</kbd> Speed</span>
+            <span><kbd>Esc</kbd> Cancel</span>
+        </div>
+    </div>
+    <script src="bundle.js"></script>
+</body>
+</html>
