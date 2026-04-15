@@ -55,21 +55,24 @@ assert(economy.getTotalEarned() === 0, 'Total earned should reset to 0');
 assert(economy.getTotalSpent() === 0, 'Total spent should reset to 0');
 console.log('  ✓ reset');
 
-economy.addKillReward(100, 'Test reward');
-const interest = economy.addInterest(6000);
+// Interest tests use a separate economy with a non-zero rate
+// (default rate is 0 — interest is currently disabled for balance reasons)
+const interestEconomy = createEconomy({ interestRate: 0.05 });
+interestEconomy.addKillReward(100, 'Test reward');
+const interest = interestEconomy.addInterest(6000);
 assert(interest > 0, 'Interest should be earned');
-assert(economy.getMoney() > startingMoney + 100, 'Money should increase with interest');
+assert(interestEconomy.getMoney() > startingMoney + 100, 'Money should increase with interest');
 console.log('  ✓ addInterest');
 
-economy.reset();
-const noInterestYet = economy.addInterest(3000);
+interestEconomy.reset();
+const noInterestYet = interestEconomy.addInterest(3000);
 assert(noInterestYet === 0, 'No interest before interval');
 console.log('  ✓ addInterest respects interval');
 
-economy.reset();
-economy.addInterest(5000);
-economy.addInterest(7500);
-const noInterestTooSoon = economy.addInterest(9000);
+interestEconomy.reset();
+interestEconomy.addInterest(5000);
+interestEconomy.addInterest(7500);
+const noInterestTooSoon = interestEconomy.addInterest(9000);
 assert(noInterestTooSoon === 0, 'No interest before 5s interval');
 console.log('  ✓ addInterest respects 5s interval');
 
@@ -136,7 +139,7 @@ assert(refundAmount === 210, `Sell refund for 300 should be 210 (70%), got ${ref
 console.log('  ✓ getSellRefund');
 
 const config = economy.getConfig();
-assert(config.interestRate === 0.05, 'Interest rate should be 5%');
+assert(config.interestRate === 0, 'Interest rate should be 0 (disabled)');
 assert(config.maxInterest === 200, 'Max interest should be 200');
 console.log('  ✓ getConfig');
 

@@ -70,7 +70,7 @@ const PAUSE_MENU_STYLES = {
   buttonDisabledTextColor: '#666666',
 };
 
-const DEFAULT_MENU_SIZE = { width: 400, height: 300 };
+const DEFAULT_MENU_SIZE = { width: 400, height: 420 };
 const TITLE_OFFSET_Y = -100;
 const SUBTITLE_OFFSET_Y = -60;
 const BUTTON_START_Y = -20;

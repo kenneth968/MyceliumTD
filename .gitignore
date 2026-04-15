@@ -1,5 +1,6 @@
 node_modules/
 dist/
 .claude/
+.omc/
 *.tmp
 .DS_Store

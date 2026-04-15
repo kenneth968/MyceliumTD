@@ -130,6 +130,16 @@ export enum GameState {
   Victory = 'victory',
 }
 
+export interface GameEvent {
+  type: 'hit' | 'death' | 'area_hit';
+  position: Vec2;
+  towerType?: TowerType;
+  enemyType?: string;
+  enemyColor?: string;
+  radius?: number;
+  effectType?: string;
+}
+
 export interface PlacedTower {
   tower: TowerWithUpgrades;
   x: number;
@@ -187,6 +197,7 @@ export class GameRunner {
   private towerPlacer: TowerPlacer;
   private hero: Hero | null;
   private selectedHeroId: number | null;
+  private eventQueue: GameEvent[];
 
   constructor(config: Partial<GameConfig> = {}) {
     this.config = { ...DEFAULT_GAME_CONFIG, ...config };
@@ -242,8 +253,8 @@ export class GameRunner {
     const maxWaves = this.currentMap?.maxWaves ?? this.config.maxWaves ?? 10;
     this.roundManager = createRoundManager(this.waveSpawner, this.economy, {
       maxRounds: maxWaves,
-      intermissionDuration: 5000,
-      autoStartNextRound: true,
+      intermissionDuration: Infinity,
+      autoStartNextRound: false,
     });
     this.roundManager.setEvents({
       onRoundStart: (roundNumber: number, wave: Wave) => {
@@ -280,6 +291,13 @@ export class GameRunner {
     });
     this.hero = null;
     this.selectedHeroId = null;
+    this.eventQueue = [];
+  }
+
+  drainEvents(): GameEvent[] {
+    const events = this.eventQueue;
+    this.eventQueue = [];
+    return events;
   }
 
   getState(): GameState {
@@ -461,6 +479,7 @@ export class GameRunner {
     });
     this.hero = null;
     this.selectedHeroId = null;
+    this.eventQueue = [];
   }
 
   startWave(waveIndex?: number): boolean {
@@ -614,6 +633,11 @@ export class GameRunner {
       }
 
       if (!enemy.alive) {
+        this.eventQueue.push({
+          type: 'death',
+          position: { ...enemy.position },
+          enemyType: enemy.enemyType,
+        });
         this.economy.addKillReward(getReward(enemy), `Killed ${enemy.enemyType}`);
         this.activeEnemies.splice(i, 1);
       }
@@ -674,6 +698,14 @@ export class GameRunner {
         applyHitEffects(result.target as any, effects, deltaTime);
         applyDamage(result.target, projectile.damage);
 
+        // Emit hit event for visual effects
+        this.eventQueue.push({
+          type: 'hit',
+          position: { ...projectile.position },
+          towerType: projectile.towerType,
+          effectType: TOWER_STATS[projectile.towerType].specialEffect,
+        });
+
         if (projectile.towerType === TowerType.PuffballFungus) {
           const areaResult = calculateAreaDamage(
             projectile.position,
@@ -681,6 +713,14 @@ export class GameRunner {
             projectile.damage,
             projectile.areaRadius
           );
+
+          // Emit area hit event
+          this.eventQueue.push({
+            type: 'area_hit',
+            position: { ...projectile.position },
+            towerType: projectile.towerType,
+            radius: projectile.areaRadius ?? 40,
+          });
 
           for (const areaEnemy of areaResult.enemiesHit) {
             if (areaEnemy.id !== result.target.id) {
