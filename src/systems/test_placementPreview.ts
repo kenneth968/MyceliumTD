@@ -178,7 +178,7 @@ console.log('\n--- getPathCoverageRenderData ---');
   expect(result!.totalPathLength, 500, 'total path length');
   expect(result!.coveragePercent, 100, 'coverage percent is 100');
   expect(result!.segments.length, 3, 'has all segments');
-  expectTrue(result!.segments.every(s => s.isCovered), true, 'all segments covered');
+  expectTrue(result!.segments.every(s => s.isCovered), 'all segments covered');
 }
 
 {
@@ -194,7 +194,7 @@ console.log('\n--- getPathCoverageRenderData ---');
   const result = getPathCoverageRenderData(pathPreview);
   expect(result!.totalCoveredLength, 0, 'zero covered length');
   expect(result!.coveragePercent, 0, 'coverage percent is 0');
-  expectTrue(result!.segments.every(s => !s.isCovered), true, 'no segments covered');
+  expectTrue(result!.segments.every(s => !s.isCovered), 'no segments covered');
 }
 
 {
@@ -260,11 +260,11 @@ console.log('\n--- getPlacementPreviewRenderData ---');
     pathPreview
   );
   expect(result.isPlacing, true, 'isPlacing is true in placing mode');
-  expectTrue(result.ghost !== null, true, 'ghost is populated');
+  expectTrue(result.ghost !== null, 'ghost is populated');
   expect(result.ghost!.towerType, TowerType.PuffballFungus, 'ghost has correct tower type');
   expect(result.ghost!.isValid, true, 'ghost is valid');
-  expectTrue(result.rangeCircle !== null, true, 'rangeCircle is populated');
-  expectTrue(result.pathCoverage !== null, true, 'pathCoverage is populated');
+  expectTrue(result.rangeCircle !== null, 'rangeCircle is populated');
+  expectTrue(result.pathCoverage !== null, 'pathCoverage is populated');
 }
 
 {
@@ -329,8 +329,8 @@ console.log('\n--- getTowerPlacementIndicator ---');
   const result2 = getTowerPlacementIndicator(TowerType.PuffballFungus, 1000, true);
   const result3 = getTowerPlacementIndicator(TowerType.PuffballFungus, 2000, true);
 
-  expectTrue(result2.pulsePhase > result1.pulsePhase, true, 'pulse phase increases with time');
-  expectTrue(result3.pulsePhase > result2.pulsePhase, true, 'pulse phase continues increasing');
+  expectTrue(result2.pulsePhase > result1.pulsePhase, 'pulse phase increases with time');
+  expectTrue(result3.pulsePhase > result2.pulsePhase, 'pulse phase continues increasing');
 }
 
 console.log('\n--- getPathSegmentRenderStyle ---');
@@ -350,12 +350,12 @@ console.log('\n--- getPathSegmentRenderStyle ---');
 
 {
   const result = getPathSegmentRenderStyle(true, 50);
-  expectTrue(result.opacity > 0.8, true, 'highlight increases opacity');
+  expectTrue(result.opacity > 0.8, 'highlight increases opacity');
 }
 
 {
   const result = getPathSegmentRenderStyle(true, 100);
-  expectTrue(result.opacity <= 1.0, true, 'opacity capped at 1.0');
+  expectTrue(result.opacity <= 1.0, 'opacity capped at 1.0');
 }
 
 console.log('\n--- getPlacementValidityDetails ---');
@@ -370,21 +370,21 @@ console.log('\n--- getPlacementValidityDetails ---');
   const rangePreview = createMockRangePreview(false);
   const result = getPlacementValidityDetails(rangePreview, null);
   expect(result.isValid, false, 'returns invalid when range preview is invalid');
-  expectTrue(result.reasons.length > 0, true, 'has reasons when invalid');
+  expectTrue(result.reasons.length > 0, 'has reasons when invalid');
 }
 
 {
   const pathPreview = createMockPathPreview(30, 500);
   const result = getPlacementValidityDetails(null, pathPreview);
   const hasReason = result.reasons.some((r: string) => r.includes('does not cover'));
-  expectTrue(hasReason, true, 'detects poor coverage');
+  expectTrue(hasReason, 'detects poor coverage');
 }
 
 {
   const pathPreview = createMockPathPreview(400, 500);
   const result = getPlacementValidityDetails(null, pathPreview);
   const hasReason = result.reasons.some((r: string) => r.includes('does not cover'));
-  expectTrue(!hasReason, true, 'good coverage passes');
+  expectTrue(!hasReason, 'good coverage passes');
 }
 
 console.log('\n--- createPlacementPreviewUpdater ---');
@@ -402,21 +402,21 @@ console.log('\n--- createPlacementPreviewUpdater ---');
 {
   const updater = createPlacementPreviewUpdater();
   updater.update(400);
-  expectTrue(updater.shouldPulse(500, 500), true, 'detects pulse crossing');
+  expectTrue(updater.shouldPulse(500, 500), 'detects pulse crossing');
 
   updater.update(500);
-  expectTrue(!updater.shouldPulse(500, 500), true, 'no pulse in same interval');
+  expectTrue(!updater.shouldPulse(500, 500), 'no pulse in same interval');
 
-  expectTrue(!updater.shouldPulse(999, 500), true, 'no pulse before interval');
-  expectTrue(updater.shouldPulse(1000, 500), true, 'pulse at interval boundary');
+  expectTrue(!updater.shouldPulse(999, 500), 'no pulse before interval');
+  expectTrue(updater.shouldPulse(1000, 500), 'pulse at interval boundary');
 }
 
 {
   const updater = createPlacementPreviewUpdater();
   updater.update(100);
-  expectTrue(!updater.shouldPulse(200, 500), true, 'no pulse within interval');
-  expectTrue(!updater.shouldPulse(300, 500), true, 'still no pulse');
-  expectTrue(!updater.shouldPulse(499, 500), true, 'almost at boundary');
+  expectTrue(!updater.shouldPulse(200, 500), 'no pulse within interval');
+  expectTrue(!updater.shouldPulse(300, 500), 'still no pulse');
+  expectTrue(!updater.shouldPulse(499, 500), 'almost at boundary');
 }
 
 console.log(`\n=== Results: ${testsPassed} passed, ${testsFailed} failed ===\n`);

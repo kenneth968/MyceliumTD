@@ -1619,7 +1619,7 @@ class Game {
     private drawMapSelection(mapSelection: MapSelectionRenderData | null): void {
         if (!mapSelection || !mapSelection.isVisible) return;
 
-        this.ctx.globalAlpha = mapSelection.opacity;
+        this.ctx.globalAlpha = mapSelection.progress;
 
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1845,7 +1845,7 @@ class Game {
         this.ctx.fillStyle = '#333';
         this.ctx.fillRect(x, y + 25, width, height);
         
-        const fillWidth = width * progress.enemyProgress;
+        const fillWidth = width * progress.progress;
         this.ctx.fillStyle = '#4CAF50';
         this.ctx.fillRect(x, y + 25, fillWidth, height);
         
@@ -1857,7 +1857,7 @@ class Game {
     private drawGameOverVictory(gov: GameOverVictoryRenderData): void {
         if (gov.state === 'hidden') return;
         
-        this.ctx.globalAlpha = gov.opacity || 1;
+        this.ctx.globalAlpha = gov.backgroundOpacity || 1;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
@@ -1882,7 +1882,7 @@ class Game {
         if (!panel || !panel.isVisible) return;
         
         const width = 280;
-        const height = panel.isExpanded ? 350 : 200;
+        const height = panel.size.height;
         const x = 20;
         const y = CANVAS_HEIGHT - height - 20;
         
@@ -1903,7 +1903,7 @@ class Game {
         
         let statY = y + 85;
         for (const stat of panel.stats) {
-            this.ctx.fillStyle = stat.isUpgrade ? '#4CAF50' : '#fff';
+            this.ctx.fillStyle = panel.textColor;
             this.ctx.fillText(`${stat.label}: ${stat.value}`, x + 15, statY);
             statY += 22;
         }
