@@ -174,20 +174,21 @@ export class WaveSpawner {
     const newEnemies: Enemy[] = [];
     const elapsed = currentTime - this.waveStartTime;
 
-    if (this.currentGroupIndex >= wave.groups.length) {
-      if (this.totalSpawnedInWave >= this.getTotalEnemyCount(wave)) {
-        this.isActive = false;
+    while (this.currentGroupIndex < wave.groups.length) {
+      const group = wave.groups[this.currentGroupIndex];
+      const groupStartTime = this.getGroupStartTime(wave, this.currentGroupIndex);
+      const timeSinceGroupStart = elapsed - groupStartTime;
+
+      if (timeSinceGroupStart < 0) {
+        break;
       }
-      return [];
-    }
 
-    const group = wave.groups[this.currentGroupIndex];
-    const groupStartTime = this.getGroupStartTime(wave, this.currentGroupIndex);
-    const timeSinceGroupStart = elapsed - groupStartTime;
+      while (this.enemiesInCurrentGroup < group.count) {
+        const spawnOffset = this.enemiesInCurrentGroup * group.interval;
+        if (timeSinceGroupStart < spawnOffset) {
+          break;
+        }
 
-    if (timeSinceGroupStart >= 0 && this.enemiesInCurrentGroup < group.count) {
-      const spawnOffset = this.enemiesInCurrentGroup * group.interval;
-      if (timeSinceGroupStart >= spawnOffset) {
         const enemy = this.spawnEnemy(group.enemyType);
         newEnemies.push(enemy);
         this.spawnedEnemies.push({
@@ -198,14 +199,20 @@ export class WaveSpawner {
         this.totalSpawnedInWave++;
         this.enemiesInCurrentGroup++;
       }
-    }
 
-    const groupComplete = this.enemiesInCurrentGroup >= group.count;
-    const groupDelayPassed = timeSinceGroupStart >= group.count * group.interval + wave.delayBetweenGroups;
+      const groupComplete = this.enemiesInCurrentGroup >= group.count;
+      const groupDelayPassed = timeSinceGroupStart >= group.count * group.interval + wave.delayBetweenGroups;
 
-    if (groupComplete && groupDelayPassed && this.currentGroupIndex < wave.groups.length - 1) {
+      if (!groupComplete || !groupDelayPassed) {
+        break;
+      }
+
       this.currentGroupIndex++;
       this.enemiesInCurrentGroup = 0;
+    }
+
+    if (this.currentGroupIndex >= wave.groups.length && this.totalSpawnedInWave >= this.getTotalEnemyCount(wave)) {
+      this.isActive = false;
     }
 
     return newEnemies;

@@ -2,6 +2,7 @@ import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
+import { RoundState } from './roundManager';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -145,5 +146,19 @@ assert(wave5 !== null, 'Should get wave 5');
 assertEqual(wave5!.id, 5, 'Wave should be ID 5');
 
 game3.update();
+
+const roundCompletionGame = createGameRunner();
+roundCompletionGame.start();
+roundCompletionGame.startWave(0);
+const roundCompletionStartTime = Date.now();
+roundCompletionGame.update(roundCompletionStartTime);
+roundCompletionGame.getActiveEnemies().length = 0;
+roundCompletionGame.getWaveSpawner().update(roundCompletionStartTime + 7000);
+roundCompletionGame.update(roundCompletionStartTime + 7016);
+assertEqual(
+  roundCompletionGame.getRoundManager().getState(),
+  RoundState.Intermission,
+  'Round should enter intermission after the wave spawner is inactive and no enemies remain'
+);
 
 console.log('All GameRunner tests passed!');

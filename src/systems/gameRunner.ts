@@ -777,10 +777,6 @@ export class GameRunner {
   }
 
   private checkWaveCompletion(): void {
-    if (!this.waveSpawner.isWaveActive()) {
-      return;
-    }
-
     this.roundManager.checkRoundCompletion(this.activeEnemies.length);
   }
 
