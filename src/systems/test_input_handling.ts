@@ -187,17 +187,19 @@ test('Clicking during GameOver state resets game', () => {
 
 console.log('\n--- Sell Button Click ---');
 test('sellTowerAtPosition returns success when clicking sell button', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(400, 400);
-  const placed = game.confirmPlacement(TargetingMode.First);
+  const localGame = createGameRunner();
+  localGame.start();
+  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.updatePlacementPosition(700, 100);
+  const placed = localGame.confirmPlacement(TargetingMode.First);
   if (!placed) {
-    game.cancelPlacement();
+    localGame.cancelPlacement();
     return false;
   }
   
-  game.selectTowerAtPosition(400, 400);
-  const sellResult = game.sellTowerAtPosition(440, 340);
-  game.deselectTower();
+  localGame.selectTowerAtPosition(700, 100);
+  const sellResult = localGame.sellTowerAtPosition(740, 40);
+  localGame.deselectTower();
   
   if (sellResult.success) {
     return assertTrue(sellResult.success, 'Sell successful');
@@ -207,13 +209,15 @@ test('sellTowerAtPosition returns success when clicking sell button', () => {
 
 console.log('\n--- Multiple Tower Placement ---');
 test('Can place multiple towers sequentially', () => {
-  const positions: [number, number][] = [[100, 100], [200, 200], [300, 150], [400, 250]];
+  const localGame = createGameRunner({ startingMoney: 1000 });
+  localGame.start();
+  const positions: [number, number][] = [[100, 100], [300, 50], [500, 50], [700, 100]];
   let allPlaced = true;
   
   for (const [x, y] of positions) {
-    game.startTowerPlacement(TowerType.PuffballFungus);
-    game.updatePlacementPosition(x, y);
-    const tower = game.confirmPlacement(TargetingMode.First);
+    localGame.startTowerPlacement(TowerType.PuffballFungus);
+    localGame.updatePlacementPosition(x, y);
+    const tower = localGame.confirmPlacement(TargetingMode.First);
     if (!tower) {
       allPlaced = false;
     }
@@ -279,13 +283,53 @@ test('State transitions: None -> Selecting -> None (deselect)', () => {
 });
 
 console.log('\n--- Invalid Placement Handling ---');
+test('Cannot confirm tower placement on the path', () => {
+  const localGame = createGameRunner({ startingMoney: 650 });
+  localGame.start();
+  const beforeMoney = localGame.getGameStats().money;
+  const beforeTowers = localGame.getGameStats().towers;
+  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.updatePlacementPosition(200, 300);
+  const tower = localGame.confirmPlacement(TargetingMode.First);
+  const afterStats = localGame.getGameStats();
+  const stillPlacing = localGame.getPlacementState() === PlacementState.Placing;
+  localGame.cancelPlacement();
+  return tower === null &&
+    afterStats.money === beforeMoney &&
+    afterStats.towers === beforeTowers &&
+    stillPlacing;
+});
+
+test('Cannot confirm tower placement too close to an existing tower', () => {
+  const localGame = createGameRunner({ startingMoney: 650 });
+  localGame.start();
+  const first = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  if (!first) {
+    return false;
+  }
+  const beforeMoney = localGame.getGameStats().money;
+  const beforeTowers = localGame.getGameStats().towers;
+  localGame.startTowerPlacement(TowerType.OrchidTrap);
+  localGame.updatePlacementPosition(510, 50);
+  const tower = localGame.confirmPlacement(TargetingMode.First);
+  const afterStats = localGame.getGameStats();
+  const stillPlacing = localGame.getPlacementState() === PlacementState.Placing;
+  localGame.cancelPlacement();
+  return tower === null &&
+    afterStats.money === beforeMoney &&
+    afterStats.towers === beforeTowers &&
+    stillPlacing;
+});
+
 test('Cannot place tower without enough money', () => {
-  game.cancelPlacement();
-  game.startTowerPlacement(TowerType.MyceliumNetwork);
-  game.updatePlacementPosition(200, 300);
-  (game as any).economy.money = 10;
-  const tower = game.confirmPlacement(TargetingMode.First);
-  return assertEqual(tower, null, 'Should not place without enough money');
+  const localGame = createGameRunner();
+  localGame.start();
+  localGame.startTowerPlacement(TowerType.MyceliumNetwork);
+  localGame.updatePlacementPosition(700, 100);
+  (localGame as any).economy.money = 10;
+  const tower = localGame.confirmPlacement(TargetingMode.First);
+  return assertEqual(tower, null, 'Should not place without enough money') &&
+    assertEqual(localGame.getPlacementState(), PlacementState.None, 'Placement cancelled after unaffordable tower');
 });
 
 console.log('\n--- Summary ---');
@@ -294,4 +338,5 @@ if (failed === 0) {
   console.log('✅ All input handling tests passed!');
 } else {
   console.log('❌ Some tests failed');
+  process.exit(1);
 }

@@ -528,7 +528,7 @@ export class GameRunner {
     if (!this.economy.canAfford(cost)) {
       return { canPlace: false, reason: 'Not enough money' };
     }
-    return { canPlace: true };
+    return this.validateTowerPlacement(x, y, towerType);
   }
 
   placeTower(towerType: TowerType, x: number, y: number, targetingMode: TargetingMode = TargetingMode.First): TowerWithUpgrades | null {
@@ -912,6 +912,15 @@ export class GameRunner {
       return null;
     }
 
+    const validation = this.validateTowerPlacement(
+      this.placementPosition.x,
+      this.placementPosition.y,
+      this.selectedTowerType
+    );
+    if (!validation.canPlace) {
+      return null;
+    }
+
     const cost = TOWER_STATS[this.selectedTowerType].cost;
     if (!this.economy.canAfford(cost)) {
       this.cancelPlacement();
@@ -1059,7 +1068,7 @@ export class GameRunner {
     }
 
     const range = TOWER_STATS[this.selectedTowerType].range;
-    const validation = this.validatePlacementForPreview(
+    const validation = this.validateTowerPlacement(
       this.placementPosition.x,
       this.placementPosition.y,
       this.selectedTowerType
@@ -1135,7 +1144,7 @@ export class GameRunner {
     return vec2Distance({ x: px, y: py }, { x: closestX, y: closestY });
   }
 
-  private validatePlacementForPreview(x: number, y: number, towerType: TowerType): { canPlace: boolean; reason?: string } {
+  private validateTowerPlacement(x: number, y: number, towerType: TowerType): { canPlace: boolean; reason?: string } {
     const cost = TOWER_STATS[towerType].cost;
     if (cost <= 0) {
       return { canPlace: false, reason: 'Invalid tower type' };

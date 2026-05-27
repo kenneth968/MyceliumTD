@@ -257,7 +257,7 @@ describe('GameRunner + Hotkey integration scenarios', () => {
     game.cancelPlacement();
     
     game.startTowerPlacement(TowerType.OrchidTrap);
-    game.updatePlacementPosition(200, 200);
+    game.updatePlacementPosition(300, 50);
     const tower = game.confirmPlacement();
     
     expect(tower !== null).toBeTruthy();

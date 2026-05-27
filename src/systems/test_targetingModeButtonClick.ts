@@ -37,11 +37,15 @@ function expectEqual(actual: any, expected: any, testName: string): void {
   }
 }
 
+function createRunningGame(): GameRunner {
+  const localGame = new GameRunner({ startingMoney: 5000, startingLives: 20 });
+  localGame.start();
+  return localGame;
+}
+
 console.log('\n=== Targeting Mode Button Click Handler Integration Tests ===\n');
 
-const game = new GameRunner({ startingMoney: 5000, startingLives: 20 });
-
-game.start();
+const game = createRunningGame();
 
 console.log('--- Initial targeting mode state ---');
 {
@@ -159,20 +163,21 @@ console.log('\n--- Click outside targeting mode buttons ---');
 
 console.log('\n--- Change targeting mode then place tower ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(200, 200);
+  const localGame = createRunningGame();
+  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.updatePlacementPosition(300, 50);
   
-  const renderData = game.getTargetingModeSelectionRenderData();
+  const renderData = localGame.getTargetingModeSelectionRenderData();
   const lastButton = renderData.buttons[1];
   const clickX = lastButton.position.x + lastButton.size.width / 2;
   const clickY = lastButton.position.y + lastButton.size.height / 2;
   
-  game.selectTargetingModeAtPosition(clickX, clickY);
-  expectEqual(game.getSelectedTargetingMode(), TargetingMode.Last, 'Selected mode is Last before placement');
+  localGame.selectTargetingModeAtPosition(clickX, clickY);
+  expectEqual(localGame.getSelectedTargetingMode(), TargetingMode.Last, 'Selected mode is Last before placement');
   
-  const tower = game.confirmPlacement(game.getSelectedTargetingMode());
+  const tower = localGame.confirmPlacement(localGame.getSelectedTargetingMode());
   expectTrue(tower !== null, 'Tower placed successfully');
-  expectEqual(game.getPlacementState(), PlacementState.None, 'State returns to None after placement');
+  expectEqual(localGame.getPlacementState(), PlacementState.None, 'State returns to None after placement');
   
   if (tower) {
     expectEqual(tower.targetingMode, TargetingMode.Last, 'Placed tower has Last targeting mode');
@@ -181,17 +186,18 @@ console.log('\n--- Change targeting mode then place tower ---');
 
 console.log('\n--- Place tower with Close mode then verify ---');
 {
-  game.startTowerPlacement(TowerType.OrchidTrap);
-  game.updatePlacementPosition(300, 300);
+  const localGame = createRunningGame();
+  localGame.startTowerPlacement(TowerType.OrchidTrap);
+  localGame.updatePlacementPosition(300, 300);
   
-  const renderData = game.getTargetingModeSelectionRenderData();
+  const renderData = localGame.getTargetingModeSelectionRenderData();
   const closeButton = renderData.buttons[2];
   const clickX = closeButton.position.x + closeButton.size.width / 2;
   const clickY = closeButton.position.y + closeButton.size.height / 2;
   
-  game.selectTargetingModeAtPosition(clickX, clickY);
+  localGame.selectTargetingModeAtPosition(clickX, clickY);
   
-  const tower = game.confirmPlacement(game.getSelectedTargetingMode());
+  const tower = localGame.confirmPlacement(localGame.getSelectedTargetingMode());
   expectTrue(tower !== null, 'Tower placed successfully');
   
   if (tower) {
@@ -201,17 +207,18 @@ console.log('\n--- Place tower with Close mode then verify ---');
 
 console.log('\n--- Place tower with Strong mode then verify ---');
 {
-  game.startTowerPlacement(TowerType.VenusFlytower);
-  game.updatePlacementPosition(400, 400);
+  const localGame = createRunningGame();
+  localGame.startTowerPlacement(TowerType.VenusFlytower);
+  localGame.updatePlacementPosition(700, 100);
   
-  const renderData = game.getTargetingModeSelectionRenderData();
+  const renderData = localGame.getTargetingModeSelectionRenderData();
   const strongButton = renderData.buttons[3];
   const clickX = strongButton.position.x + strongButton.size.width / 2;
   const clickY = strongButton.position.y + strongButton.size.height / 2;
   
-  game.selectTargetingModeAtPosition(clickX, clickY);
+  localGame.selectTargetingModeAtPosition(clickX, clickY);
   
-  const tower = game.confirmPlacement(game.getSelectedTargetingMode());
+  const tower = localGame.confirmPlacement(localGame.getSelectedTargetingMode());
   expectTrue(tower !== null, 'Tower placed successfully');
   
   if (tower) {
@@ -292,27 +299,28 @@ console.log('\n--- Each tower type can be placed with Strong targeting mode ---'
     { type: TowerType.PuffballFungus, x: 100, y: 450 },
     { type: TowerType.OrchidTrap, x: 150, y: 450 },
     { type: TowerType.VenusFlytower, x: 300, y: 450 },
-    { type: TowerType.BioluminescentShroom, x: 350, y: 450 },
+    { type: TowerType.BioluminescentShroom, x: 700, y: 450 },
     { type: TowerType.StinkhornLine, x: 500, y: 450 }
   ];
   
   for (const { type: towerType, x, y } of towerTypes) {
     console.log(`  Testing ${towerType} at (${x}, ${y})`);
-    game.startTowerPlacement(towerType);
-    game.updatePlacementPosition(x, y);
+    const localGame = createRunningGame();
+    localGame.startTowerPlacement(towerType);
+    localGame.updatePlacementPosition(x, y);
     
-    const renderData = game.getTargetingModeSelectionRenderData();
+    const renderData = localGame.getTargetingModeSelectionRenderData();
     expectEqual(renderData.buttons.length, 4, `${towerType}: Has 4 targeting mode buttons`);
     
     const strongButton = renderData.buttons[3];
     const clickX = strongButton.position.x + strongButton.size.width / 2;
     const clickY = strongButton.position.y + strongButton.size.height / 2;
     
-    const result = game.selectTargetingModeAtPosition(clickX, clickY);
+    const result = localGame.selectTargetingModeAtPosition(clickX, clickY);
     expectTrue(result, `${towerType}: Click on Strong button returns true`);
-    expectEqual(game.getSelectedTargetingMode(), TargetingMode.Strong, `${towerType}: Selected mode is Strong`);
+    expectEqual(localGame.getSelectedTargetingMode(), TargetingMode.Strong, `${towerType}: Selected mode is Strong`);
     
-    const tower = game.confirmPlacement(game.getSelectedTargetingMode());
+    const tower = localGame.confirmPlacement(localGame.getSelectedTargetingMode());
     if (tower === null) {
       console.log(`    DEBUG: confirmPlacement returned null`);
     }

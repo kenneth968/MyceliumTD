@@ -81,7 +81,7 @@ test('livesMoneyDisplay is defined', () => renderData.livesMoneyDisplay !== unde
 // Targeting mode buttons when placing
 console.log('\nPlacement preview tests:');
 game.startTowerPlacement(TowerType.PuffballFungus);
-game.updatePlacementPosition(400, 300);
+game.updatePlacementPosition(700, 100);
 
 const placementRenderData = renderer.render(game);
 test('targeting mode buttons appear when placing', () => placementRenderData.targetingModeButtons.length > 0);
