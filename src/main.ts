@@ -1,6 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
@@ -877,6 +877,7 @@ class Game {
 
         this.drawPath(renderData.path);
         this.drawLingeringFields(renderData.lingeringFields);
+        this.drawSeededPayloads(renderData.seededPayloads);
         this.drawNetworkConnections(renderData.networkConnections);
         this.drawPlacementPreview(renderData.placementPreview);
         this.drawTowers(renderData);
@@ -1226,6 +1227,42 @@ class Game {
             ctx.beginPath();
             ctx.arc(field.position.x, field.position.y, radius * 0.55, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(202, 255, 128, 0.16)';
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    private drawSeededPayloads(payloads: SeededPayloadRenderData[]): void {
+        if (payloads.length === 0) return;
+
+        const time = performance.now() / 1000;
+        const ctx = this.ctx;
+
+        for (const payload of payloads) {
+            const pulse = 0.85 + Math.sin(time * 8 + payload.id) * 0.15;
+            const coreRadius = 7 + pulse * 2;
+
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.9, payload.alpha);
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, payload.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 207, 102, 0.22)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 8]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, coreRadius, 0, Math.PI * 2);
+            ctx.fillStyle = payload.color;
+            ctx.fill();
+            ctx.strokeStyle = payload.borderColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, coreRadius * 0.45, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(90, 54, 20, 0.55)';
             ctx.fill();
             ctx.restore();
         }

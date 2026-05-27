@@ -1,4 +1,4 @@
-import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection, LingeringField } from './gameRunner';
+import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection, LingeringField, SeededPayload } from './gameRunner';
 import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
@@ -47,6 +47,7 @@ export interface GameFrameRenderData {
   projectiles: ProjectileRenderData[];
   networkConnections: NetworkConnectionRenderData[];
   lingeringFields: LingeringFieldRenderData[];
+  seededPayloads: SeededPayloadRenderData[];
   
   placementPreview: PlacementPreviewWithTargetingRenderData | null;
   towerSelection: TowerSelectionPreviewRenderData | null;
@@ -104,6 +105,18 @@ export interface LingeringFieldRenderData {
   duration: number;
   remaining: number;
   slowStrength: number;
+  color: string;
+  borderColor: string;
+  alpha: number;
+}
+
+export interface SeededPayloadRenderData {
+  id: number;
+  type: SeededPayload['type'];
+  position: Vec2;
+  radius: number;
+  delay: number;
+  remaining: number;
   color: string;
   borderColor: string;
   alpha: number;
@@ -321,6 +334,7 @@ export class GameRenderer {
     );
     const networkConnections = this.getNetworkConnectionRenderData(game.getNetworkConnections());
     const lingeringFields = this.getLingeringFieldRenderData(game.getLingeringFields());
+    const seededPayloads = this.getSeededPayloadRenderData(game.getSeededPayloads());
 
     this.updateTrails(activeProjectiles, deltaTime);
 
@@ -352,6 +366,7 @@ export class GameRenderer {
       projectiles: projectileRenderData,
       networkConnections,
       lingeringFields,
+      seededPayloads,
       placementPreview,
       towerSelection,
       healthBars: healthBarsData.healthBars,
@@ -441,6 +456,20 @@ export class GameRenderer {
       color: 'rgba(136, 216, 90, 0.22)',
       borderColor: 'rgba(202, 255, 128, 0.7)',
       alpha: Math.max(0.15, field.remaining / field.duration),
+    }));
+  }
+
+  private getSeededPayloadRenderData(payloads: SeededPayload[]): SeededPayloadRenderData[] {
+    return payloads.map(payload => ({
+      id: payload.id,
+      type: payload.type,
+      position: { ...payload.position },
+      radius: payload.radius,
+      delay: payload.delay,
+      remaining: payload.remaining,
+      color: 'rgba(255, 207, 102, 0.75)',
+      borderColor: 'rgba(255, 248, 184, 0.95)',
+      alpha: Math.max(0.25, payload.remaining / payload.delay),
     }));
   }
 

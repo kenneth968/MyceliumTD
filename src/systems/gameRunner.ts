@@ -166,6 +166,17 @@ export interface LingeringField {
   sourceTowerId: number;
 }
 
+export interface SeededPayload {
+  id: number;
+  type: 'stinkhorn_seeded_payload';
+  position: Vec2;
+  radius: number;
+  damage: number;
+  delay: number;
+  remaining: number;
+  sourceTowerId: number;
+}
+
 export interface GameConfig {
   startingMoney?: number;
   startingLives?: number;
@@ -188,6 +199,9 @@ const PUFFBALL_FIELD_DURATION = 8000;
 const PUFFBALL_FIELD_SLOW_STRENGTH = 0.2;
 const PUFFBALL_FIELD_STATUS_DURATION = 300;
 const PUFFBALL_FIELD_RADIUS = 40;
+const SEEDED_PAYLOAD_COUNT = 3;
+const SEEDED_PAYLOAD_DELAY = 1000;
+const SEEDED_PAYLOAD_RADIUS = 35;
 
 export class GameRunner {
   private state: GameState;
@@ -199,6 +213,7 @@ export class GameRunner {
   private activeEnemies: Enemy[];
   private activeProjectiles: Projectile[];
   private activeLingeringFields: LingeringField[];
+  private activeSeededPayloads: SeededPayload[];
   private config: GameConfig;
   private currentTime: number;
   private simulationTime: number;
@@ -208,6 +223,7 @@ export class GameRunner {
   private nextEnemyId: number;
   private nextProjectileId: number;
   private nextLingeringFieldId: number;
+  private nextSeededPayloadId: number;
   private towers: Tower[];
   private enemies: Enemy[];
   private placementState: PlacementState;
@@ -261,6 +277,7 @@ export class GameRunner {
     this.activeEnemies = [];
     this.activeProjectiles = [];
     this.activeLingeringFields = [];
+    this.activeSeededPayloads = [];
     this.state = GameState.Idle;
     this.currentTime = 0;
     this.simulationTime = 0;
@@ -270,6 +287,7 @@ export class GameRunner {
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
     this.nextLingeringFieldId = 1;
+    this.nextSeededPayloadId = 1;
     this.towers = [];
     this.enemies = [];
     this.placementState = PlacementState.None;
@@ -450,6 +468,13 @@ export class GameRunner {
     }));
   }
 
+  getSeededPayloads(): SeededPayload[] {
+    return this.activeSeededPayloads.map(payload => ({
+      ...payload,
+      position: { ...payload.position },
+    }));
+  }
+
   getConfig(): GameConfig {
     return { ...this.config };
   }
@@ -492,6 +517,7 @@ export class GameRunner {
     this.activeEnemies = [];
     this.activeProjectiles = [];
     this.activeLingeringFields = [];
+    this.activeSeededPayloads = [];
     this.currentTime = 0;
     this.simulationTime = 0;
     this.lastUpdateTime = 0;
@@ -500,6 +526,7 @@ export class GameRunner {
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
     this.nextLingeringFieldId = 1;
+    this.nextSeededPayloadId = 1;
     this.towers = [];
     this.enemies = [];
     this.placementState = PlacementState.None;
@@ -730,6 +757,39 @@ export class GameRunner {
     }
   }
 
+  private updateSeededPayloads(deltaTime: number): void {
+    for (let i = this.activeSeededPayloads.length - 1; i >= 0; i--) {
+      const payload = this.activeSeededPayloads[i];
+      payload.remaining -= deltaTime;
+
+      if (payload.remaining > 0) {
+        continue;
+      }
+
+      this.detonateSeededPayload(payload);
+      this.activeSeededPayloads.splice(i, 1);
+    }
+  }
+
+  private detonateSeededPayload(payload: SeededPayload): void {
+    this.eventQueue.push({
+      type: 'area_hit',
+      position: { ...payload.position },
+      towerType: TowerType.StinkhornLine,
+      radius: payload.radius,
+    });
+
+    for (const enemy of this.activeEnemies) {
+      if (!enemy.alive || enemy.hp <= 0) {
+        continue;
+      }
+
+      if (vec2Distance(enemy.position, payload.position) <= payload.radius) {
+        applyDamage(enemy, payload.damage);
+      }
+    }
+  }
+
   private updateTowers(deltaTime: number): void {
     for (const placed of this.placedTowers) {
       const tower = placed.tower;
@@ -832,6 +892,10 @@ export class GameRunner {
           this.createPuffballLingeringField(projectile);
         }
 
+        if (projectile.towerType === TowerType.StinkhornLine) {
+          this.createSeededPayloads(projectile);
+        }
+
         this.activeProjectiles.splice(i, 1);
         continue;
       }
@@ -839,6 +903,42 @@ export class GameRunner {
       if (!projectile.alive) {
         this.activeProjectiles.splice(i, 1);
       }
+    }
+  }
+
+  private createSeededPayloads(projectile: Projectile): void {
+    if (projectile.towerType !== TowerType.StinkhornLine || projectile.sourceTowerId === undefined) {
+      return;
+    }
+
+    const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
+    if (!placed ||
+        placed.tower.upgradeLevels[UpgradePath.Special] <= 0 ||
+        !this.isTowerConnectedToNetwork(placed.tower.id)) {
+      return;
+    }
+
+    const offsets: Vec2[] = [
+      { x: 0, y: 0 },
+      { x: 18, y: -12 },
+      { x: -18, y: 12 },
+    ];
+
+    for (let i = 0; i < SEEDED_PAYLOAD_COUNT; i++) {
+      const offset = offsets[i] ?? { x: 0, y: 0 };
+      this.activeSeededPayloads.push({
+        id: this.nextSeededPayloadId++,
+        type: 'stinkhorn_seeded_payload',
+        position: {
+          x: projectile.position.x + offset.x,
+          y: projectile.position.y + offset.y,
+        },
+        radius: SEEDED_PAYLOAD_RADIUS,
+        damage: projectile.damage,
+        delay: SEEDED_PAYLOAD_DELAY,
+        remaining: SEEDED_PAYLOAD_DELAY,
+        sourceTowerId: placed.tower.id,
+      });
     }
   }
 
@@ -938,6 +1038,7 @@ export class GameRunner {
     if (this.state === GameState.Playing) {
       this.spawnEnemyFromWave();
       const speedDeltaTime = deltaTime * this.gameSpeed;
+      this.updateSeededPayloads(speedDeltaTime);
       this.updateLingeringFields(speedDeltaTime);
       this.updateEnemies(speedDeltaTime);
       this.updateTowers(speedDeltaTime);

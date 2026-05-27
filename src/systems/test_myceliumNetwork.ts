@@ -176,4 +176,47 @@ fungalFieldGame.update(9500);
 const expiredFields = fungalFieldGame.getLingeringFields();
 assertEqual(expiredFields.length, 0, 'Lingering fungal field should expire after its 8 second duration');
 
+const seededPayloadGame = createGameRunner({ startingMoney: 5000 });
+seededPayloadGame.start();
+
+const seededStinkhorn = seededPayloadGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+assert(seededStinkhorn !== null, 'Should place a Stinkhorn tower near the kernel network');
+assertEqual(seededPayloadGame.isTowerConnectedToNetwork(seededStinkhorn!.id), true, 'Stinkhorn tower should be connected before buying the special upgrade');
+
+const seededUpgrade = seededPayloadGame.upgradeTower(seededStinkhorn!.id, UpgradePath.Special);
+assertEqual(seededUpgrade.success, true, 'Connected Stinkhorn should buy the bottom/special upgrade');
+
+const seededTarget = createEnemy(903, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
+seededTarget.pathDistance = 1520;
+seededTarget.pathProgress = 1520;
+seededTarget.position = { ...seededPayloadGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
+seededTarget.speed = 0;
+seededTarget.baseSpeed = 0;
+seededPayloadGame.getActiveEnemies().push(seededTarget);
+
+seededPayloadGame.update(1000);
+seededPayloadGame.update(1300);
+
+const seededPayloads = seededPayloadGame.getSeededPayloads();
+assertEqual(seededPayloads.length, 3, 'Connected Stinkhorn special hit should plant three delayed spore payloads');
+assertEqual(seededPayloads[0].delay, 1000, 'Seeded payloads should pop after a one-second delay');
+assertEqual(seededPayloads[0].radius, 35, 'Seeded payloads should have a readable pop radius');
+
+seededPayloadGame.getActiveProjectiles().length = 0;
+seededStinkhorn!.lastFireTime = 999999;
+
+const delayedVictim = createEnemy(904, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
+delayedVictim.pathDistance = 1520;
+delayedVictim.pathProgress = 1520;
+delayedVictim.position = { ...seededPayloadGame.getPath().getPointAtDistance(delayedVictim.pathDistance).position };
+delayedVictim.speed = 0;
+delayedVictim.baseSpeed = 0;
+seededPayloadGame.getActiveEnemies().push(delayedVictim);
+
+seededPayloadGame.update(2300);
+
+assert(delayedVictim.hp < delayedVictim.maxHp, 'Seeded payload detonation should damage enemies still in the pop zone');
+const spentPayloads = seededPayloadGame.getSeededPayloads();
+assertEqual(spentPayloads.length, 0, 'Seeded payloads should be removed after they detonate');
+
 console.log('All MyceliumNetwork tests passed!');

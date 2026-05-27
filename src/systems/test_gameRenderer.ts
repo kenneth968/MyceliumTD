@@ -132,6 +132,32 @@ test('lingering fungal field render data is visible and timed', () =>
   renderedFields?.[0]?.color === 'rgba(136, 216, 90, 0.22)'
 );
 
+const seededGame = new GameRunner({ startingMoney: 5000 });
+seededGame.start();
+const seededTower = seededGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+if (seededTower) {
+  seededGame.upgradeTower(seededTower.id, UpgradePath.Special);
+  const seededTarget = createEnemy(911, EnemyType.ArmoredBeetle, seededGame.getPath());
+  seededTarget.pathDistance = 1520;
+  seededTarget.pathProgress = 1520;
+  seededTarget.position = { ...seededGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
+  seededTarget.speed = 0;
+  seededTarget.baseSpeed = 0;
+  seededGame.getActiveEnemies().push(seededTarget);
+  seededGame.update(1000);
+  seededGame.update(1300);
+}
+const seededRenderData = renderer.render(seededGame);
+const renderedPayloads = seededRenderData.seededPayloads;
+test('active seeded payloads appear in frame render data', () =>
+  Array.isArray(renderedPayloads) && renderedPayloads.length === 3
+);
+test('seeded payload render data is visible and delayed', () =>
+  renderedPayloads?.[0]?.radius === 35 &&
+  renderedPayloads?.[0]?.delay === 1000 &&
+  renderedPayloads?.[0]?.color === 'rgba(255, 207, 102, 0.75)'
+);
+
 // Targeting mode buttons when placing
 console.log('\nPlacement preview tests:');
 game.startTowerPlacement(TowerType.PuffballFungus);
