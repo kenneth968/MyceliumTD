@@ -2,6 +2,8 @@ import { GameRunner, GameState, createGameRunner } from './gameRunner';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
+import { createEnemy, StatusEffectType, hasStatusEffect } from '../entities/enemy';
+import { EnemyType } from './wave';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -94,5 +96,37 @@ assertEqual(unlockedSpecialUpgrade.newTier, 1, 'Connected bottom/special upgrade
 const chainedTower = kernelConnectedGame.placeTower(TowerType.OrchidTrap, 600, 180, TargetingMode.First);
 assert(chainedTower !== null, 'Should place a tower chained from a connected tower');
 assertEqual(kernelConnectedGame.isTowerConnectedToNetwork(chainedTower!.id), true, 'Nearby tower should connect through an already-connected tower');
+
+const networkRevealGame = createGameRunner({ startingMoney: 5000 });
+networkRevealGame.start();
+
+const oracle = networkRevealGame.placeTower(TowerType.BioluminescentShroom, 720, 250, TargetingMode.First);
+assert(oracle !== null, 'Should place a Bioluminescent tower near the kernel network');
+assertEqual(networkRevealGame.isTowerConnectedToNetwork(oracle!.id), true, 'Bioluminescent tower should be connected before buying the special upgrade');
+
+const networkRevealUpgrade = networkRevealGame.upgradeTower(oracle!.id, UpgradePath.Special);
+assertEqual(networkRevealUpgrade.success, true, 'Connected Bioluminescent should buy the bottom/special upgrade');
+
+const camoEnemy = createEnemy(900, EnemyType.WhiteMoth, networkRevealGame.getPath());
+camoEnemy.pathDistance = 1540;
+camoEnemy.pathProgress = 1540;
+camoEnemy.position = { ...networkRevealGame.getPath().getPointAtDistance(camoEnemy.pathDistance).position };
+camoEnemy.speed = 0;
+camoEnemy.baseSpeed = 0;
+networkRevealGame.getActiveEnemies().push(camoEnemy);
+
+networkRevealGame.update(1000);
+networkRevealGame.update(1400);
+
+assert(hasStatusEffect(camoEnemy, StatusEffectType.Revealed), 'Network reveal should reveal camo enemies');
+assert(hasStatusEffect(camoEnemy, StatusEffectType.Slow), 'Network reveal should slow revealed enemies');
+
+const revealEffect = camoEnemy.statusEffects.find(effect => effect.type === StatusEffectType.Revealed);
+const slowEffect = camoEnemy.statusEffects.find(effect => effect.type === StatusEffectType.Slow);
+assert(revealEffect !== undefined, 'Revealed effect should be present after network reveal hit');
+assert(slowEffect !== undefined, 'Slow effect should be present after network reveal hit');
+assertEqual(revealEffect!.duration, 1500, 'Network reveal should last 50% longer than the tier 1 base duration');
+assertEqual(slowEffect!.duration, 1500, 'Network reveal slow should match the reveal duration');
+assertEqual(slowEffect!.strength, 0.1, 'Network reveal slow should apply a 10% slow');
 
 console.log('All MyceliumNetwork tests passed!');

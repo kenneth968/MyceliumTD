@@ -171,6 +171,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
 
 const KERNEL_NETWORK_RADIUS = 180;
 const NETWORK_LINK_RADIUS = 160;
+const NETWORK_REVEAL_DURATION_MULTIPLIER = 1.5;
+const NETWORK_REVEAL_SLOW_STRENGTH = 0.1;
 
 export class GameRunner {
   private state: GameState;
@@ -711,6 +713,20 @@ export class GameRunner {
 
       const projectile = fireTowerWithProjectile(tower, this.activeEnemies, this.path, this.currentTime, finalEffectStrength, finalEffectDuration, finalAreaRadius);
       if (projectile) {
+        if (tower.towerType === TowerType.BioluminescentShroom &&
+            tower.upgradeLevels[UpgradePath.Special] > 0 &&
+            this.isTowerConnectedToNetwork(tower.id)) {
+          const revealDuration = Math.round((projectile.effectDuration ?? tower.effectDuration) * NETWORK_REVEAL_DURATION_MULTIPLIER);
+          projectile.effectDuration = revealDuration;
+          projectile.extraHitEffects = [
+            ...(projectile.extraHitEffects ?? []),
+            {
+              type: 'slow',
+              strength: NETWORK_REVEAL_SLOW_STRENGTH,
+              duration: revealDuration,
+            },
+          ];
+        }
         projectile.id = this.nextProjectileId++;
         this.activeProjectiles.push(projectile);
       }
@@ -729,6 +745,7 @@ export class GameRunner {
           projectile.effectStrength,
           projectile.effectDuration
         );
+        effects.push(...(projectile.extraHitEffects ?? []));
         applyHitEffects(result.target as any, effects, deltaTime);
         applyDamage(result.target, projectile.damage);
 

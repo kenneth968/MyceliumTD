@@ -90,6 +90,13 @@ export interface Projectile {
   effectStrength?: number;
   effectDuration?: number;
   areaRadius?: number;
+  extraHitEffects?: ProjectileHitEffect[];
+}
+
+export interface ProjectileHitEffect {
+  type: 'damage' | 'slow' | 'poison' | 'stun' | 'area_damage' | 'instakill' | 'reveal_camo';
+  strength: number;
+  duration?: number;
 }
 
 export interface Tower extends TowerBase {
