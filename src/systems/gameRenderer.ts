@@ -1,4 +1,4 @@
-import { GameRunner, GameState, PlacementState, PlacedTower } from './gameRunner';
+import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection } from './gameRunner';
 import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
@@ -45,6 +45,7 @@ export interface GameFrameRenderData {
   towers: TowerRenderCollection;
   enemies: EnemyRenderCollection;
   projectiles: ProjectileRenderData[];
+  networkConnections: NetworkConnectionRenderData[];
   
   placementPreview: PlacementPreviewWithTargetingRenderData | null;
   towerSelection: TowerSelectionPreviewRenderData | null;
@@ -81,6 +82,17 @@ export interface SellButtonRenderData {
   size: { width: number; height: number };
   sellValue: number;
   isHovered: boolean;
+}
+
+export interface NetworkConnectionRenderData {
+  sourceTowerId: number | null;
+  sourcePosition: Vec2;
+  targetTowerId: number;
+  targetPosition: Vec2;
+  sourceType: NetworkConnection['sourceType'];
+  color: string;
+  glowColor: string;
+  width: number;
 }
 
 export interface CameraState {
@@ -293,6 +305,7 @@ export class GameRenderer {
       activeProjectiles,
       this.previousProjectilePositions
     );
+    const networkConnections = this.getNetworkConnectionRenderData(game.getNetworkConnections());
 
     this.updateTrails(activeProjectiles, deltaTime);
 
@@ -322,6 +335,7 @@ export class GameRenderer {
       towers: towerCollection,
       enemies: enemyCollection,
       projectiles: projectileRenderData,
+      networkConnections,
       placementPreview,
       towerSelection,
       healthBars: healthBarsData.healthBars,
@@ -383,6 +397,19 @@ export class GameRenderer {
       isSelected: mode === selectedMode,
       label: labels[mode],
       color: colors[mode],
+    }));
+  }
+
+  private getNetworkConnectionRenderData(connections: NetworkConnection[]): NetworkConnectionRenderData[] {
+    return connections.map(connection => ({
+      sourceTowerId: connection.sourceTowerId,
+      sourcePosition: { ...connection.sourcePosition },
+      targetTowerId: connection.targetTowerId,
+      targetPosition: { ...connection.targetPosition },
+      sourceType: connection.sourceType,
+      color: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.7)' : 'rgba(186, 120, 220, 0.7)',
+      glowColor: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(142, 68, 173, 0.2)',
+      width: connection.sourceType === 'kernel' ? 3 : 2,
     }));
   }
 

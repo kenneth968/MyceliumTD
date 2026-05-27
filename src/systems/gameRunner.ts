@@ -147,6 +147,14 @@ export interface PlacedTower {
   y: number;
 }
 
+export interface NetworkConnection {
+  sourceTowerId: number | null;
+  sourcePosition: Vec2;
+  targetTowerId: number;
+  targetPosition: Vec2;
+  sourceType: 'kernel' | 'tower' | 'mycelium';
+}
+
 export interface GameConfig {
   startingMoney?: number;
   startingLives?: number;
@@ -1498,17 +1506,20 @@ export class GameRunner {
     return this.path.getPointAtDistance(this.path.getTotalLength()).position;
   }
 
-  private getNetworkConnectedTowerIds(): Set<number> {
+  private buildNetworkGraph(): { connectedTowerIds: Set<number>; connections: NetworkConnection[] } {
     const connected = new Set<number>();
-    const anchors: Array<{ position: Vec2; range: number }> = [
-      { position: this.getKernelNetworkPosition(), range: KERNEL_NETWORK_RADIUS },
+    const connections: NetworkConnection[] = [];
+    const anchors: Array<{ towerId: number | null; position: Vec2; range: number; sourceType: NetworkConnection['sourceType'] }> = [
+      { towerId: null, position: this.getKernelNetworkPosition(), range: KERNEL_NETWORK_RADIUS, sourceType: 'kernel' },
     ];
 
     for (const mycelium of this.getMyceliumTowers()) {
       connected.add(mycelium.id);
       anchors.push({
+        towerId: mycelium.id,
         position: mycelium.position,
         range: mycelium.areaRadius ?? NETWORK_LINK_RADIUS,
+        sourceType: 'mycelium',
       });
     }
 
@@ -1522,23 +1533,41 @@ export class GameRunner {
           continue;
         }
 
-        const isConnected = anchors.some(anchor =>
-          vec2Distance(anchor.position, tower.position) <= anchor.range
-        );
+        const source = anchors.find(anchor => vec2Distance(anchor.position, tower.position) <= anchor.range);
 
-        if (isConnected) {
+        if (source) {
           connected.add(tower.id);
-          anchors.push({ position: tower.position, range: NETWORK_LINK_RADIUS });
+          connections.push({
+            sourceTowerId: source.towerId,
+            sourcePosition: { ...source.position },
+            targetTowerId: tower.id,
+            targetPosition: { ...tower.position },
+            sourceType: source.sourceType,
+          });
+          anchors.push({
+            towerId: tower.id,
+            position: tower.position,
+            range: NETWORK_LINK_RADIUS,
+            sourceType: 'tower',
+          });
           changed = true;
         }
       }
     }
 
-    return connected;
+    return { connectedTowerIds: connected, connections };
+  }
+
+  private getNetworkConnectedTowerIds(): Set<number> {
+    return this.buildNetworkGraph().connectedTowerIds;
   }
 
   isTowerConnectedToNetwork(towerId: number): boolean {
     return this.getNetworkConnectedTowerIds().has(towerId);
+  }
+
+  getNetworkConnections(): NetworkConnection[] {
+    return this.buildNetworkGraph().connections;
   }
 
   private getTowersInNetworkRange(mycelium: TowerWithUpgrades): TowerWithUpgrades[] {

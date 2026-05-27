@@ -77,6 +77,31 @@ test('healthBars is defined', () => Array.isArray(renderData.healthBars));
 test('waveAnnouncement is defined', () => renderData.waveAnnouncement !== undefined);
 test('waveProgress is defined', () => renderData.waveProgress !== undefined);
 test('livesMoneyDisplay is defined', () => renderData.livesMoneyDisplay !== undefined);
+test('network connections are defined', () => Array.isArray(renderData.networkConnections));
+
+const networkGame = new GameRunner({ startingMoney: 5000 });
+networkGame.start();
+const kernelConnectedTower = networkGame.placeTower(TowerType.PuffballFungus, 720, 180, TargetingMode.First);
+const chainedTower = networkGame.placeTower(TowerType.OrchidTrap, 600, 180, TargetingMode.First);
+const farTower = networkGame.placeTower(TowerType.StinkhornLine, 100, 100, TargetingMode.First);
+const networkRenderData = renderer.render(networkGame);
+test('kernel-connected tower has a network line', () =>
+  kernelConnectedTower !== null &&
+  networkRenderData.networkConnections.some(connection =>
+    connection.targetTowerId === kernelConnectedTower.id && connection.sourceTowerId === null
+  )
+);
+test('chained tower has a network line from a connected tower', () =>
+  kernelConnectedTower !== null &&
+  chainedTower !== null &&
+  networkRenderData.networkConnections.some(connection =>
+    connection.targetTowerId === chainedTower.id && connection.sourceTowerId === kernelConnectedTower.id
+  )
+);
+test('unconnected tower does not get a network line', () =>
+  farTower !== null &&
+  !networkRenderData.networkConnections.some(connection => connection.targetTowerId === farTower.id)
+);
 
 // Targeting mode buttons when placing
 console.log('\nPlacement preview tests:');

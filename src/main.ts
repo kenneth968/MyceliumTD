@@ -1,6 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
@@ -876,7 +876,7 @@ class Game {
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
         this.drawPath(renderData.path);
-        this.drawNetworkConnections();
+        this.drawNetworkConnections(renderData.networkConnections);
         this.drawPlacementPreview(renderData.placementPreview);
         this.drawTowers(renderData);
         this.drawEnemies(renderData);
@@ -1151,53 +1151,49 @@ class Game {
         }
     }
     
-    private drawNetworkConnections(): void {
-        const buffedTowers = this.game.getNetworkBuffedTowers();
-        if (buffedTowers.length === 0) return;
+    private drawNetworkConnections(connections: NetworkConnectionRenderData[]): void {
+        if (connections.length === 0) return;
 
         const time = performance.now() / 1000;
         const ctx = this.ctx;
 
-        for (const entry of buffedTowers) {
-            const target = entry.tower;
+        for (const connection of connections) {
+            const target = connection.targetPosition;
 
-            // Draw buff glow on buffed tower
             const pulseAlpha = 0.15 + Math.sin(time * 3) * 0.08;
             ctx.beginPath();
-            ctx.arc(target.position.x, target.position.y, 18, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(142, 68, 173, ${pulseAlpha})`;
+            ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
+            ctx.fillStyle = connection.sourceType === 'kernel'
+                ? `rgba(74, 222, 128, ${pulseAlpha})`
+                : `rgba(142, 68, 173, ${pulseAlpha})`;
             ctx.fill();
 
-            // Draw connection lines from each source
-            for (const source of entry.sources) {
-                const dx = target.position.x - source.position.x;
-                const dy = target.position.y - source.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+            const source = connection.sourcePosition;
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dashOffset = (time * 40) % 20;
 
-                // Animated dash offset for "flowing" effect
-                const dashOffset = (time * 40) % 20;
+            ctx.beginPath();
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            const glowAlpha = 0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08;
+            ctx.strokeStyle = connection.sourceType === 'kernel'
+                ? `rgba(74, 222, 128, ${glowAlpha})`
+                : `rgba(142, 68, 173, ${glowAlpha})`;
+            ctx.lineWidth = connection.width + 4;
+            ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(source.position.x, source.position.y);
-                ctx.lineTo(target.position.x, target.position.y);
-
-                // Glow layer
-                ctx.strokeStyle = `rgba(142, 68, 173, ${0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08})`;
-                ctx.lineWidth = 6;
-                ctx.stroke();
-
-                // Core line with animated dashes
-                ctx.beginPath();
-                ctx.moveTo(source.position.x, source.position.y);
-                ctx.lineTo(target.position.x, target.position.y);
-                ctx.strokeStyle = `rgba(186, 120, 220, ${0.5 + Math.sin(time * 2.5) * 0.2})`;
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 12]);
-                ctx.lineDashOffset = -dashOffset;
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.lineDashOffset = 0;
-            }
+            ctx.beginPath();
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            ctx.strokeStyle = connection.color;
+            ctx.lineWidth = connection.width;
+            ctx.setLineDash([8, 12]);
+            ctx.lineDashOffset = -dashOffset;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
         }
     }
 
