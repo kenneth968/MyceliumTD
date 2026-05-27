@@ -172,6 +172,7 @@ export class GameRunner {
   private activeProjectiles: Projectile[];
   private config: GameConfig;
   private currentTime: number;
+  private simulationTime: number;
   private lastUpdateTime: number;
   private hasUpdateTimestamp: boolean;
   private nextTowerId: number;
@@ -231,6 +232,7 @@ export class GameRunner {
     this.activeProjectiles = [];
     this.state = GameState.Idle;
     this.currentTime = 0;
+    this.simulationTime = 0;
     this.lastUpdateTime = 0;
     this.hasUpdateTimestamp = false;
     this.nextTowerId = 1;
@@ -451,6 +453,7 @@ export class GameRunner {
     this.activeEnemies = [];
     this.activeProjectiles = [];
     this.currentTime = 0;
+    this.simulationTime = 0;
     this.lastUpdateTime = 0;
     this.hasUpdateTimestamp = false;
     this.nextTowerId = 1;
@@ -807,10 +810,20 @@ export class GameRunner {
     }
 
     const frameTime = currentTime !== undefined ? currentTime : Date.now();
-    const deltaTime = this.hasUpdateTimestamp
+    const hadUpdateTimestamp = this.hasUpdateTimestamp;
+    const deltaTime = hadUpdateTimestamp
       ? Math.max(0, frameTime - this.lastUpdateTime)
       : 0;
-    this.currentTime = frameTime;
+
+    if (this.simulationTime === 0) {
+      this.simulationTime = frameTime;
+    }
+
+    if (this.state === GameState.Playing && hadUpdateTimestamp) {
+      this.simulationTime += deltaTime * this.gameSpeed;
+    }
+
+    this.currentTime = this.state === GameState.Playing ? this.simulationTime : frameTime;
     this.lastUpdateTime = frameTime;
     this.hasUpdateTimestamp = true;
 
