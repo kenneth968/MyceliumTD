@@ -7,7 +7,7 @@ import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
 import { Vec2 } from './utils/vec2';
 import { TowerGrowthStage, getTowerBodyShape } from './systems/towerRender';
-import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './systems/placementPreview';
+import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData, getUpgradeIndicatorVisualHeight } from './systems/placementPreview';
 import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { PauseMenuRenderData } from './systems/pauseMenuRender';
@@ -741,6 +741,11 @@ class Game {
                 setTimeout(() => this.game.cancelPlacement(), 100);
             }
         } else if (placementState === PlacementState.Selecting) {
+            const upgradeResult = this.game.upgradeTowerAtPosition(x, y);
+            if (upgradeResult.path) {
+                return;
+            }
+
             const sellResult = this.game.sellTowerAtPosition(x, y);
             if (sellResult.success) {
                 return;
@@ -1476,19 +1481,17 @@ class Game {
 
         if (selection.upgradeIndicators) {
             const tower = selection.selection;
-            const indicatorHeight = 6;
-            const indicatorWidth = 30;
-            const indicatorSpacing = 8;
-            const totalWidth = (indicatorWidth + indicatorSpacing) * 4 - indicatorSpacing;
-            let startX = tower.position.x - totalWidth / 2;
-            const startY = tower.position.y + tower.size + 15;
+            const indicatorHeight = getUpgradeIndicatorVisualHeight();
+            const labelY = (selection.upgradeIndicators[0]?.position.y ?? tower.position.y + tower.size + 15) + indicatorHeight + 14;
 
             const paths = ['Damage', 'Range', 'FireRate', 'Special'];
             const colors = ['#FF4444', '#44FF44', '#4444FF', '#FF44FF'];
 
             for (let i = 0; i < selection.upgradeIndicators.length; i++) {
                 const indicator = selection.upgradeIndicators[i];
-                const x = startX + i * (indicatorWidth + indicatorSpacing);
+                const x = indicator.position.x;
+                const startY = indicator.position.y;
+                const indicatorWidth = indicator.size.width;
 
                 this.ctx.fillStyle = '#333';
                 this.ctx.fillRect(x, startY, indicatorWidth, indicatorHeight);
@@ -1511,7 +1514,7 @@ class Game {
             this.ctx.font = '10px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#aaa';
-            this.ctx.fillText(paths.join(' | '), tower.position.x, startY + indicatorHeight + 14);
+            this.ctx.fillText(paths.join(' | '), tower.position.x, labelY);
         }
     }
 

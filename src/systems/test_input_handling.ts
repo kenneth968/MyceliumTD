@@ -1,6 +1,7 @@
 import { createGameRunner, GameRunner, PlacementState, GameState } from '../systems/gameRunner';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import { TargetingMode } from '../systems/targeting';
+import { UpgradePath } from '../systems/upgrade';
 
 console.log('=== Testing Keyboard/Mouse Input with Placement Workflow ===');
 
@@ -330,6 +331,93 @@ test('Cannot place tower without enough money', () => {
   const tower = localGame.confirmPlacement(TargetingMode.First);
   return assertEqual(tower, null, 'Should not place without enough money') &&
     assertEqual(localGame.getPlacementState(), PlacementState.None, 'Placement cancelled after unaffordable tower');
+});
+
+console.log('\n--- Selected Tower Upgrade Input ---');
+test('Clicking an affordable upgrade indicator upgrades the selected tower', () => {
+  const localGame = createGameRunner({ startingMoney: 1000 });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  if (!tower || !localGame.selectTower(tower.id)) {
+    return false;
+  }
+
+  const preview = localGame.getTowerSelectionPreviewRenderData();
+  const damageIndicator = preview.upgradeIndicators?.find(i => i.path === UpgradePath.Damage);
+  if (!damageIndicator) {
+    return false;
+  }
+
+  const beforeMoney = localGame.getGameStats().money;
+  const beforeDamage = tower.damage;
+  const result = localGame.upgradeTowerAtPosition(
+    damageIndicator.position.x + damageIndicator.size.width / 2,
+    damageIndicator.position.y + damageIndicator.size.height / 2
+  );
+
+  return result.success &&
+    result.path === UpgradePath.Damage &&
+    tower.upgradeLevels[UpgradePath.Damage] === 1 &&
+    tower.damage > beforeDamage &&
+    localGame.getGameStats().money === beforeMoney - result.cost &&
+    localGame.getPlacementState() === PlacementState.Selecting;
+});
+
+test('Clicking an unaffordable upgrade indicator keeps the tower selected without upgrading', () => {
+  const localGame = createGameRunner({ startingMoney: TOWER_STATS[TowerType.PuffballFungus].cost });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  if (!tower || !localGame.selectTower(tower.id)) {
+    return false;
+  }
+
+  const preview = localGame.getTowerSelectionPreviewRenderData();
+  const damageIndicator = preview.upgradeIndicators?.find(i => i.path === UpgradePath.Damage);
+  if (!damageIndicator) {
+    return false;
+  }
+
+  const beforeMoney = localGame.getGameStats().money;
+  const result = localGame.upgradeTowerAtPosition(
+    damageIndicator.position.x + damageIndicator.size.width / 2,
+    damageIndicator.position.y + damageIndicator.size.height / 2
+  );
+
+  return !result.success &&
+    result.path === UpgradePath.Damage &&
+    tower.upgradeLevels[UpgradePath.Damage] === 0 &&
+    localGame.getGameStats().money === beforeMoney &&
+    localGame.getPlacementState() === PlacementState.Selecting;
+});
+
+test('Selling an upgraded tower refunds the displayed sell value', () => {
+  const localGame = createGameRunner({ startingMoney: 1000 });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  if (!tower) {
+    return false;
+  }
+
+  const upgrade = localGame.upgradeTower(tower.id, UpgradePath.Damage);
+  if (!upgrade.success || !localGame.selectTower(tower.id)) {
+    return false;
+  }
+
+  const preview = localGame.getTowerSelectionPreviewRenderData();
+  if (!preview.sellButton) {
+    return false;
+  }
+
+  const beforeMoney = localGame.getGameStats().money;
+  const sellResult = localGame.sellTowerAtPosition(
+    preview.sellButton.position.x + preview.sellButton.size.width / 2,
+    preview.sellButton.position.y + preview.sellButton.size.height / 2
+  );
+
+  return sellResult.success &&
+    sellResult.sellValue === preview.sellButton.sellValue &&
+    localGame.getGameStats().money === beforeMoney + preview.sellButton.sellValue &&
+    localGame.getPlacedTowers().length === 0;
 });
 
 console.log('\n--- Summary ---');

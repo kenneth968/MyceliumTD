@@ -21,7 +21,8 @@ import {
   getRangeCircleRenderData,
   getPathCoverageRenderData,
   getTowerSelectionPreviewRenderData,
-  getTargetingModeSelectionRenderData
+  getTargetingModeSelectionRenderData,
+  getTowerUpgradeIndicatorAtPosition
 } from './placementPreview';
 import { 
   getHealthBarsRenderData, 
@@ -556,7 +557,7 @@ export class GameRunner {
     const placed = this.placedTowers[index];
     const sellValue = getTotalSellValue(placed.tower);
     
-    this.economy.sellTower(TOWER_STATS[placed.tower.towerType].cost);
+    this.economy.sellTower(TOWER_STATS[placed.tower.towerType].cost, sellValue);
     this.placedTowers.splice(index, 1);
     
     const towerIndex = this.towers.findIndex(t => t.id === towerId);
@@ -589,6 +590,20 @@ export class GameRunner {
 
     const result = applyUpgrade(placed.tower, path);
     return { success: result.success, cost, newTier: result.newTier };
+  }
+
+  upgradeTowerAtPosition(x: number, y: number): { success: boolean; path: UpgradePath | null; cost: number; newTier: number } {
+    if (this.placementState !== PlacementState.Selecting || this.selectedTowerId === null) {
+      return { success: false, path: null, cost: 0, newTier: 0 };
+    }
+
+    const preview = this.getTowerSelectionPreviewRenderData();
+    const path = getTowerUpgradeIndicatorAtPosition(preview.upgradeIndicators, x, y);
+    if (!path) {
+      return { success: false, path: null, cost: 0, newTier: 0 };
+    }
+
+    return { path, ...this.upgradeTower(this.selectedTowerId, path) };
   }
 
   getTowerUpgradeInfo(towerId: number) {
