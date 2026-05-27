@@ -2,6 +2,9 @@ import { GameRunner, GameState, PlacementState } from './gameRunner';
 import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, TargetingModeButtonRenderData, SellButtonRenderData } from './gameRenderer';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
+import { UpgradePath } from './upgrade';
+import { createEnemy } from '../entities/enemy';
+import { EnemyType } from './wave';
 
 console.log('=== GameRenderer Tests ===\n');
 
@@ -101,6 +104,32 @@ test('chained tower has a network line from a connected tower', () =>
 test('unconnected tower does not get a network line', () =>
   farTower !== null &&
   !networkRenderData.networkConnections.some(connection => connection.targetTowerId === farTower.id)
+);
+
+const fieldGame = new GameRunner({ startingMoney: 5000 });
+fieldGame.start();
+const fieldTower = fieldGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+if (fieldTower) {
+  fieldGame.upgradeTower(fieldTower.id, UpgradePath.Special);
+  const fieldTarget = createEnemy(910, EnemyType.BlueBeetle, fieldGame.getPath());
+  fieldTarget.pathDistance = 1540;
+  fieldTarget.pathProgress = 1540;
+  fieldTarget.position = { ...fieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
+  fieldTarget.speed = 0;
+  fieldTarget.baseSpeed = 0;
+  fieldGame.getActiveEnemies().push(fieldTarget);
+  fieldGame.update(1000);
+  fieldGame.update(1400);
+}
+const fieldRenderData = renderer.render(fieldGame);
+const renderedFields = fieldRenderData.lingeringFields;
+test('active lingering fungal field appears in frame render data', () =>
+  Array.isArray(renderedFields) && renderedFields.length === 1
+);
+test('lingering fungal field render data is visible and timed', () =>
+  renderedFields?.[0]?.radius === 50 &&
+  renderedFields?.[0]?.duration === 8000 &&
+  renderedFields?.[0]?.color === 'rgba(136, 216, 90, 0.22)'
 );
 
 // Targeting mode buttons when placing

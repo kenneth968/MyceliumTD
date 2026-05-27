@@ -83,6 +83,7 @@ export interface Projectile {
   id: number;
   position: Vec2;
   targetId: number;
+  sourceTowerId?: number;
   speed: number;
   damage: number;
   towerType: TowerType;
@@ -167,6 +168,7 @@ export function fireTower(
     id: 0,
     position: { ...tower.position },
     targetId: result.target.id,
+    sourceTowerId: tower.id,
     speed: tower.projectileSpeed,
     damage: tower.damage,
     towerType: tower.towerType,

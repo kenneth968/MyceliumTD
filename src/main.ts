@@ -1,6 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
@@ -876,6 +876,7 @@ class Game {
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
         this.drawPath(renderData.path);
+        this.drawLingeringFields(renderData.lingeringFields);
         this.drawNetworkConnections(renderData.networkConnections);
         this.drawPlacementPreview(renderData.placementPreview);
         this.drawTowers(renderData);
@@ -1194,6 +1195,39 @@ class Game {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.lineDashOffset = 0;
+        }
+    }
+
+    private drawLingeringFields(fields: LingeringFieldRenderData[]): void {
+        if (fields.length === 0) return;
+
+        const time = performance.now() / 1000;
+        const ctx = this.ctx;
+
+        for (const field of fields) {
+            const pulse = 0.92 + Math.sin(time * 2.6 + field.id) * 0.08;
+            const radius = field.radius * pulse;
+
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.85, field.alpha);
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = field.color;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = field.borderColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius * 0.55, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(202, 255, 128, 0.16)';
+            ctx.fill();
+            ctx.restore();
         }
     }
 

@@ -129,4 +129,51 @@ assertEqual(revealEffect!.duration, 1500, 'Network reveal should last 50% longer
 assertEqual(slowEffect!.duration, 1500, 'Network reveal slow should match the reveal duration');
 assertEqual(slowEffect!.strength, 0.1, 'Network reveal slow should apply a 10% slow');
 
+const fungalFieldGame = createGameRunner({ startingMoney: 5000 });
+fungalFieldGame.start();
+
+const fieldPuffball = fungalFieldGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+assert(fieldPuffball !== null, 'Should place a Puffball tower near the kernel network');
+assertEqual(fungalFieldGame.isTowerConnectedToNetwork(fieldPuffball!.id), true, 'Puffball tower should be connected before buying the special upgrade');
+
+const fungalFieldUpgrade = fungalFieldGame.upgradeTower(fieldPuffball!.id, UpgradePath.Special);
+assertEqual(fungalFieldUpgrade.success, true, 'Connected Puffball should buy the bottom/special upgrade');
+
+const fieldTarget = createEnemy(901, EnemyType.BlueBeetle, fungalFieldGame.getPath());
+fieldTarget.pathDistance = 1540;
+fieldTarget.pathProgress = 1540;
+fieldTarget.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
+fieldTarget.speed = 0;
+fieldTarget.baseSpeed = 0;
+fungalFieldGame.getActiveEnemies().push(fieldTarget);
+
+fungalFieldGame.update(1000);
+fungalFieldGame.update(1400);
+
+const activeFields = fungalFieldGame.getLingeringFields();
+assertEqual(activeFields.length, 1, 'Connected Puffball special hit should create one lingering fungal field');
+assertEqual(activeFields[0].duration, 8000, 'Lingering fungal field should last 8 seconds');
+assertEqual(activeFields[0].slowStrength, 0.2, 'Lingering fungal field should apply a 20% slow');
+
+const fieldVisitor = createEnemy(902, EnemyType.GreenCaterpillar, fungalFieldGame.getPath());
+fieldVisitor.pathDistance = 1540;
+fieldVisitor.pathProgress = 1540;
+fieldVisitor.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldVisitor.pathDistance).position };
+fieldVisitor.speed = 0;
+fieldVisitor.baseSpeed = 0;
+fungalFieldGame.getActiveEnemies().push(fieldVisitor);
+
+fungalFieldGame.update(1500);
+
+assert(hasStatusEffect(fieldVisitor, StatusEffectType.Slow), 'Lingering fungal field should slow enemies that enter after impact');
+const fieldSlow = fieldVisitor.statusEffects.find(effect => effect.type === StatusEffectType.Slow);
+assert(fieldSlow !== undefined, 'Field slow effect should be present after entering the field');
+assertEqual(fieldSlow!.strength, 0.2, 'Field slow should use the lingering fungal field slow strength');
+
+fungalFieldGame.getActiveEnemies().length = 0;
+fungalFieldGame.getActiveProjectiles().length = 0;
+fungalFieldGame.update(9500);
+const expiredFields = fungalFieldGame.getLingeringFields();
+assertEqual(expiredFields.length, 0, 'Lingering fungal field should expire after its 8 second duration');
+
 console.log('All MyceliumNetwork tests passed!');

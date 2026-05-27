@@ -155,6 +155,17 @@ export interface NetworkConnection {
   sourceType: 'kernel' | 'tower' | 'mycelium';
 }
 
+export interface LingeringField {
+  id: number;
+  type: 'puffball_fungal_field';
+  position: Vec2;
+  radius: number;
+  duration: number;
+  remaining: number;
+  slowStrength: number;
+  sourceTowerId: number;
+}
+
 export interface GameConfig {
   startingMoney?: number;
   startingLives?: number;
@@ -173,6 +184,10 @@ const KERNEL_NETWORK_RADIUS = 180;
 const NETWORK_LINK_RADIUS = 160;
 const NETWORK_REVEAL_DURATION_MULTIPLIER = 1.5;
 const NETWORK_REVEAL_SLOW_STRENGTH = 0.1;
+const PUFFBALL_FIELD_DURATION = 8000;
+const PUFFBALL_FIELD_SLOW_STRENGTH = 0.2;
+const PUFFBALL_FIELD_STATUS_DURATION = 300;
+const PUFFBALL_FIELD_RADIUS = 40;
 
 export class GameRunner {
   private state: GameState;
@@ -183,6 +198,7 @@ export class GameRunner {
   private placedTowers: PlacedTower[];
   private activeEnemies: Enemy[];
   private activeProjectiles: Projectile[];
+  private activeLingeringFields: LingeringField[];
   private config: GameConfig;
   private currentTime: number;
   private simulationTime: number;
@@ -191,6 +207,7 @@ export class GameRunner {
   private nextTowerId: number;
   private nextEnemyId: number;
   private nextProjectileId: number;
+  private nextLingeringFieldId: number;
   private towers: Tower[];
   private enemies: Enemy[];
   private placementState: PlacementState;
@@ -243,6 +260,7 @@ export class GameRunner {
     this.placedTowers = [];
     this.activeEnemies = [];
     this.activeProjectiles = [];
+    this.activeLingeringFields = [];
     this.state = GameState.Idle;
     this.currentTime = 0;
     this.simulationTime = 0;
@@ -251,6 +269,7 @@ export class GameRunner {
     this.nextTowerId = 1;
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
+    this.nextLingeringFieldId = 1;
     this.towers = [];
     this.enemies = [];
     this.placementState = PlacementState.None;
@@ -424,6 +443,13 @@ export class GameRunner {
     return this.activeProjectiles;
   }
 
+  getLingeringFields(): LingeringField[] {
+    return this.activeLingeringFields.map(field => ({
+      ...field,
+      position: { ...field.position },
+    }));
+  }
+
   getConfig(): GameConfig {
     return { ...this.config };
   }
@@ -465,6 +491,7 @@ export class GameRunner {
     this.placedTowers = [];
     this.activeEnemies = [];
     this.activeProjectiles = [];
+    this.activeLingeringFields = [];
     this.currentTime = 0;
     this.simulationTime = 0;
     this.lastUpdateTime = 0;
@@ -472,6 +499,7 @@ export class GameRunner {
     this.nextTowerId = 1;
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
+    this.nextLingeringFieldId = 1;
     this.towers = [];
     this.enemies = [];
     this.placementState = PlacementState.None;
@@ -680,6 +708,28 @@ export class GameRunner {
     }
   }
 
+  private updateLingeringFields(deltaTime: number): void {
+    for (let i = this.activeLingeringFields.length - 1; i >= 0; i--) {
+      const field = this.activeLingeringFields[i];
+      field.remaining -= deltaTime;
+
+      if (field.remaining <= 0) {
+        this.activeLingeringFields.splice(i, 1);
+        continue;
+      }
+
+      for (const enemy of this.activeEnemies) {
+        if (!enemy.alive || enemy.hp <= 0) {
+          continue;
+        }
+
+        if (vec2Distance(enemy.position, field.position) <= field.radius) {
+          applyStatusEffect(enemy, StatusEffectType.Slow, PUFFBALL_FIELD_STATUS_DURATION, field.slowStrength);
+        }
+      }
+    }
+  }
+
   private updateTowers(deltaTime: number): void {
     for (const placed of this.placedTowers) {
       const tower = placed.tower;
@@ -778,6 +828,8 @@ export class GameRunner {
               applyDamage(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length);
             }
           }
+
+          this.createPuffballLingeringField(projectile);
         }
 
         this.activeProjectiles.splice(i, 1);
@@ -788,6 +840,30 @@ export class GameRunner {
         this.activeProjectiles.splice(i, 1);
       }
     }
+  }
+
+  private createPuffballLingeringField(projectile: Projectile): void {
+    if (projectile.towerType !== TowerType.PuffballFungus || projectile.sourceTowerId === undefined) {
+      return;
+    }
+
+    const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
+    if (!placed ||
+        placed.tower.upgradeLevels[UpgradePath.Special] <= 0 ||
+        !this.isTowerConnectedToNetwork(placed.tower.id)) {
+      return;
+    }
+
+    this.activeLingeringFields.push({
+      id: this.nextLingeringFieldId++,
+      type: 'puffball_fungal_field',
+      position: { ...projectile.position },
+      radius: projectile.areaRadius ?? PUFFBALL_FIELD_RADIUS,
+      duration: PUFFBALL_FIELD_DURATION,
+      remaining: PUFFBALL_FIELD_DURATION,
+      slowStrength: PUFFBALL_FIELD_SLOW_STRENGTH,
+      sourceTowerId: placed.tower.id,
+    });
   }
 
   private updateHero(deltaTime: number): void {
@@ -862,6 +938,7 @@ export class GameRunner {
     if (this.state === GameState.Playing) {
       this.spawnEnemyFromWave();
       const speedDeltaTime = deltaTime * this.gameSpeed;
+      this.updateLingeringFields(speedDeltaTime);
       this.updateEnemies(speedDeltaTime);
       this.updateTowers(speedDeltaTime);
       this.updateProjectiles(speedDeltaTime);

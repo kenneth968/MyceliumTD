@@ -1,4 +1,4 @@
-import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection } from './gameRunner';
+import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection, LingeringField } from './gameRunner';
 import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
@@ -46,6 +46,7 @@ export interface GameFrameRenderData {
   enemies: EnemyRenderCollection;
   projectiles: ProjectileRenderData[];
   networkConnections: NetworkConnectionRenderData[];
+  lingeringFields: LingeringFieldRenderData[];
   
   placementPreview: PlacementPreviewWithTargetingRenderData | null;
   towerSelection: TowerSelectionPreviewRenderData | null;
@@ -93,6 +94,19 @@ export interface NetworkConnectionRenderData {
   color: string;
   glowColor: string;
   width: number;
+}
+
+export interface LingeringFieldRenderData {
+  id: number;
+  type: LingeringField['type'];
+  position: Vec2;
+  radius: number;
+  duration: number;
+  remaining: number;
+  slowStrength: number;
+  color: string;
+  borderColor: string;
+  alpha: number;
 }
 
 export interface CameraState {
@@ -306,6 +320,7 @@ export class GameRenderer {
       this.previousProjectilePositions
     );
     const networkConnections = this.getNetworkConnectionRenderData(game.getNetworkConnections());
+    const lingeringFields = this.getLingeringFieldRenderData(game.getLingeringFields());
 
     this.updateTrails(activeProjectiles, deltaTime);
 
@@ -336,6 +351,7 @@ export class GameRenderer {
       enemies: enemyCollection,
       projectiles: projectileRenderData,
       networkConnections,
+      lingeringFields,
       placementPreview,
       towerSelection,
       healthBars: healthBarsData.healthBars,
@@ -410,6 +426,21 @@ export class GameRenderer {
       color: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.7)' : 'rgba(186, 120, 220, 0.7)',
       glowColor: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(142, 68, 173, 0.2)',
       width: connection.sourceType === 'kernel' ? 3 : 2,
+    }));
+  }
+
+  private getLingeringFieldRenderData(fields: LingeringField[]): LingeringFieldRenderData[] {
+    return fields.map(field => ({
+      id: field.id,
+      type: field.type,
+      position: { ...field.position },
+      radius: field.radius,
+      duration: field.duration,
+      remaining: field.remaining,
+      slowStrength: field.slowStrength,
+      color: 'rgba(136, 216, 90, 0.22)',
+      borderColor: 'rgba(202, 255, 128, 0.7)',
+      alpha: Math.max(0.15, field.remaining / field.duration),
     }));
   }
 
