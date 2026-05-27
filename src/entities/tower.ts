@@ -2,6 +2,7 @@ import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
 import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
+import { DamageOptions, DamageType, canDamageEnemy } from './enemy';
 
 export enum TowerType {
   PuffballFungus = 'puffball_fungus',
@@ -240,8 +241,11 @@ export function updateProjectile(
   return { hit: false, damage: 0, target: null };
 }
 
-export function applyDamage(enemy: Enemy, damage: number): boolean {
+export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
   if (!enemy.alive || enemy.hp <= 0) {
+    return false;
+  }
+  if (!canDamageEnemy(enemy, options)) {
     return false;
   }
 
@@ -253,6 +257,15 @@ export function applyDamage(enemy: Enemy, damage: number): boolean {
   }
 
   return false;
+}
+
+export function getTowerDamageType(towerType: TowerType): DamageType {
+  switch (towerType) {
+    case TowerType.PuffballFungus:
+      return DamageType.Explosive;
+    default:
+      return DamageType.Normal;
+  }
 }
 
 export function getKillReward(enemy: Enemy): number {

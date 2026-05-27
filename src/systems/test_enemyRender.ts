@@ -166,6 +166,17 @@ runTest('getEnemyRenderData sets isCamo true for WhiteMoth and BlackWidow', () =
   assert(blackWidowRender.isCamo === true, 'BlackWidow should be camo');
 });
 
+runTest('getEnemyRenderData exposes Metal armor trait for ArmoredBeetle and ShelledSnail', () => {
+  const armoredBeetle = createEnemy(3, EnemyType.ArmoredBeetle, path);
+  const shelledSnail = createEnemy(4, EnemyType.ShelledSnail, path);
+  const armoredRender = getEnemyRenderData(armoredBeetle) as any;
+  const snailRender = getEnemyRenderData(shelledSnail) as any;
+  assert(armoredRender.isMetal === true, 'ArmoredBeetle should render as metal');
+  assert(snailRender.isMetal === true, 'ShelledSnail should render as metal');
+  assert(armoredRender.traits.includes('metal'), 'ArmoredBeetle render data should include Metal trait');
+  assert(armoredRender.armorColor === '#C8D0D8', 'Metal render data should expose armor color');
+});
+
 runTest('getEnemyRenderData returns Dead animation state for dead enemy', () => {
   const enemy = createEnemy(1, EnemyType.RedMushroom, path);
   enemy.alive = false;

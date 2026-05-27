@@ -76,6 +76,17 @@ console.log('serializeEnemy:');
   assertEqual(serialized.alive, true, 'alive is true');
 }
 
+console.log('\nserializeEnemy with traits:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(2, EnemyType.ArmoredBeetle, path);
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(Array.isArray(serialized.traits), 'traits are serialized');
+  assertTruthy(serialized.traits.includes('metal'), 'Metal trait is serialized');
+}
+
 console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();
@@ -252,10 +263,7 @@ console.log('\nserializeGameState (full game state):');
 console.log('\nserializeGameState after placing towers:');
 {
   const game = createTestGame();
-  game.start();
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 placed tower');
@@ -299,9 +307,7 @@ console.log('\ngetSerializedGameStateSize with towers:');
   
   const sizeBefore = getSerializedGameStateSize(game);
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
   
   const sizeAfter = getSerializedGameStateSize(game);
   assertGreaterThan(sizeAfter, sizeBefore, 'size increased after adding tower');
@@ -348,17 +354,9 @@ console.log('\nserialize game with multiple towers:');
   const game = createTestGame();
   game.start();
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(100, 100);
-  game.confirmPlacement();
-  
-  game.startTowerPlacement(TowerType.OrchidTrap);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
-  
-  game.startTowerPlacement(TowerType.VenusFlytower);
-  game.updatePlacementPosition(300, 300);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.OrchidTrap, 200, 200);
+  game.placeTower(TowerType.VenusFlytower, 300, 300);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 3, 'has 3 towers');
@@ -372,9 +370,7 @@ console.log('\nserialize game with tower (upgrade may not apply in test context)
   const game = createTestGame();
   game.start();
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(150, 150);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 150, 150);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 tower');

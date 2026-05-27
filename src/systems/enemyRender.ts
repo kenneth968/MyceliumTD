@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/vec2';
-import { Enemy, StatusEffectType } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasEnemyTrait } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
 
 export interface EnemyRenderData {
@@ -17,6 +17,9 @@ export interface EnemyRenderData {
   pathDistance: number;
   isAlive: boolean;
   isCamo: boolean;
+  isMetal: boolean;
+  traits: EnemyTrait[];
+  armorColor: string | null;
   statusEffects: EnemyStatusEffectRender[];
   animationState: EnemyAnimationState;
   facingAngle: number;
@@ -285,6 +288,8 @@ export function getEnemyRenderData(
 ): EnemyRenderData {
   const config = getEnemyVisualConfig(enemy.enemyType);
   const animationState = getEnemyAnimationState(enemy);
+  const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
+  const isMetal = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Metal);
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -302,7 +307,10 @@ export function getEnemyRenderData(
     pathProgress: options?.pathProgress ?? enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     isAlive: enemy.alive,
-    isCamo: enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow,
+    isCamo: hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Camo),
+    isMetal,
+    traits,
+    armorColor: isMetal ? '#C8D0D8' : null,
     statusEffects: statusEffectRenders,
     animationState,
     facingAngle: options?.facingAngle ?? 0,
@@ -613,7 +621,7 @@ export function getEnemyTypeInfo(enemyType: EnemyType): EnemyTypeInfo {
     },
     [EnemyType.ArmoredBeetle]: {
       name: 'Armored Beetle',
-      description: 'Heavy shell, very slow, high HP',
+      description: 'Metal shell, very slow, needs explosive damage',
       difficulty: 8,
     },
     [EnemyType.RainbowStag]: {
@@ -623,7 +631,7 @@ export function getEnemyTypeInfo(enemyType: EnemyType): EnemyTypeInfo {
     },
     [EnemyType.ShelledSnail]: {
       name: 'Shelled Snail',
-      description: 'Slow but extremely tanky',
+      description: 'Metal shell, slow but extremely tanky',
       difficulty: 10,
     },
   };

@@ -135,7 +135,22 @@ console.assert(isCamo(camoEnemy) === true, 'WhiteMoth should be camo');
 console.assert(isCamo(nonCamoEnemy) === false, 'RedMushroom should not be camo');
 console.log('  PASS\n');
 
-console.log('Test 15: Enemy type mapping for all types');
+console.log('Test 15: Metal trait blocks non-explosive damage');
+const metalEnemy = createEnemy(8, EnemyType.ArmoredBeetle, path);
+const metalStartingHp = metalEnemy.hp;
+console.assert(Array.isArray((metalEnemy as any).traits), 'Metal enemy should expose traits');
+console.assert((metalEnemy as any).traits.includes('metal'), 'ArmoredBeetle should have Metal trait');
+const blockedByMetal = applyDamageToEnemy(metalEnemy, 5);
+console.log('  Non-explosive damage blocked:', blockedByMetal === false, 'HP:', metalEnemy.hp);
+console.assert(blockedByMetal === false, 'Non-explosive damage should not damage Metal enemies');
+console.assert(metalEnemy.hp === metalStartingHp, 'Metal enemy HP should stay unchanged after non-explosive damage');
+const explosivePartial = (applyDamageToEnemy as any)(metalEnemy, 5, { damageType: 'explosive' });
+console.log('  Explosive damage applied:', explosivePartial === false, 'HP:', metalEnemy.hp);
+console.assert(explosivePartial === false, 'Partial explosive damage should not kill Metal enemy');
+console.assert(metalEnemy.hp === metalStartingHp - 5, 'Explosive damage should reduce Metal enemy HP');
+console.log('  PASS\n');
+
+console.log('Test 16: Enemy type mapping for all types');
 for (const type of Object.values(EnemyType)) {
   const e = createEnemy(100, type, path);
   console.log('  ', type, '- HP:', e.hp, 'Speed:', e.speed, 'Reward:', e.reward);

@@ -1,6 +1,6 @@
 import { GameRunner, GameState, GameSpeed, PlacementState, PlacedTower } from './gameRunner';
 import { TowerType, Tower } from '../entities/tower';
-import { Enemy, StatusEffect, StatusEffectType } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { RoundState } from './roundManager';
 
@@ -23,6 +23,7 @@ export interface SerializedEnemy {
   baseSpeed: number;
   reward: number;
   alive: boolean;
+  traits?: string[];
   statusEffects: SerializedStatusEffect[];
   hasReachedEnd: boolean;
 }
@@ -130,6 +131,7 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     baseSpeed: enemy.baseSpeed,
     reward: enemy.reward,
     alive: enemy.alive,
+    traits: enemy.traits.map(trait => trait.toString()),
     statusEffects: enemy.statusEffects.map(e => ({
       type: e.type,
       duration: e.duration,
@@ -275,6 +277,9 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
     baseSpeed: data.baseSpeed,
     reward: data.reward,
     alive: data.alive,
+    traits: data.traits
+      ? data.traits.map(trait => trait as EnemyTrait)
+      : getEnemyTraitsForType(data.enemyType),
     statusEffects: data.statusEffects.map(deserializeStatusEffect),
     hasReachedEnd: data.hasReachedEnd,
   };

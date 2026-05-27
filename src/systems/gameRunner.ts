@@ -2,8 +2,8 @@ import { Path, createDefaultPath } from '../systems/path';
 import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionState } from './mapLevel';
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower, Enemy as BaseEnemy } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
-import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire } from '../entities/tower';
-import { Enemy, StatusEffectType, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward } from '../entities/enemy';
+import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
+import { Enemy, StatusEffectType, DamageType, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -785,7 +785,7 @@ export class GameRunner {
       }
 
       if (vec2Distance(enemy.position, payload.position) <= payload.radius) {
-        applyDamage(enemy, payload.damage);
+        applyDamage(enemy, payload.damage, { damageType: DamageType.Explosive });
       }
     }
   }
@@ -857,7 +857,7 @@ export class GameRunner {
         );
         effects.push(...(projectile.extraHitEffects ?? []));
         applyHitEffects(result.target as any, effects, deltaTime);
-        applyDamage(result.target, projectile.damage);
+        applyDamage(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
 
         // Emit hit event for visual effects
         this.eventQueue.push({
@@ -885,7 +885,7 @@ export class GameRunner {
 
           for (const areaEnemy of areaResult.enemiesHit) {
             if (areaEnemy.id !== result.target.id) {
-              applyDamage(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length);
+              applyDamage(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
             }
           }
 

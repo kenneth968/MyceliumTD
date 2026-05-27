@@ -1370,6 +1370,18 @@ class Game {
                 this.ctx.stroke();
             }
 
+            if (enemy.isMetal) {
+                this.ctx.save();
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 4, 0, Math.PI * 2);
+                this.ctx.strokeStyle = enemy.armorColor || '#C8D0D8';
+                this.ctx.lineWidth = 3;
+                this.ctx.setLineDash([3, 3]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                this.ctx.restore();
+            }
+
             // Camo indicator - dashed outline for revealed enemies
             if (enemy.isCamo && camoRevealed) {
                 this.ctx.beginPath();

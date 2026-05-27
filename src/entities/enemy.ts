@@ -16,6 +16,20 @@ export enum StatusEffectType {
   Revealed = 'revealed',
 }
 
+export enum EnemyTrait {
+  Metal = 'metal',
+  Camo = 'camo',
+}
+
+export enum DamageType {
+  Normal = 'normal',
+  Explosive = 'explosive',
+}
+
+export interface DamageOptions {
+  damageType?: DamageType | `${DamageType}`;
+}
+
 export interface Enemy {
   id: number;
   enemyType: EnemyType;
@@ -28,8 +42,45 @@ export interface Enemy {
   baseSpeed: number;
   reward: number;
   alive: boolean;
+  traits: EnemyTrait[];
   statusEffects: StatusEffect[];
   hasReachedEnd: boolean;
+}
+
+export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined): EnemyTrait[] {
+  switch (enemyType) {
+    case EnemyType.ArmoredBeetle:
+    case EnemyType.ShelledSnail:
+      return [EnemyTrait.Metal];
+    case EnemyType.WhiteMoth:
+    case EnemyType.BlackWidow:
+      return [EnemyTrait.Camo];
+    default:
+      return [];
+  }
+}
+
+export function hasEnemyTrait(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] },
+  trait: EnemyTrait
+): boolean {
+  const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
+  return traits.includes(trait);
+}
+
+export function isMetal(enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] }): boolean {
+  return hasEnemyTrait(enemy, EnemyTrait.Metal);
+}
+
+export function canDamageEnemy(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] },
+  options: DamageOptions = {}
+): boolean {
+  if (!isMetal(enemy)) {
+    return true;
+  }
+
+  return options.damageType === DamageType.Explosive;
 }
 
 export function createEnemy(
@@ -52,6 +103,7 @@ export function createEnemy(
     baseSpeed: stats.speed,
     reward: stats.reward,
     alive: true,
+    traits: getEnemyTraitsForType(enemyType),
     statusEffects: [],
     hasReachedEnd: false,
   };
@@ -129,8 +181,9 @@ export function processPoisonDamage(enemy: Enemy, deltaTime: number): number {
   return totalDamage;
 }
 
-export function applyDamageToEnemy(enemy: Enemy, damage: number): boolean {
+export function applyDamageToEnemy(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
   if (!enemy.alive || enemy.hp <= 0) return false;
+  if (!canDamageEnemy(enemy, options)) return false;
 
   enemy.hp -= damage;
   if (enemy.hp <= 0) {
@@ -159,7 +212,7 @@ export function getHealthPercent(enemy: Enemy): number {
 }
 
 export function isCamo(enemy: Enemy): boolean {
-  return enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow;
+  return hasEnemyTrait(enemy, EnemyTrait.Camo);
 }
 
 export function hasStatusEffect(enemy: Enemy, effectType: StatusEffectType): boolean {
@@ -187,5 +240,6 @@ export function respawnEnemy(enemy: Enemy, path: Path): void {
   enemy.speed = enemy.baseSpeed;
   enemy.alive = true;
   enemy.hasReachedEnd = false;
+  enemy.traits = getEnemyTraitsForType(enemy.enemyType);
   enemy.statusEffects = [];
 }

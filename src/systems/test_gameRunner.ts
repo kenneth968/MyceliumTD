@@ -1,8 +1,10 @@
 import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner';
 import { TowerType } from '../entities/tower';
+import { createEnemy } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
 import { RoundState } from './roundManager';
+import { EnemyType } from './wave';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -109,6 +111,43 @@ fastForwardGame.update(fastForwardStartTime + 1000);
 assert(
   fastForwardEnemy.pathDistance >= 140,
   `Fast-forward should scale movement from caller timestamps (expected at least 140, got ${fastForwardEnemy.pathDistance})`
+);
+
+const metalCounterGame = createGameRunner({ startingMoney: 5000 });
+metalCounterGame.start();
+const nonExplosiveTower = metalCounterGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+assert(nonExplosiveTower !== null, 'Should place non-explosive metal counter test tower');
+const metalTarget = createEnemy(901, EnemyType.ArmoredBeetle, metalCounterGame.getPath());
+metalTarget.pathDistance = 1520;
+metalTarget.pathProgress = 1520;
+metalTarget.position = { ...metalCounterGame.getPath().getPointAtDistance(metalTarget.pathDistance).position };
+metalTarget.speed = 0;
+metalTarget.baseSpeed = 0;
+metalCounterGame.getActiveEnemies().push(metalTarget);
+metalCounterGame.update(1000);
+metalCounterGame.update(1400);
+assertEqual(
+  metalTarget.hp,
+  metalTarget.maxHp,
+  'Metal enemies should ignore ordinary non-explosive tower hits'
+);
+
+const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
+metalExplosiveGame.start();
+const explosiveTower = metalExplosiveGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+assert(explosiveTower !== null, 'Should place explosive metal counter test tower');
+const explosiveTarget = createEnemy(902, EnemyType.ArmoredBeetle, metalExplosiveGame.getPath());
+explosiveTarget.pathDistance = 1540;
+explosiveTarget.pathProgress = 1540;
+explosiveTarget.position = { ...metalExplosiveGame.getPath().getPointAtDistance(explosiveTarget.pathDistance).position };
+explosiveTarget.speed = 0;
+explosiveTarget.baseSpeed = 0;
+metalExplosiveGame.getActiveEnemies().push(explosiveTarget);
+metalExplosiveGame.update(1000);
+metalExplosiveGame.update(1400);
+assert(
+  explosiveTarget.hp < explosiveTarget.maxHp,
+  'Explosive Puffball hits should damage Metal enemies'
 );
 
 game.pause();
