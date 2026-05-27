@@ -173,6 +173,7 @@ export class GameRunner {
   private config: GameConfig;
   private currentTime: number;
   private lastUpdateTime: number;
+  private hasUpdateTimestamp: boolean;
   private nextTowerId: number;
   private nextEnemyId: number;
   private nextProjectileId: number;
@@ -231,6 +232,7 @@ export class GameRunner {
     this.state = GameState.Idle;
     this.currentTime = 0;
     this.lastUpdateTime = 0;
+    this.hasUpdateTimestamp = false;
     this.nextTowerId = 1;
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
@@ -416,7 +418,7 @@ export class GameRunner {
       return false;
     }
     this.state = GameState.Playing;
-    this.lastUpdateTime = Date.now();
+    this.hasUpdateTimestamp = false;
     return true;
   }
 
@@ -435,7 +437,7 @@ export class GameRunner {
       return false;
     }
     this.state = GameState.Playing;
-    this.lastUpdateTime = Date.now();
+    this.hasUpdateTimestamp = false;
     hidePauseMenu(this.pauseMenuAnimator, this.currentTime);
     this.waveProgressAnimator.state = 'active';
     return true;
@@ -450,6 +452,7 @@ export class GameRunner {
     this.activeProjectiles = [];
     this.currentTime = 0;
     this.lastUpdateTime = 0;
+    this.hasUpdateTimestamp = false;
     this.nextTowerId = 1;
     this.nextEnemyId = 1;
     this.nextProjectileId = 1;
@@ -809,15 +812,13 @@ export class GameRunner {
       return;
     }
 
-    if (currentTime !== undefined) {
-      this.currentTime = currentTime;
-    } else {
-      this.currentTime = Date.now();
-    }
-
-    const now = Date.now();
-    const deltaTime = now - this.lastUpdateTime;
-    this.lastUpdateTime = now;
+    const frameTime = currentTime !== undefined ? currentTime : Date.now();
+    const deltaTime = this.hasUpdateTimestamp
+      ? Math.max(0, frameTime - this.lastUpdateTime)
+      : 0;
+    this.currentTime = frameTime;
+    this.lastUpdateTime = frameTime;
+    this.hasUpdateTimestamp = true;
 
     if (this.state === GameState.Playing) {
       this.spawnEnemyFromWave();

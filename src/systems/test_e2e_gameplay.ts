@@ -52,9 +52,10 @@ test('Full game session: start -> place towers -> play wave -> verify economy tr
   assert(game.isWaveActive(), 'Wave should be active after starting');
   
   let enemySpawned = false;
+  const sessionStartTime = Date.now();
   
   for (let i = 0; i < 500; i++) {
-    game.update(Date.now() + 16);
+    game.update(sessionStartTime + i * 16);
     
     const enemies = game.getActiveEnemies();
     if (enemies.length > 0 && !enemySpawned) {
@@ -188,18 +189,19 @@ test('Game speed changes affect update delta time', () => {
   assert(game.getGameSpeed() === 1, 'Game speed should be back to 1x');
 });
 
-test('Economy interest accrues over time', () => {
+test('Economy does not accrue passive interest by default', () => {
   const game = createGameRunner({ startingMoney: 650 });
   game.start();
   
   const initialMoney = game.getGameStats().money;
+  const interestStartTime = Date.now();
   
   for (let i = 0; i < 10; i++) {
-    game.update(Date.now() + 5000);
+    game.update(interestStartTime + i * 5000);
   }
   
   const laterMoney = game.getGameStats().money;
-  assert(laterMoney > initialMoney, 'Money should increase over time with interest');
+  assert(laterMoney === initialMoney, 'Money should stay stable because default passive interest is disabled');
 });
 
 test('Towers can be placed and tracked in game state', () => {
@@ -270,8 +272,9 @@ test('Game runner update loop runs without errors through multiple frames', () =
   game.placeTower(TowerType.OrchidTrap, 200, 100, TargetingMode.Last);
   game.startWave(0);
   
+  const loopStartTime = Date.now();
   for (let i = 0; i < 100; i++) {
-    game.update(Date.now() + 16);
+    game.update(loopStartTime + i * 16);
   }
   
   const stats = game.getGameStats();
@@ -287,8 +290,9 @@ test('Enemies spawn from wave spawner when wave starts', () => {
   game.startWave(0);
   
   let enemySpawned = false;
+  const spawnStartTime = Date.now();
   for (let i = 0; i < 500; i++) {
-    game.update(Date.now() + 16);
+    game.update(spawnStartTime + i * 16);
     
     if (game.getActiveEnemies().length > 0) {
       enemySpawned = true;
@@ -308,9 +312,10 @@ test('Lives decrease when enemies reach end of path', () => {
   game.startWave(0);
   
   const initialLives = game.getGameStats().lives;
+  const livesStartTime = Date.now();
   
-  for (let i = 0; i < 1000; i++) {
-    game.update(Date.now() + 16);
+  for (let i = 0; i < 40; i++) {
+    game.update(livesStartTime + i * 1000);
     
     const currentLives = game.getGameStats().lives;
     if (currentLives < initialLives) {

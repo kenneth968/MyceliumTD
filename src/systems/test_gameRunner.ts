@@ -1,4 +1,4 @@
-import { GameRunner, GameState, createGameRunner } from './gameRunner';
+import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
@@ -69,6 +69,34 @@ timedSpawnGame.update(waveStartTime);
 assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'First wave update should spawn the opening enemy');
 timedSpawnGame.update(waveStartTime + 16);
 assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'Wave should respect spawn interval between frame updates');
+
+const deterministicUpdateGame = createGameRunner({ startingLives: 20 });
+deterministicUpdateGame.start();
+deterministicUpdateGame.startWave(0);
+const deterministicStartTime = Date.now();
+deterministicUpdateGame.update(deterministicStartTime);
+const deterministicEnemy = deterministicUpdateGame.getActiveEnemies()[0];
+assert(deterministicEnemy !== undefined, 'Deterministic update should spawn an enemy');
+const startingDistance = deterministicEnemy.pathDistance;
+deterministicUpdateGame.update(deterministicStartTime + 1000);
+assert(
+  deterministicEnemy.pathDistance >= startingDistance + 45,
+  `Enemy movement should use caller-provided frame timestamps (expected at least ${startingDistance + 45}, got ${deterministicEnemy.pathDistance})`
+);
+
+const fastForwardGame = createGameRunner({ startingLives: 20 });
+fastForwardGame.start();
+fastForwardGame.setGameSpeed(GameSpeed.Faster);
+fastForwardGame.startWave(0);
+const fastForwardStartTime = Date.now();
+fastForwardGame.update(fastForwardStartTime);
+const fastForwardEnemy = fastForwardGame.getActiveEnemies()[0];
+assert(fastForwardEnemy !== undefined, 'Fast-forward update should spawn an enemy');
+fastForwardGame.update(fastForwardStartTime + 1000);
+assert(
+  fastForwardEnemy.pathDistance >= 140,
+  `Fast-forward should scale movement from caller timestamps (expected at least 140, got ${fastForwardEnemy.pathDistance})`
+);
 
 game.pause();
 assert(game.getState() === GameState.Paused, 'Should be paused');
