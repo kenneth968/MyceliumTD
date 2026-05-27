@@ -70,6 +70,18 @@ assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'First wave update shou
 timedSpawnGame.update(waveStartTime + 16);
 assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'Wave should respect spawn interval between frame updates');
 
+const mixedWaveRemainingGame = createGameRunner();
+mixedWaveRemainingGame.start();
+mixedWaveRemainingGame.startWave(1);
+const mixedWaveStartTime = Date.now();
+mixedWaveRemainingGame.update(mixedWaveStartTime);
+assertEqual(mixedWaveRemainingGame.getActiveEnemies().length, 1, 'Mixed wave should spawn its opening enemy');
+assertEqual(
+  mixedWaveRemainingGame.getRemainingEnemies(),
+  14,
+  'Remaining enemies should count exact future group sizes in mixed waves'
+);
+
 const deterministicUpdateGame = createGameRunner({ startingLives: 20 });
 deterministicUpdateGame.start();
 deterministicUpdateGame.startWave(0);

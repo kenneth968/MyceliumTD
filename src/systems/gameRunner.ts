@@ -522,9 +522,7 @@ export class GameRunner {
   }
 
   getRemainingEnemies(): number {
-    let total = this.waveSpawner.getRemainingInCurrentGroup();
-    total += this.waveSpawner.getRemainingGroups() * 10;
-    return total;
+    return this.waveSpawner.getRemainingEnemyCount();
   }
 
   canPlaceTower(towerType: TowerType, x: number, y: number): { canPlace: boolean; reason?: string } {

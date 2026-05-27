@@ -245,6 +245,19 @@ export class WaveSpawner {
     return wave.groups[this.currentGroupIndex].count - this.enemiesInCurrentGroup;
   }
 
+  getRemainingEnemyCount(): number {
+    const wave = this.getCurrentWave();
+    if (!wave || this.currentGroupIndex >= wave.groups.length) {
+      return 0;
+    }
+
+    let total = this.getRemainingInCurrentGroup();
+    for (let i = this.currentGroupIndex + 1; i < wave.groups.length; i++) {
+      total += wave.groups[i].count;
+    }
+    return total;
+  }
+
   getRemainingGroups(): number {
     const wave = this.getCurrentWave();
     if (!wave) return 0;
