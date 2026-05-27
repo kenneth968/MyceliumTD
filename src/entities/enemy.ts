@@ -13,6 +13,7 @@ export enum StatusEffectType {
   Slow = 'slow',
   Poison = 'poison',
   Stun = 'stun',
+  Revealed = 'revealed',
 }
 
 export interface Enemy {

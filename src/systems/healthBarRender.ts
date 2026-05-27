@@ -61,12 +61,14 @@ const STATUS_EFFECT_COLORS: Record<StatusEffectType, string> = {
   [StatusEffectType.Slow]: '#3498DB',
   [StatusEffectType.Poison]: '#9B59B6',
   [StatusEffectType.Stun]: '#F39C12',
+  [StatusEffectType.Revealed]: '#1ABC9C',
 };
 
 const STATUS_EFFECT_ICONS: Record<StatusEffectType, string> = {
   [StatusEffectType.Slow]: 'snowflake',
   [StatusEffectType.Poison]: 'skull',
   [StatusEffectType.Stun]: 'lightning',
+  [StatusEffectType.Revealed]: 'eye',
 };
 
 const DEFAULT_HEALTH_BAR_WIDTH = 30;

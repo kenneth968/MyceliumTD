@@ -220,8 +220,12 @@ export class GameRenderer {
       const renderData = getEnemyRenderData(enemy);
       renderData.statusEffects = enemy.statusEffects.map(e => ({
         type: e.type,
-        color: e.type === StatusEffectType.Slow ? '#3498DB' : e.type === StatusEffectType.Poison ? '#9B59B6' : '#F39C12',
-        icon: e.type === StatusEffectType.Slow ? 'snowflake' : e.type === StatusEffectType.Poison ? 'skull' : 'lightning',
+        color: e.type === StatusEffectType.Slow ? '#3498DB' :
+          e.type === StatusEffectType.Poison ? '#9B59B6' :
+          e.type === StatusEffectType.Revealed ? '#1ABC9C' : '#F39C12',
+        icon: e.type === StatusEffectType.Slow ? 'snowflake' :
+          e.type === StatusEffectType.Poison ? 'skull' :
+          e.type === StatusEffectType.Revealed ? 'eye' : 'lightning',
         intensity: e.strength,
         remainingDuration: e.remaining,
       }));

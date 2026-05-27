@@ -17,6 +17,8 @@ export interface Enemy {
   pathDistance: number;
   speed: number;
   alive: boolean;
+  enemyType?: string;
+  statusEffects?: { type: string }[];
 }
 
 export interface Tower {
@@ -24,6 +26,8 @@ export interface Tower {
   position: Vec2;
   range: number;
   targetingMode: TargetingMode;
+  towerType?: string;
+  specialEffect?: string;
 }
 
 export interface TargetingResult {
@@ -36,11 +40,7 @@ export function getTarget(
   enemies: Enemy[],
   path: Path
 ): TargetingResult {
-  const inRange = enemies.filter(e => {
-    if (!e.alive || e.hp <= 0) return false;
-    const dist = vec2Distance(tower.position, e.position);
-    return dist <= tower.range;
-  });
+  const inRange = getEnemiesInRange(tower, enemies);
 
   if (inRange.length === 0) {
     return { target: null, distance: Infinity };
@@ -100,6 +100,7 @@ export function canTarget(
   enemy: Enemy
 ): boolean {
   if (!enemy.alive || enemy.hp <= 0) return false;
+  if (!canSeeEnemy(tower, enemy)) return false;
   return vec2Distance(tower.position, enemy.position) <= tower.range;
 }
 
@@ -108,6 +109,22 @@ export function getEnemiesInRange(
   enemies: Enemy[]
 ): Enemy[] {
   return enemies.filter(e => canTarget(tower, e));
+}
+
+function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
+  if (!isCamoEnemy(enemy)) {
+    return true;
+  }
+
+  if (tower.towerType === 'bioluminescent_shroom' || tower.specialEffect === 'reveal_camo') {
+    return true;
+  }
+
+  return enemy.statusEffects?.some(effect => effect.type === 'revealed') ?? false;
+}
+
+function isCamoEnemy(enemy: Enemy): boolean {
+  return enemy.enemyType === 'white_moth' || enemy.enemyType === 'black_widow';
 }
 
 export function createTower(

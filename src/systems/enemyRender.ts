@@ -192,6 +192,11 @@ const STATUS_EFFECT_VISUALS: Record<StatusEffectType, {
     icon: 'lightning',
     animationSpeed: 1.5,
   },
+  [StatusEffectType.Revealed]: {
+    color: '#1ABC9C',
+    icon: 'eye',
+    animationSpeed: 1.0,
+  },
 };
 
 export function getEnemyVisualConfig(enemyType: EnemyType) {
