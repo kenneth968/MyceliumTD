@@ -161,6 +161,9 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   maxWaves: 10,
 };
 
+const KERNEL_NETWORK_RADIUS = 180;
+const NETWORK_LINK_RADIUS = 160;
+
 export class GameRunner {
   private state: GameState;
   private path: Path;
@@ -584,6 +587,10 @@ export class GameRunner {
     }
 
     const cost = getUpgradeCost(placed.tower.towerType, path, currentTier + 1);
+    if (path === UpgradePath.Special && !this.isTowerConnectedToNetwork(towerId)) {
+      return { success: false, cost, newTier: currentTier };
+    }
+
     if (!this.economy.canAfford(cost)) {
       return { success: false, cost, newTier: currentTier };
     }
@@ -1270,8 +1277,8 @@ export class GameRunner {
     }
 
     const canAffordUpgrade = (path: UpgradePath, tier: number): boolean => {
-      const cost = getUpgradeCost(selectedTower!.towerType, path, tier);
-      return this.economy.canAfford(cost);
+      if (!selectedTower) return false;
+      return this.canAffordUpgradeForTower(selectedTower, path, tier);
     };
 
     return getTowerSelectionPreviewRenderData(
@@ -1391,8 +1398,7 @@ export class GameRunner {
 
     const canAffordUpgrade = (path: UpgradePath, tier: number): boolean => {
       if (!selectedTower) return false;
-      const cost = getUpgradeCost(selectedTower.towerType, path, tier);
-      return this.economy.canAfford(cost);
+      return this.canAffordUpgradeForTower(selectedTower, path, tier);
     };
 
     const baseData = getTowerInfoPanelRenderData(
@@ -1478,6 +1484,61 @@ export class GameRunner {
     return this.placedTowers
       .filter(p => p.tower.towerType === TowerType.MyceliumNetwork)
       .map(p => p.tower);
+  }
+
+  private canAffordUpgradeForTower(tower: TowerWithUpgrades, path: UpgradePath, tier: number): boolean {
+    if (path === UpgradePath.Special && !this.isTowerConnectedToNetwork(tower.id)) {
+      return false;
+    }
+    const cost = getUpgradeCost(tower.towerType, path, tier);
+    return this.economy.canAfford(cost);
+  }
+
+  private getKernelNetworkPosition(): Vec2 {
+    return this.path.getPointAtDistance(this.path.getTotalLength()).position;
+  }
+
+  private getNetworkConnectedTowerIds(): Set<number> {
+    const connected = new Set<number>();
+    const anchors: Array<{ position: Vec2; range: number }> = [
+      { position: this.getKernelNetworkPosition(), range: KERNEL_NETWORK_RADIUS },
+    ];
+
+    for (const mycelium of this.getMyceliumTowers()) {
+      connected.add(mycelium.id);
+      anchors.push({
+        position: mycelium.position,
+        range: mycelium.areaRadius ?? NETWORK_LINK_RADIUS,
+      });
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      for (const placed of this.placedTowers) {
+        const tower = placed.tower;
+        if (connected.has(tower.id) || tower.towerType === TowerType.MyceliumNetwork) {
+          continue;
+        }
+
+        const isConnected = anchors.some(anchor =>
+          vec2Distance(anchor.position, tower.position) <= anchor.range
+        );
+
+        if (isConnected) {
+          connected.add(tower.id);
+          anchors.push({ position: tower.position, range: NETWORK_LINK_RADIUS });
+          changed = true;
+        }
+      }
+    }
+
+    return connected;
+  }
+
+  isTowerConnectedToNetwork(towerId: number): boolean {
+    return this.getNetworkConnectedTowerIds().has(towerId);
   }
 
   private getTowersInNetworkRange(mycelium: TowerWithUpgrades): TowerWithUpgrades[] {

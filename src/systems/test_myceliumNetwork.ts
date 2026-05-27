@@ -58,4 +58,41 @@ const myceliumTowers = game.getNetworkBuffedTowers();
 const myceliumCount = myceliumTowers.filter(b => b.tower.towerType === TowerType.MyceliumNetwork);
 assertEqual(myceliumCount.length, 0, 'Mycelium towers should not buff each other');
 
+const unconnectedGame = createGameRunner({ startingMoney: 5000 });
+unconnectedGame.start();
+
+const unconnectedTower = unconnectedGame.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+assert(unconnectedTower !== null, 'Should place an unconnected Puffball tower');
+assertEqual(unconnectedGame.isTowerConnectedToNetwork(unconnectedTower!.id), false, 'Far tower should not be connected to the network');
+
+const moneyBeforeLockedUpgrade = unconnectedGame.getGameStats().money;
+const lockedSpecialUpgrade = unconnectedGame.upgradeTower(unconnectedTower!.id, UpgradePath.Special);
+assertEqual(lockedSpecialUpgrade.success, false, 'Unconnected tower should not buy the bottom/special upgrade');
+assertEqual(lockedSpecialUpgrade.newTier, 0, 'Locked bottom/special upgrade should stay at tier 0');
+assertEqual(unconnectedGame.getGameStats().money, moneyBeforeLockedUpgrade, 'Locked bottom/special upgrade should not spend money');
+
+const normalUpgrade = unconnectedGame.upgradeTower(unconnectedTower!.id, UpgradePath.Damage);
+assertEqual(normalUpgrade.success, true, 'Unconnected tower should still buy non-bottom upgrades');
+
+unconnectedGame.selectTower(unconnectedTower!.id);
+const unconnectedPreview = unconnectedGame.getTowerSelectionPreviewRenderData();
+const lockedIndicator = unconnectedPreview.upgradeIndicators?.find(i => i.path === UpgradePath.Special);
+assert(lockedIndicator !== undefined, 'Special upgrade indicator should remain visible while locked');
+assertEqual(lockedIndicator!.canUpgrade, false, 'Special upgrade indicator should be disabled while disconnected');
+
+const kernelConnectedGame = createGameRunner({ startingMoney: 5000 });
+kernelConnectedGame.start();
+
+const kernelTower = kernelConnectedGame.placeTower(TowerType.PuffballFungus, 720, 180, TargetingMode.First);
+assert(kernelTower !== null, 'Should place a tower near the kernel network');
+assertEqual(kernelConnectedGame.isTowerConnectedToNetwork(kernelTower!.id), true, 'Tower near the kernel should be network-connected');
+
+const unlockedSpecialUpgrade = kernelConnectedGame.upgradeTower(kernelTower!.id, UpgradePath.Special);
+assertEqual(unlockedSpecialUpgrade.success, true, 'Connected tower should buy the bottom/special upgrade');
+assertEqual(unlockedSpecialUpgrade.newTier, 1, 'Connected bottom/special upgrade should advance to tier 1');
+
+const chainedTower = kernelConnectedGame.placeTower(TowerType.OrchidTrap, 600, 180, TargetingMode.First);
+assert(chainedTower !== null, 'Should place a tower chained from a connected tower');
+assertEqual(kernelConnectedGame.isTowerConnectedToNetwork(chainedTower!.id), true, 'Nearby tower should connect through an already-connected tower');
+
 console.log('All MyceliumNetwork tests passed!');
