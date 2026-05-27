@@ -79,6 +79,7 @@ export class WaveSpawner {
   private totalSpawnedInWave: number = 0;
   private currentGroupIndex: number = 0;
   private enemiesInCurrentGroup: number = 0;
+  private hasWaveStartTime: boolean = false;
 
   constructor(path: Path, waves: Wave[] = []) {
     this.path = path;
@@ -118,7 +119,8 @@ export class WaveSpawner {
     }
     this.currentWaveIndex++;
     this.isActive = true;
-    this.waveStartTime = performance.now();
+    this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -132,7 +134,8 @@ export class WaveSpawner {
     }
     this.currentWaveIndex = waveIndex;
     this.isActive = true;
-    this.waveStartTime = performance.now();
+    this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -146,6 +149,7 @@ export class WaveSpawner {
     this.spawnedEnemies = [];
     this.spawnTimers.clear();
     this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -160,6 +164,11 @@ export class WaveSpawner {
     if (!wave) {
       this.isActive = false;
       return [];
+    }
+
+    if (!this.hasWaveStartTime) {
+      this.waveStartTime = currentTime;
+      this.hasWaveStartTime = true;
     }
 
     const newEnemies: Enemy[] = [];

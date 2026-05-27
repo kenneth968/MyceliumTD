@@ -61,6 +61,15 @@ assert(game.isWaveActive() === true, 'Wave should be active after starting');
 game.update();
 assert(game.getState() === GameState.Playing, 'State should still be Playing');
 
+const timedSpawnGame = createGameRunner();
+timedSpawnGame.start();
+timedSpawnGame.startWave(0);
+const waveStartTime = Date.now();
+timedSpawnGame.update(waveStartTime);
+assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'First wave update should spawn the opening enemy');
+timedSpawnGame.update(waveStartTime + 16);
+assertEqual(timedSpawnGame.getActiveEnemies().length, 1, 'Wave should respect spawn interval between frame updates');
+
 game.pause();
 assert(game.getState() === GameState.Paused, 'Should be paused');
 

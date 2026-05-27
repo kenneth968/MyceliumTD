@@ -1,7 +1,7 @@
 import { GameRunner, GameState } from './gameRunner';
 import { GameRenderer, GameFrameRenderData, createGameRenderer } from './gameRenderer';
 
-const g = (typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : global) as any;
+const g = globalThis as any;
 if (typeof g.requestAnimationFrame !== 'function') {
   g.requestAnimationFrame = (cb: (time: number) => void) => setTimeout(() => cb(Date.now()), 16) as any;
 }
