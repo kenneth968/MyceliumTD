@@ -186,6 +186,18 @@ runTest('getEnemyRenderData exposes active Shielded trait for RainbowStag', () =
   assert(shieldedRender.shieldColor === 'rgba(124, 218, 255, 0.75)', 'Shielded render data should expose shield color');
 });
 
+runTest('getEnemyRenderData exposes active Swarm-linked trait for PinkLadybug', () => {
+  const swarmEnemy = createEnemy(6, EnemyType.PinkLadybug, path) as any;
+  swarmEnemy.swarmLinkedActive = true;
+  swarmEnemy.swarmLinkCount = 3;
+  const swarmRender = getEnemyRenderData(swarmEnemy) as any;
+  assert(swarmRender.isSwarmLinked === true, 'PinkLadybug should render as Swarm-linked');
+  assert(swarmRender.swarmLinkedActive === true, 'PinkLadybug should expose active swarm bonus');
+  assert(swarmRender.swarmLinkCount === 3, 'Swarm-linked render data should include nearby count');
+  assert(swarmRender.traits.includes('swarm_linked'), 'PinkLadybug render data should include Swarm-linked trait');
+  assert(swarmRender.swarmLinkColor === 'rgba(245, 94, 121, 0.72)', 'Swarm-linked render data should expose link color');
+});
+
 runTest('getEnemyRenderData returns Dead animation state for dead enemy', () => {
   const enemy = createEnemy(1, EnemyType.RedMushroom, path);
   enemy.alive = false;

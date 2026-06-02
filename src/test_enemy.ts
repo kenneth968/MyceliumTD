@@ -172,7 +172,21 @@ assertTest(shieldedPartial === false, 'Second partial hit should not kill Shield
 assertTest(shieldedEnemy.hp === shieldedStartingHp - 5, 'Second hit should damage Shielded enemy after shield breaks');
 console.log('  PASS\n');
 
-console.log('Test 17: Enemy type mapping for all types');
+console.log('Test 17: Swarm-linked trait activates pack resistance');
+const swarmEnemy = createEnemy(10, EnemyType.PinkLadybug, path);
+swarmEnemy.hp = 20;
+swarmEnemy.maxHp = 20;
+const swarmStartingHp = swarmEnemy.hp;
+assertTest((swarmEnemy as any).traits.includes('swarm_linked'), 'PinkLadybug should have Swarm-linked trait');
+(swarmEnemy as any).swarmLinkedActive = true;
+(swarmEnemy as any).swarmLinkCount = 3;
+const swarmPartial = applyDamageToEnemy(swarmEnemy, 10);
+console.log('  Swarm-linked damage reduced:', swarmPartial === false, 'HP:', swarmEnemy.hp);
+assertTest(swarmPartial === false, 'Partial swarm-resistant hit should not kill Swarm-linked enemy');
+assertTest(swarmEnemy.hp === swarmStartingHp - 9, 'Active Swarm-linked enemy should take 10% less incoming damage');
+console.log('  PASS\n');
+
+console.log('Test 18: Enemy type mapping for all types');
 for (const type of Object.values(EnemyType)) {
   const e = createEnemy(100, type, path);
   console.log('  ', type, '- HP:', e.hp, 'Speed:', e.speed, 'Reward:', e.reward);

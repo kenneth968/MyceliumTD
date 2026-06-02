@@ -20,9 +20,13 @@ export interface EnemyRenderData {
   isMetal: boolean;
   isShielded: boolean;
   shieldActive: boolean;
+  isSwarmLinked: boolean;
+  swarmLinkedActive: boolean;
+  swarmLinkCount: number;
   traits: EnemyTrait[];
   armorColor: string | null;
   shieldColor: string | null;
+  swarmLinkColor: string | null;
   statusEffects: EnemyStatusEffectRender[];
   animationState: EnemyAnimationState;
   facingAngle: number;
@@ -295,6 +299,8 @@ export function getEnemyRenderData(
   const isMetal = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Metal);
   const isShielded = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Shielded);
   const shieldActive = hasActiveShield({ enemyType: enemy.enemyType, traits, shieldCharges: enemy.shieldCharges });
+  const isSwarmLinked = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.SwarmLinked);
+  const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -316,9 +322,13 @@ export function getEnemyRenderData(
     isMetal,
     isShielded,
     shieldActive,
+    isSwarmLinked,
+    swarmLinkedActive,
+    swarmLinkCount: isSwarmLinked ? enemy.swarmLinkCount : 0,
     traits,
     armorColor: isMetal ? '#C8D0D8' : null,
     shieldColor: isShielded ? 'rgba(124, 218, 255, 0.75)' : null,
+    swarmLinkColor: isSwarmLinked ? 'rgba(245, 94, 121, 0.72)' : null,
     statusEffects: statusEffectRenders,
     animationState,
     facingAngle: options?.facingAngle ?? 0,

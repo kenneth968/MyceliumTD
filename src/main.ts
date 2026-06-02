@@ -1396,6 +1396,36 @@ class Game {
                 this.ctx.restore();
             }
 
+            if (enemy.swarmLinkedActive) {
+                this.ctx.save();
+                const linkColor = enemy.swarmLinkColor || 'rgba(245, 94, 121, 0.72)';
+                const swarmPulse = 0.35 + Math.sin(performance.now() / 220 + enemy.id) * 0.12;
+                this.ctx.globalAlpha = swarmPulse;
+                this.ctx.strokeStyle = linkColor;
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 12, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                for (const other of renderData.enemies.enemies) {
+                    if (!other.swarmLinkedActive || other.id <= enemy.id) {
+                        continue;
+                    }
+
+                    const dx = other.position.x - enemy.position.x;
+                    const dy = other.position.y - enemy.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance <= 80) {
+                        this.ctx.globalAlpha = 0.18;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(enemy.position.x, enemy.position.y);
+                        this.ctx.lineTo(other.position.x, other.position.y);
+                        this.ctx.stroke();
+                    }
+                }
+                this.ctx.restore();
+            }
+
             // Camo indicator - dashed outline for revealed enemies
             if (enemy.isCamo && camoRevealed) {
                 this.ctx.beginPath();

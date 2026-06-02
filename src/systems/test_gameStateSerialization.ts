@@ -98,6 +98,20 @@ console.log('\nserializeEnemy with shield state:');
   assertEqual(serialized.shieldCharges, 1, 'shield charge count is serialized');
 }
 
+console.log('\nserializeEnemy with swarm-link state:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(4, EnemyType.PinkLadybug, path);
+  enemy.swarmLinkedActive = true;
+  enemy.swarmLinkCount = 3;
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(serialized.traits.includes('swarm_linked'), 'Swarm-linked trait is serialized');
+  assertEqual(serialized.swarmLinkedActive, true, 'swarm-link active state is serialized');
+  assertEqual(serialized.swarmLinkCount, 3, 'swarm-link nearby count is serialized');
+}
+
 console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();

@@ -25,6 +25,8 @@ export interface SerializedEnemy {
   alive: boolean;
   traits?: string[];
   shieldCharges?: number;
+  swarmLinkedActive?: boolean;
+  swarmLinkCount?: number;
   statusEffects: SerializedStatusEffect[];
   hasReachedEnd: boolean;
 }
@@ -134,6 +136,8 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     alive: enemy.alive,
     traits: enemy.traits.map(trait => trait.toString()),
     shieldCharges: enemy.shieldCharges,
+    swarmLinkedActive: enemy.swarmLinkedActive,
+    swarmLinkCount: enemy.swarmLinkCount,
     statusEffects: enemy.statusEffects.map(e => ({
       type: e.type,
       duration: e.duration,
@@ -283,6 +287,8 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
       ? data.traits.map(trait => trait as EnemyTrait)
       : getEnemyTraitsForType(data.enemyType),
     shieldCharges: data.shieldCharges ?? getInitialShieldChargesForType(data.enemyType),
+    swarmLinkedActive: data.swarmLinkedActive ?? false,
+    swarmLinkCount: data.swarmLinkCount ?? 0,
     statusEffects: data.statusEffects.map(deserializeStatusEffect),
     hasReachedEnd: data.hasReachedEnd,
   };

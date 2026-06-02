@@ -20,6 +20,7 @@ export enum EnemyTrait {
   Metal = 'metal',
   Camo = 'camo',
   Shielded = 'shielded',
+  SwarmLinked = 'swarm_linked',
 }
 
 export enum DamageType {
@@ -45,9 +46,16 @@ export interface Enemy {
   alive: boolean;
   traits: EnemyTrait[];
   shieldCharges: number;
+  swarmLinkedActive: boolean;
+  swarmLinkCount: number;
   statusEffects: StatusEffect[];
   hasReachedEnd: boolean;
 }
+
+export const SWARM_LINK_RADIUS = 80;
+export const SWARM_LINK_THRESHOLD = 3;
+export const SWARM_LINK_SPEED_MULTIPLIER = 1.2;
+export const SWARM_LINK_DAMAGE_MULTIPLIER = 0.9;
 
 export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined): EnemyTrait[] {
   switch (enemyType) {
@@ -59,6 +67,8 @@ export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined)
       return [EnemyTrait.Camo];
     case EnemyType.RainbowStag:
       return [EnemyTrait.Shielded];
+    case EnemyType.PinkLadybug:
+      return [EnemyTrait.SwarmLinked];
     default:
       return [];
   }
@@ -80,6 +90,10 @@ export function isMetal(enemy: { enemyType?: EnemyType | string; traits?: EnemyT
   return hasEnemyTrait(enemy, EnemyTrait.Metal);
 }
 
+export function isSwarmLinked(enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] }): boolean {
+  return hasEnemyTrait(enemy, EnemyTrait.SwarmLinked);
+}
+
 export function hasActiveShield(
   enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; shieldCharges?: number }
 ): boolean {
@@ -95,6 +109,45 @@ export function consumeShieldBlock(
 
   enemy.shieldCharges = Math.max(0, (enemy.shieldCharges ?? 0) - 1);
   return true;
+}
+
+export function getTraitAdjustedDamage(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; swarmLinkedActive?: boolean },
+  damage: number
+): number {
+  if (isSwarmLinked(enemy) && enemy.swarmLinkedActive === true) {
+    return damage * SWARM_LINK_DAMAGE_MULTIPLIER;
+  }
+
+  return damage;
+}
+
+export function getSwarmLinkedSpeedMultiplier(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; swarmLinkedActive?: boolean }
+): number {
+  return isSwarmLinked(enemy) && enemy.swarmLinkedActive === true ? SWARM_LINK_SPEED_MULTIPLIER : 1;
+}
+
+export function refreshSwarmLinkStates(enemies: Enemy[]): void {
+  for (const enemy of enemies) {
+    enemy.swarmLinkedActive = false;
+    enemy.swarmLinkCount = 0;
+  }
+
+  const swarmEnemies = enemies.filter(enemy =>
+    enemy.alive &&
+    enemy.hp > 0 &&
+    isSwarmLinked(enemy)
+  );
+
+  for (const enemy of swarmEnemies) {
+    const nearbyCount = swarmEnemies.filter(other =>
+      vec2Distance(enemy.position, other.position) <= SWARM_LINK_RADIUS
+    ).length;
+
+    enemy.swarmLinkCount = nearbyCount;
+    enemy.swarmLinkedActive = nearbyCount >= SWARM_LINK_THRESHOLD;
+  }
 }
 
 export function canDamageEnemy(
@@ -131,6 +184,8 @@ export function createEnemy(
     alive: true,
     traits,
     shieldCharges: traits.includes(EnemyTrait.Shielded) ? 1 : 0,
+    swarmLinkedActive: false,
+    swarmLinkCount: 0,
     statusEffects: [],
     hasReachedEnd: false,
   };
@@ -213,7 +268,7 @@ export function applyDamageToEnemy(enemy: Enemy, damage: number, options: Damage
   if (consumeShieldBlock(enemy)) return false;
   if (!canDamageEnemy(enemy, options)) return false;
 
-  enemy.hp -= damage;
+  enemy.hp -= getTraitAdjustedDamage(enemy, damage);
   if (enemy.hp <= 0) {
     enemy.hp = 0;
     enemy.alive = false;
@@ -270,5 +325,7 @@ export function respawnEnemy(enemy: Enemy, path: Path): void {
   enemy.hasReachedEnd = false;
   enemy.traits = getEnemyTraitsForType(enemy.enemyType);
   enemy.shieldCharges = getInitialShieldChargesForType(enemy.enemyType);
+  enemy.swarmLinkedActive = false;
+  enemy.swarmLinkCount = 0;
   enemy.statusEffects = [];
 }

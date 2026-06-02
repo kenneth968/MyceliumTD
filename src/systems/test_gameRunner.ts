@@ -174,6 +174,33 @@ assertEqual(
   'Shielded enemy shield should break after blocking a hit'
 );
 
+const isolatedSwarmGame = createGameRunner({ startingLives: 20 });
+isolatedSwarmGame.start();
+const isolatedSwarmEnemy = createEnemy(904, EnemyType.PinkLadybug, isolatedSwarmGame.getPath());
+isolatedSwarmEnemy.position = { ...isolatedSwarmGame.getPath().getPointAtDistance(0).position };
+isolatedSwarmGame.getActiveEnemies().push(isolatedSwarmEnemy);
+isolatedSwarmGame.update(1000);
+isolatedSwarmGame.update(2000);
+
+const packedSwarmGame = createGameRunner({ startingLives: 20 });
+packedSwarmGame.start();
+const packedSwarmEnemies = [905, 906, 907].map(id => {
+  const enemy = createEnemy(id, EnemyType.PinkLadybug, packedSwarmGame.getPath());
+  enemy.position = { ...packedSwarmGame.getPath().getPointAtDistance(0).position };
+  return enemy;
+});
+packedSwarmGame.getActiveEnemies().push(...packedSwarmEnemies);
+packedSwarmGame.update(1000);
+packedSwarmGame.update(2000);
+assert(
+  (packedSwarmEnemies[0] as any).swarmLinkedActive === true,
+  'Swarm-linked enemies should activate their pack bonus when three are close together'
+);
+assert(
+  packedSwarmEnemies[0].pathDistance > isolatedSwarmEnemy.pathDistance,
+  `Swarm-linked pack bonus should move packed enemies faster than isolated ones (packed ${packedSwarmEnemies[0].pathDistance}, isolated ${isolatedSwarmEnemy.pathDistance})`
+);
+
 game.pause();
 assert(game.getState() === GameState.Paused, 'Should be paused');
 

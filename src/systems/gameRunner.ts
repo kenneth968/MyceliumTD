@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower, Enemy as BaseEnemy } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { Enemy, StatusEffectType, DamageType, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward } from '../entities/enemy';
+import { Enemy, StatusEffectType, DamageType, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -699,6 +699,8 @@ export class GameRunner {
   }
 
   private updateEnemies(deltaTime: number): void {
+    refreshSwarmLinkStates(this.activeEnemies);
+
     for (let i = this.activeEnemies.length - 1; i >= 0; i--) {
       const enemy = this.activeEnemies[i];
       
@@ -706,7 +708,7 @@ export class GameRunner {
 
       if (!isEnemyStunned(enemy)) {
         const slowFactor = getSlowFactor(enemy);
-        const slowedSpeed = enemy.baseSpeed * slowFactor;
+        const slowedSpeed = enemy.baseSpeed * slowFactor * getSwarmLinkedSpeedMultiplier(enemy);
         const originalSpeed = enemy.speed;
         enemy.speed = slowedSpeed;
         updateEnemyPosition(enemy, this.path, deltaTime);
