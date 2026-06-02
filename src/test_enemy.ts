@@ -21,6 +21,12 @@ import { EnemyType } from './systems/wave';
 
 const path = createDefaultPath();
 
+function assertTest(condition: boolean, message: string): void {
+  if (!condition) {
+    throw new Error(`Assertion failed: ${message}`);
+  }
+}
+
 console.log('=== Enemy Entity Tests ===\n');
 
 console.log('Test 1: Create enemy');
@@ -150,7 +156,23 @@ console.assert(explosivePartial === false, 'Partial explosive damage should not 
 console.assert(metalEnemy.hp === metalStartingHp - 5, 'Explosive damage should reduce Metal enemy HP');
 console.log('  PASS\n');
 
-console.log('Test 16: Enemy type mapping for all types');
+console.log('Test 16: Shielded trait blocks the first hit');
+const shieldedEnemy = createEnemy(9, EnemyType.RainbowStag, path);
+const shieldedStartingHp = shieldedEnemy.hp;
+assertTest((shieldedEnemy as any).traits.includes('shielded'), 'RainbowStag should have Shielded trait');
+assertTest((shieldedEnemy as any).shieldCharges === 1, 'Shielded enemy should start with one shield charge');
+const blockedByShield = applyDamageToEnemy(shieldedEnemy, 5);
+console.log('  First hit blocked:', blockedByShield === false, 'HP:', shieldedEnemy.hp, 'Shield:', (shieldedEnemy as any).shieldCharges);
+assertTest(blockedByShield === false, 'First hit should break shield without killing Shielded enemy');
+assertTest(shieldedEnemy.hp === shieldedStartingHp, 'Shielded enemy HP should stay unchanged after shield block');
+assertTest((shieldedEnemy as any).shieldCharges === 0, 'Shielded enemy shield should break after first hit');
+const shieldedPartial = applyDamageToEnemy(shieldedEnemy, 5);
+console.log('  Second hit applied:', shieldedPartial === false, 'HP:', shieldedEnemy.hp);
+assertTest(shieldedPartial === false, 'Second partial hit should not kill Shielded enemy');
+assertTest(shieldedEnemy.hp === shieldedStartingHp - 5, 'Second hit should damage Shielded enemy after shield breaks');
+console.log('  PASS\n');
+
+console.log('Test 17: Enemy type mapping for all types');
 for (const type of Object.values(EnemyType)) {
   const e = createEnemy(100, type, path);
   console.log('  ', type, '- HP:', e.hp, 'Speed:', e.speed, 'Reward:', e.reward);

@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/vec2';
-import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasEnemyTrait } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
 
 export interface EnemyRenderData {
@@ -18,8 +18,11 @@ export interface EnemyRenderData {
   isAlive: boolean;
   isCamo: boolean;
   isMetal: boolean;
+  isShielded: boolean;
+  shieldActive: boolean;
   traits: EnemyTrait[];
   armorColor: string | null;
+  shieldColor: string | null;
   statusEffects: EnemyStatusEffectRender[];
   animationState: EnemyAnimationState;
   facingAngle: number;
@@ -290,6 +293,8 @@ export function getEnemyRenderData(
   const animationState = getEnemyAnimationState(enemy);
   const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
   const isMetal = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Metal);
+  const isShielded = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Shielded);
+  const shieldActive = hasActiveShield({ enemyType: enemy.enemyType, traits, shieldCharges: enemy.shieldCharges });
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -309,8 +314,11 @@ export function getEnemyRenderData(
     isAlive: enemy.alive,
     isCamo: hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Camo),
     isMetal,
+    isShielded,
+    shieldActive,
     traits,
     armorColor: isMetal ? '#C8D0D8' : null,
+    shieldColor: isShielded ? 'rgba(124, 218, 255, 0.75)' : null,
     statusEffects: statusEffectRenders,
     animationState,
     facingAngle: options?.facingAngle ?? 0,

@@ -177,6 +177,15 @@ runTest('getEnemyRenderData exposes Metal armor trait for ArmoredBeetle and Shel
   assert(armoredRender.armorColor === '#C8D0D8', 'Metal render data should expose armor color');
 });
 
+runTest('getEnemyRenderData exposes active Shielded trait for RainbowStag', () => {
+  const shieldedEnemy = createEnemy(5, EnemyType.RainbowStag, path);
+  const shieldedRender = getEnemyRenderData(shieldedEnemy) as any;
+  assert(shieldedRender.isShielded === true, 'RainbowStag should render as shielded');
+  assert(shieldedRender.shieldActive === true, 'RainbowStag should start with visible shield active');
+  assert(shieldedRender.traits.includes('shielded'), 'RainbowStag render data should include Shielded trait');
+  assert(shieldedRender.shieldColor === 'rgba(124, 218, 255, 0.75)', 'Shielded render data should expose shield color');
+});
+
 runTest('getEnemyRenderData returns Dead animation state for dead enemy', () => {
   const enemy = createEnemy(1, EnemyType.RedMushroom, path);
   enemy.alive = false;

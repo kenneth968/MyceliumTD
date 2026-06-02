@@ -150,6 +150,30 @@ assert(
   'Explosive Puffball hits should damage Metal enemies'
 );
 
+const shieldedHitGame = createGameRunner({ startingMoney: 5000 });
+shieldedHitGame.start();
+const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+assert(shieldBreakerTower !== null, 'Should place shielded enemy test tower');
+const shieldedTarget = createEnemy(903, EnemyType.RainbowStag, shieldedHitGame.getPath());
+shieldedTarget.pathDistance = 1540;
+shieldedTarget.pathProgress = 1540;
+shieldedTarget.position = { ...shieldedHitGame.getPath().getPointAtDistance(shieldedTarget.pathDistance).position };
+shieldedTarget.speed = 0;
+shieldedTarget.baseSpeed = 0;
+shieldedHitGame.getActiveEnemies().push(shieldedTarget);
+shieldedHitGame.update(1000);
+shieldedHitGame.update(1400);
+assertEqual(
+  shieldedTarget.hp,
+  shieldedTarget.maxHp,
+  'Shielded enemies should block the first tower hit'
+);
+assertEqual(
+  (shieldedTarget as any).shieldCharges,
+  0,
+  'Shielded enemy shield should break after blocking a hit'
+);
+
 game.pause();
 assert(game.getState() === GameState.Paused, 'Should be paused');
 

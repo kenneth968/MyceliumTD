@@ -1382,6 +1382,20 @@ class Game {
                 this.ctx.restore();
             }
 
+            if (enemy.shieldActive) {
+                this.ctx.save();
+                const shieldPulse = 0.65 + Math.sin(performance.now() / 260 + enemy.id) * 0.2;
+                this.ctx.globalAlpha = shieldPulse;
+                this.ctx.shadowColor = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
+                this.ctx.shadowBlur = 10;
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 8, 0, Math.PI * 2);
+                this.ctx.strokeStyle = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+
             // Camo indicator - dashed outline for revealed enemies
             if (enemy.isCamo && camoRevealed) {
                 this.ctx.beginPath();

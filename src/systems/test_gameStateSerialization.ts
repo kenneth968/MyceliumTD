@@ -87,6 +87,17 @@ console.log('\nserializeEnemy with traits:');
   assertTruthy(serialized.traits.includes('metal'), 'Metal trait is serialized');
 }
 
+console.log('\nserializeEnemy with shield state:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(3, EnemyType.RainbowStag, path);
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(serialized.traits.includes('shielded'), 'Shielded trait is serialized');
+  assertEqual(serialized.shieldCharges, 1, 'shield charge count is serialized');
+}
+
 console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();

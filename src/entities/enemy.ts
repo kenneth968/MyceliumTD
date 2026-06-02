@@ -19,6 +19,7 @@ export enum StatusEffectType {
 export enum EnemyTrait {
   Metal = 'metal',
   Camo = 'camo',
+  Shielded = 'shielded',
 }
 
 export enum DamageType {
@@ -43,6 +44,7 @@ export interface Enemy {
   reward: number;
   alive: boolean;
   traits: EnemyTrait[];
+  shieldCharges: number;
   statusEffects: StatusEffect[];
   hasReachedEnd: boolean;
 }
@@ -55,9 +57,15 @@ export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined)
     case EnemyType.WhiteMoth:
     case EnemyType.BlackWidow:
       return [EnemyTrait.Camo];
+    case EnemyType.RainbowStag:
+      return [EnemyTrait.Shielded];
     default:
       return [];
   }
+}
+
+export function getInitialShieldChargesForType(enemyType: EnemyType | string | undefined): number {
+  return getEnemyTraitsForType(enemyType).includes(EnemyTrait.Shielded) ? 1 : 0;
 }
 
 export function hasEnemyTrait(
@@ -70,6 +78,23 @@ export function hasEnemyTrait(
 
 export function isMetal(enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] }): boolean {
   return hasEnemyTrait(enemy, EnemyTrait.Metal);
+}
+
+export function hasActiveShield(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; shieldCharges?: number }
+): boolean {
+  return hasEnemyTrait(enemy, EnemyTrait.Shielded) && (enemy.shieldCharges ?? 0) > 0;
+}
+
+export function consumeShieldBlock(
+  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; shieldCharges?: number }
+): boolean {
+  if (!hasActiveShield(enemy)) {
+    return false;
+  }
+
+  enemy.shieldCharges = Math.max(0, (enemy.shieldCharges ?? 0) - 1);
+  return true;
 }
 
 export function canDamageEnemy(
@@ -90,6 +115,7 @@ export function createEnemy(
 ): Enemy {
   const stats = ENEMY_STATS[enemyType];
   const startPoint = path.getPointAtDistance(0);
+  const traits = getEnemyTraitsForType(enemyType);
 
   return {
     id,
@@ -103,7 +129,8 @@ export function createEnemy(
     baseSpeed: stats.speed,
     reward: stats.reward,
     alive: true,
-    traits: getEnemyTraitsForType(enemyType),
+    traits,
+    shieldCharges: traits.includes(EnemyTrait.Shielded) ? 1 : 0,
     statusEffects: [],
     hasReachedEnd: false,
   };
@@ -183,6 +210,7 @@ export function processPoisonDamage(enemy: Enemy, deltaTime: number): number {
 
 export function applyDamageToEnemy(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
   if (!enemy.alive || enemy.hp <= 0) return false;
+  if (consumeShieldBlock(enemy)) return false;
   if (!canDamageEnemy(enemy, options)) return false;
 
   enemy.hp -= damage;
@@ -241,5 +269,6 @@ export function respawnEnemy(enemy: Enemy, path: Path): void {
   enemy.alive = true;
   enemy.hasReachedEnd = false;
   enemy.traits = getEnemyTraitsForType(enemy.enemyType);
+  enemy.shieldCharges = getInitialShieldChargesForType(enemy.enemyType);
   enemy.statusEffects = [];
 }

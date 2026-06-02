@@ -1,6 +1,6 @@
 import { GameRunner, GameState, GameSpeed, PlacementState, PlacedTower } from './gameRunner';
 import { TowerType, Tower } from '../entities/tower';
-import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType, getInitialShieldChargesForType } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { RoundState } from './roundManager';
 
@@ -24,6 +24,7 @@ export interface SerializedEnemy {
   reward: number;
   alive: boolean;
   traits?: string[];
+  shieldCharges?: number;
   statusEffects: SerializedStatusEffect[];
   hasReachedEnd: boolean;
 }
@@ -132,6 +133,7 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     reward: enemy.reward,
     alive: enemy.alive,
     traits: enemy.traits.map(trait => trait.toString()),
+    shieldCharges: enemy.shieldCharges,
     statusEffects: enemy.statusEffects.map(e => ({
       type: e.type,
       duration: e.duration,
@@ -280,6 +282,7 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
     traits: data.traits
       ? data.traits.map(trait => trait as EnemyTrait)
       : getEnemyTraitsForType(data.enemyType),
+    shieldCharges: data.shieldCharges ?? getInitialShieldChargesForType(data.enemyType),
     statusEffects: data.statusEffects.map(deserializeStatusEffect),
     hasReachedEnd: data.hasReachedEnd,
   };
