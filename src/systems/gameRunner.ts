@@ -699,7 +699,7 @@ export class GameRunner {
   }
 
   private updateEnemies(deltaTime: number): void {
-    refreshSwarmLinkStates(this.activeEnemies);
+    this.refreshEnemyTraitStates();
 
     for (let i = this.activeEnemies.length - 1; i >= 0; i--) {
       const enemy = this.activeEnemies[i];
@@ -735,6 +735,19 @@ export class GameRunner {
         this.activeEnemies.splice(i, 1);
       }
     }
+  }
+
+  private refreshEnemyTraitStates(): void {
+    refreshSwarmLinkStates(this.activeEnemies);
+  }
+
+  private applyTowerDamageWithFreshTraits(enemy: BaseEnemy, damage: number, options: { damageType?: DamageType | `${DamageType}` } = {}): boolean {
+    this.refreshEnemyTraitStates();
+    const killed = applyDamage(enemy, damage, options);
+    if (killed) {
+      this.refreshEnemyTraitStates();
+    }
+    return killed;
   }
 
   private updateLingeringFields(deltaTime: number): void {
@@ -787,7 +800,7 @@ export class GameRunner {
       }
 
       if (vec2Distance(enemy.position, payload.position) <= payload.radius) {
-        applyDamage(enemy, payload.damage, { damageType: DamageType.Explosive });
+        this.applyTowerDamageWithFreshTraits(enemy, payload.damage, { damageType: DamageType.Explosive });
       }
     }
   }
@@ -859,7 +872,7 @@ export class GameRunner {
         );
         effects.push(...(projectile.extraHitEffects ?? []));
         applyHitEffects(result.target as any, effects, deltaTime);
-        applyDamage(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
+        this.applyTowerDamageWithFreshTraits(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
 
         // Emit hit event for visual effects
         this.eventQueue.push({
@@ -887,7 +900,7 @@ export class GameRunner {
 
           for (const areaEnemy of areaResult.enemiesHit) {
             if (areaEnemy.id !== result.target.id) {
-              applyDamage(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
+              this.applyTowerDamageWithFreshTraits(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
             }
           }
 
@@ -1040,9 +1053,11 @@ export class GameRunner {
     if (this.state === GameState.Playing) {
       this.spawnEnemyFromWave();
       const speedDeltaTime = deltaTime * this.gameSpeed;
+      this.refreshEnemyTraitStates();
       this.updateSeededPayloads(speedDeltaTime);
       this.updateLingeringFields(speedDeltaTime);
       this.updateEnemies(speedDeltaTime);
+      this.refreshEnemyTraitStates();
       this.updateTowers(speedDeltaTime);
       this.updateProjectiles(speedDeltaTime);
       this.updateHero(speedDeltaTime);

@@ -15,6 +15,7 @@ const {
   serializeEconomy,
   serializeRoundManager,
   serializeWaveSpawner,
+  deserializeEnemy,
 } = require('./gameStateSerialization');
 
 let passed = 0;
@@ -110,6 +111,31 @@ console.log('\nserializeEnemy with swarm-link state:');
   assertTruthy(serialized.traits.includes('swarm_linked'), 'Swarm-linked trait is serialized');
   assertEqual(serialized.swarmLinkedActive, true, 'swarm-link active state is serialized');
   assertEqual(serialized.swarmLinkCount, 3, 'swarm-link nearby count is serialized');
+}
+
+console.log('\ndeserializeEnemy reconciles older swarm saves:');
+{
+  const deserialized = deserializeEnemy({
+    id: 44,
+    enemyType: 'pink_ladybug',
+    position: { x: 120, y: 300 },
+    hp: 5,
+    maxHp: 5,
+    pathProgress: 120,
+    pathDistance: 120,
+    speed: 70,
+    baseSpeed: 70,
+    reward: 5,
+    alive: true,
+    traits: [],
+    shieldCharges: 0,
+    statusEffects: [],
+    hasReachedEnd: false,
+  });
+
+  assertTruthy(deserialized.traits.includes('swarm_linked'), 'older PinkLadybug saves receive current Swarm-linked trait');
+  assertEqual(deserialized.swarmLinkedActive, false, 'missing swarm-link active state defaults false');
+  assertEqual(deserialized.swarmLinkCount, 0, 'missing swarm-link count defaults to 0');
 }
 
 console.log('\nserializeEnemy with status effects:');

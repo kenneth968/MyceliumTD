@@ -270,6 +270,14 @@ export function deserializeStatusEffect(data: SerializedStatusEffect): StatusEff
   };
 }
 
+function reconcileEnemyTraits(enemyType: string, traits?: string[]): EnemyTrait[] {
+  const mergedTraits = new Set<EnemyTrait>(getEnemyTraitsForType(enemyType));
+  for (const trait of traits ?? []) {
+    mergedTraits.add(trait as EnemyTrait);
+  }
+  return Array.from(mergedTraits);
+}
+
 export function deserializeEnemy(data: SerializedEnemy): Enemy {
   return {
     id: data.id,
@@ -283,9 +291,7 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
     baseSpeed: data.baseSpeed,
     reward: data.reward,
     alive: data.alive,
-    traits: data.traits
-      ? data.traits.map(trait => trait as EnemyTrait)
-      : getEnemyTraitsForType(data.enemyType),
+    traits: reconcileEnemyTraits(data.enemyType, data.traits),
     shieldCharges: data.shieldCharges ?? getInitialShieldChargesForType(data.enemyType),
     swarmLinkedActive: data.swarmLinkedActive ?? false,
     swarmLinkCount: data.swarmLinkCount ?? 0,

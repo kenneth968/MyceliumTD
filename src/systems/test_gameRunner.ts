@@ -201,6 +201,79 @@ assert(
   `Swarm-linked pack bonus should move packed enemies faster than isolated ones (packed ${packedSwarmEnemies[0].pathDistance}, isolated ${isolatedSwarmEnemy.pathDistance})`
 );
 
+const swarmProjectileFreshnessGame = createGameRunner({ startingLives: 20 });
+swarmProjectileFreshnessGame.start();
+swarmProjectileFreshnessGame.update(0);
+const movingOutOfPack = createEnemy(908, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+movingOutOfPack.hp = 20;
+movingOutOfPack.maxHp = 20;
+movingOutOfPack.pathDistance = 0;
+movingOutOfPack.pathProgress = 0;
+movingOutOfPack.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(0).position };
+movingOutOfPack.speed = 200;
+movingOutOfPack.baseSpeed = 200;
+const stationaryPackMateA = createEnemy(909, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+stationaryPackMateA.pathDistance = 10;
+stationaryPackMateA.pathProgress = 10;
+stationaryPackMateA.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(10).position };
+stationaryPackMateA.speed = 0;
+stationaryPackMateA.baseSpeed = 0;
+const stationaryPackMateB = createEnemy(910, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+stationaryPackMateB.pathDistance = 20;
+stationaryPackMateB.pathProgress = 20;
+stationaryPackMateB.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(20).position };
+stationaryPackMateB.speed = 0;
+stationaryPackMateB.baseSpeed = 0;
+swarmProjectileFreshnessGame.getActiveEnemies().push(movingOutOfPack, stationaryPackMateA, stationaryPackMateB);
+swarmProjectileFreshnessGame.getActiveProjectiles().push({
+  id: 990,
+  position: { x: 0, y: 300 },
+  targetId: movingOutOfPack.id,
+  speed: 10000,
+  damage: 10,
+  towerType: TowerType.StinkhornLine,
+  alive: true,
+});
+swarmProjectileFreshnessGame.update(1000);
+assertEqual(
+  movingOutOfPack.hp,
+  10,
+  'Projectile damage should refresh Swarm-linked state after movement, so enemies that left the pack take full damage'
+);
+
+const swarmSeededPayloadFreshnessGame = createGameRunner({ startingLives: 20 });
+swarmSeededPayloadFreshnessGame.start();
+swarmSeededPayloadFreshnessGame.update(0);
+const payloadPosition = { x: 0, y: 300 };
+const seededSwarmTargets = [911, 912, 913].map(id => {
+  const enemy = createEnemy(id, EnemyType.PinkLadybug, swarmSeededPayloadFreshnessGame.getPath());
+  enemy.hp = 20;
+  enemy.maxHp = 20;
+  enemy.pathDistance = 0;
+  enemy.pathProgress = 0;
+  enemy.position = { ...payloadPosition };
+  enemy.speed = 0;
+  enemy.baseSpeed = 0;
+  return enemy;
+});
+swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
+(swarmSeededPayloadFreshnessGame as any).activeSeededPayloads.push({
+  id: 991,
+  type: 'stinkhorn_seeded_payload',
+  position: { ...payloadPosition },
+  radius: 35,
+  damage: 10,
+  delay: 1000,
+  remaining: 0,
+  sourceTowerId: 1,
+});
+swarmSeededPayloadFreshnessGame.update(1000);
+assertEqual(
+  seededSwarmTargets[0].hp,
+  11,
+  'Seeded payload damage should refresh Swarm-linked state before detonation damage'
+);
+
 game.pause();
 assert(game.getState() === GameState.Paused, 'Should be paused');
 
