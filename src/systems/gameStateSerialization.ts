@@ -9,6 +9,7 @@ export interface SerializedStatusEffect {
   duration: number;
   remaining: number;
   strength: number;
+  disruptedTrait?: string;
 }
 
 export interface SerializedEnemy {
@@ -143,6 +144,7 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
       duration: e.duration,
       remaining: e.remaining,
       strength: e.strength,
+      disruptedTrait: e.disruptedTrait,
     })),
     hasReachedEnd: enemy.hasReachedEnd,
   };
@@ -267,6 +269,7 @@ export function deserializeStatusEffect(data: SerializedStatusEffect): StatusEff
     duration: data.duration,
     remaining: data.remaining,
     strength: data.strength,
+    disruptedTrait: data.disruptedTrait as EnemyTrait | undefined,
   };
 }
 

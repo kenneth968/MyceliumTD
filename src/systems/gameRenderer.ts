@@ -261,10 +261,12 @@ export class GameRenderer {
         type: e.type,
         color: e.type === StatusEffectType.Slow ? '#3498DB' :
           e.type === StatusEffectType.Poison ? '#9B59B6' :
-          e.type === StatusEffectType.Revealed ? '#1ABC9C' : '#F39C12',
+          e.type === StatusEffectType.Revealed ? '#1ABC9C' :
+          e.type === StatusEffectType.TraitDisrupted ? '#E67E22' : '#F39C12',
         icon: e.type === StatusEffectType.Slow ? 'snowflake' :
           e.type === StatusEffectType.Poison ? 'skull' :
-          e.type === StatusEffectType.Revealed ? 'eye' : 'lightning',
+          e.type === StatusEffectType.Revealed ? 'eye' :
+          e.type === StatusEffectType.TraitDisrupted ? 'broken-link' : 'lightning',
         intensity: e.strength,
         remainingDuration: e.remaining,
       }));

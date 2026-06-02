@@ -207,6 +207,11 @@ const STATUS_EFFECT_VISUALS: Record<StatusEffectType, {
     icon: 'eye',
     animationSpeed: 1.0,
   },
+  [StatusEffectType.TraitDisrupted]: {
+    color: '#E67E22',
+    icon: 'broken-link',
+    animationSpeed: 1.2,
+  },
 };
 
 export function getEnemyVisualConfig(enemyType: EnemyType) {
@@ -296,10 +301,11 @@ export function getEnemyRenderData(
   const config = getEnemyVisualConfig(enemy.enemyType);
   const animationState = getEnemyAnimationState(enemy);
   const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
-  const isMetal = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Metal);
-  const isShielded = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Shielded);
-  const shieldActive = hasActiveShield({ enemyType: enemy.enemyType, traits, shieldCharges: enemy.shieldCharges });
-  const isSwarmLinked = hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.SwarmLinked);
+  const traitCarrier = { enemyType: enemy.enemyType, traits, statusEffects: enemy.statusEffects };
+  const isMetal = hasEnemyTrait(traitCarrier, EnemyTrait.Metal);
+  const isShielded = hasEnemyTrait(traitCarrier, EnemyTrait.Shielded);
+  const shieldActive = hasActiveShield({ ...traitCarrier, shieldCharges: enemy.shieldCharges });
+  const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
   const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
@@ -318,7 +324,7 @@ export function getEnemyRenderData(
     pathProgress: options?.pathProgress ?? enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     isAlive: enemy.alive,
-    isCamo: hasEnemyTrait({ enemyType: enemy.enemyType, traits }, EnemyTrait.Camo),
+    isCamo: hasEnemyTrait(traitCarrier, EnemyTrait.Camo),
     isMetal,
     isShielded,
     shieldActive,
@@ -551,7 +557,7 @@ export interface CamoIndicator {
 }
 
 export function getCamoIndicator(enemy: Enemy, isRevealed: boolean = false): CamoIndicator {
-  const isCamo = enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow;
+  const isCamo = hasEnemyTrait(enemy, EnemyTrait.Camo);
   if (!isCamo) {
     return { isVisible: false, revealColor: '#FFFFFF', opacity: 0 };
   }
@@ -589,7 +595,7 @@ export function getStatusEffectAuras(enemy: Enemy, time: number): StatusEffectAu
 }
 
 export function isEnemyFullyVisible(enemy: Enemy, hasCamoReveal: boolean = false): boolean {
-  const isCamo = enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow;
+  const isCamo = hasEnemyTrait(enemy, EnemyTrait.Camo);
   if (!isCamo) return true;
   return hasCamoReveal;
 }

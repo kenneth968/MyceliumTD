@@ -14,7 +14,7 @@ import {
   AreaDamageResult,
 } from './systems/collision';
 import { Projectile, TowerType } from './entities/tower';
-import { Enemy, StatusEffectType, createEnemy, hasStatusEffect, updateStatusEffects } from './entities/enemy';
+import { Enemy, StatusEffectType, createEnemy, disruptEnemyTrait, hasStatusEffect, updateStatusEffects } from './entities/enemy';
 import { EnemyType } from './systems/wave';
 import { createDefaultPath } from './systems/path';
 import { TargetingMode, getTarget } from './systems/targeting';
@@ -267,6 +267,33 @@ test('reveal_camo hit effect makes camo enemies targetable until it expires', ()
   updateStatusEffects(camoEnemy, 501);
   const expiredResult = getTarget(tower, [camoEnemy], path);
   assertTrue(expiredResult.target === null, 'Camo enemy should hide again after reveal expires');
+});
+
+test('trait disruption makes camo enemies targetable until it expires', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 200,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.PuffballFungus,
+    specialEffect: 'area_damage',
+  };
+  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  camoEnemy.position = { x: 60, y: 300 };
+  camoEnemy.pathDistance = 200;
+  camoEnemy.pathProgress = 200;
+
+  const hiddenResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(hiddenResult.target === null, 'Camo enemy should start hidden from ordinary tower');
+
+  disruptEnemyTrait(camoEnemy, 500);
+  const disruptedResult = getTarget(tower, [camoEnemy], path);
+  assertEqual(disruptedResult.target?.id, camoEnemy.id, 'Trait-disrupted camo enemy should be targetable');
+
+  updateStatusEffects(camoEnemy, 501);
+  const expiredResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(expiredResult.target === null, 'Camo enemy should hide again after trait disruption expires');
 });
 
 test('getHitEffectsForTowerType returns correct effects for PuffballFungus', () => {

@@ -156,6 +156,22 @@ console.log('\nserializeEnemy with status effects:');
   assertEqual(serialized.statusEffects[0].strength, 0.3, 'strength is 0.3');
 }
 
+console.log('\nserializeEnemy with trait disruption status:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, disruptEnemyTrait, EnemyTrait, StatusEffectType } = require('../entities/enemy');
+  const enemy = createEnemy(1, EnemyType.ArmoredBeetle, path);
+  const disruptedTrait = disruptEnemyTrait(enemy, 1234);
+
+  const serialized = serializeEnemy(enemy);
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(disruptedTrait, EnemyTrait.Metal, 'Metal trait was disrupted');
+  assertEqual(serialized.statusEffects[0].type, StatusEffectType.TraitDisrupted, 'disruption status is serialized');
+  assertEqual(serialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait is serialized');
+  assertEqual(deserialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait survives deserialize');
+}
+
 console.log('\nserializeProjectile:');
 {
   const projectile = {

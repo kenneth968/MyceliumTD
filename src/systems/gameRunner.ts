@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower, Enemy as BaseEnemy } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { Enemy, StatusEffectType, DamageType, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier } from '../entities/enemy';
+import { Enemy, StatusEffectType, DamageType, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -750,6 +750,25 @@ export class GameRunner {
     return killed;
   }
 
+  private canProjectileDisruptTraits(projectile: Projectile): boolean {
+    if (projectile.towerType !== TowerType.OrchidTrap || projectile.sourceTowerId === undefined) {
+      return false;
+    }
+
+    const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
+    return !!placed &&
+      placed.tower.upgradeLevels[UpgradePath.Special] > 0 &&
+      this.isTowerConnectedToNetwork(placed.tower.id);
+  }
+
+  private applyTraitDisruptionFromProjectile(projectile: Projectile, enemy: Enemy): void {
+    if (!this.canProjectileDisruptTraits(projectile)) {
+      return;
+    }
+
+    disruptEnemyTrait(enemy, TRAIT_DISRUPTION_DURATION);
+  }
+
   private updateLingeringFields(deltaTime: number): void {
     for (let i = this.activeLingeringFields.length - 1; i >= 0; i--) {
       const field = this.activeLingeringFields[i];
@@ -871,6 +890,7 @@ export class GameRunner {
           projectile.effectDuration
         );
         effects.push(...(projectile.extraHitEffects ?? []));
+        this.applyTraitDisruptionFromProjectile(projectile, result.target as Enemy);
         applyHitEffects(result.target as any, effects, deltaTime);
         this.applyTowerDamageWithFreshTraits(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
 

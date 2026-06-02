@@ -1,6 +1,6 @@
 import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner';
 import { TowerType } from '../entities/tower';
-import { createEnemy } from '../entities/enemy';
+import { EnemyTrait, StatusEffectType, createEnemy } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
 import { RoundState } from './roundManager';
@@ -148,6 +148,54 @@ metalExplosiveGame.update(1400);
 assert(
   explosiveTarget.hp < explosiveTarget.maxHp,
   'Explosive Puffball hits should damage Metal enemies'
+);
+
+const traitDisruptionGame = createGameRunner({ startingMoney: 5000 });
+traitDisruptionGame.start();
+const disruptingTower = traitDisruptionGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+assert(disruptingTower !== null, 'Should place Orchid trait disruption tower');
+const disruptingUpgrade = traitDisruptionGame.upgradeTower(disruptingTower!.id, UpgradePath.Special);
+assert(
+  disruptingUpgrade.success === true,
+  'Connected Orchid should be able to buy Special trait disruption upgrade'
+);
+const disruptedMetalTarget = createEnemy(912, EnemyType.ArmoredBeetle, traitDisruptionGame.getPath());
+disruptedMetalTarget.pathDistance = 1520;
+disruptedMetalTarget.pathProgress = 1520;
+disruptedMetalTarget.position = { ...traitDisruptionGame.getPath().getPointAtDistance(disruptedMetalTarget.pathDistance).position };
+disruptedMetalTarget.speed = 0;
+disruptedMetalTarget.baseSpeed = 0;
+traitDisruptionGame.getActiveEnemies().push(disruptedMetalTarget);
+traitDisruptionGame.update(1000);
+traitDisruptionGame.update(2200);
+assert(
+  disruptedMetalTarget.statusEffects.some(
+    effect => effect.type === StatusEffectType.TraitDisrupted && effect.disruptedTrait === EnemyTrait.Metal
+  ),
+  'Connected Special Orchid should disrupt the Metal trait on hit'
+);
+assert(
+  disruptedMetalTarget.hp < disruptedMetalTarget.maxHp,
+  'Connected Special Orchid hit should damage Metal enemies after disrupting their trait'
+);
+
+const plainOrchidGame = createGameRunner({ startingMoney: 5000 });
+plainOrchidGame.start();
+const plainOrchid = plainOrchidGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+assert(plainOrchid !== null, 'Should place ordinary Orchid metal regression tower');
+const plainOrchidMetalTarget = createEnemy(913, EnemyType.ArmoredBeetle, plainOrchidGame.getPath());
+plainOrchidMetalTarget.pathDistance = 1520;
+plainOrchidMetalTarget.pathProgress = 1520;
+plainOrchidMetalTarget.position = { ...plainOrchidGame.getPath().getPointAtDistance(plainOrchidMetalTarget.pathDistance).position };
+plainOrchidMetalTarget.speed = 0;
+plainOrchidMetalTarget.baseSpeed = 0;
+plainOrchidGame.getActiveEnemies().push(plainOrchidMetalTarget);
+plainOrchidGame.update(1000);
+plainOrchidGame.update(2200);
+assertEqual(
+  plainOrchidMetalTarget.hp,
+  plainOrchidMetalTarget.maxHp,
+  'Ordinary Orchid should not bypass Metal without connected Special upgrade'
 );
 
 const shieldedHitGame = createGameRunner({ startingMoney: 5000 });

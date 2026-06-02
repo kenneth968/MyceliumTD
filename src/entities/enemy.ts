@@ -7,6 +7,7 @@ export interface StatusEffect {
   duration: number;
   remaining: number;
   strength: number;
+  disruptedTrait?: EnemyTrait;
 }
 
 export enum StatusEffectType {
@@ -14,6 +15,7 @@ export enum StatusEffectType {
   Poison = 'poison',
   Stun = 'stun',
   Revealed = 'revealed',
+  TraitDisrupted = 'trait_disrupted',
 }
 
 export enum EnemyTrait {
@@ -56,6 +58,17 @@ export const SWARM_LINK_RADIUS = 80;
 export const SWARM_LINK_THRESHOLD = 3;
 export const SWARM_LINK_SPEED_MULTIPLIER = 1.2;
 export const SWARM_LINK_DAMAGE_MULTIPLIER = 0.9;
+export const TRAIT_DISRUPTION_DURATION = 5000;
+
+type TraitCarrier = {
+  enemyType?: EnemyType | string;
+  traits?: EnemyTrait[];
+  statusEffects?: Array<{
+    type: StatusEffectType | string;
+    remaining?: number;
+    disruptedTrait?: EnemyTrait | string;
+  }>;
+};
 
 export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined): EnemyTrait[] {
   switch (enemyType) {
@@ -79,29 +92,37 @@ export function getInitialShieldChargesForType(enemyType: EnemyType | string | u
 }
 
 export function hasEnemyTrait(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] },
+  enemy: TraitCarrier,
   trait: EnemyTrait
 ): boolean {
   const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
-  return traits.includes(trait);
+  return traits.includes(trait) && !hasDisruptedTrait(enemy, trait);
 }
 
-export function isMetal(enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] }): boolean {
+export function hasDisruptedTrait(enemy: TraitCarrier, trait: EnemyTrait): boolean {
+  return enemy.statusEffects?.some(effect =>
+    effect.type === StatusEffectType.TraitDisrupted &&
+    effect.disruptedTrait === trait &&
+    (effect.remaining ?? 0) > 0
+  ) ?? false;
+}
+
+export function isMetal(enemy: TraitCarrier): boolean {
   return hasEnemyTrait(enemy, EnemyTrait.Metal);
 }
 
-export function isSwarmLinked(enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] }): boolean {
+export function isSwarmLinked(enemy: TraitCarrier): boolean {
   return hasEnemyTrait(enemy, EnemyTrait.SwarmLinked);
 }
 
 export function hasActiveShield(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; shieldCharges?: number }
+  enemy: TraitCarrier & { shieldCharges?: number }
 ): boolean {
   return hasEnemyTrait(enemy, EnemyTrait.Shielded) && (enemy.shieldCharges ?? 0) > 0;
 }
 
 export function consumeShieldBlock(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; shieldCharges?: number }
+  enemy: TraitCarrier & { shieldCharges?: number }
 ): boolean {
   if (!hasActiveShield(enemy)) {
     return false;
@@ -112,7 +133,7 @@ export function consumeShieldBlock(
 }
 
 export function getTraitAdjustedDamage(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; swarmLinkedActive?: boolean },
+  enemy: TraitCarrier & { swarmLinkedActive?: boolean },
   damage: number
 ): number {
   if (isSwarmLinked(enemy) && enemy.swarmLinkedActive === true) {
@@ -123,7 +144,7 @@ export function getTraitAdjustedDamage(
 }
 
 export function getSwarmLinkedSpeedMultiplier(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[]; swarmLinkedActive?: boolean }
+  enemy: TraitCarrier & { swarmLinkedActive?: boolean }
 ): number {
   return isSwarmLinked(enemy) && enemy.swarmLinkedActive === true ? SWARM_LINK_SPEED_MULTIPLIER : 1;
 }
@@ -151,7 +172,7 @@ export function refreshSwarmLinkStates(enemies: Enemy[]): void {
 }
 
 export function canDamageEnemy(
-  enemy: { enemyType?: EnemyType | string; traits?: EnemyTrait[] },
+  enemy: TraitCarrier,
   options: DamageOptions = {}
 ): boolean {
   if (!isMetal(enemy)) {
@@ -159,6 +180,64 @@ export function canDamageEnemy(
   }
 
   return options.damageType === DamageType.Explosive;
+}
+
+export function disruptEnemyTrait(enemy: Enemy, duration: number = TRAIT_DISRUPTION_DURATION): EnemyTrait | null {
+  if (!enemy.alive || enemy.hp <= 0) {
+    return null;
+  }
+
+  const priority = [
+    EnemyTrait.Shielded,
+    EnemyTrait.Metal,
+    EnemyTrait.Camo,
+    EnemyTrait.SwarmLinked,
+  ];
+
+  const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
+  const activeTrait = priority.find(candidate => {
+    if (candidate === EnemyTrait.Shielded && !hasActiveShield(enemy)) {
+      return false;
+    }
+    return hasEnemyTrait(enemy, candidate);
+  });
+  const trait = activeTrait ?? priority.find(candidate =>
+    traits.includes(candidate) && hasDisruptedTrait(enemy, candidate)
+  );
+
+  if (!trait) {
+    return null;
+  }
+
+  const existing = enemy.statusEffects.find(effect =>
+    effect.type === StatusEffectType.TraitDisrupted &&
+    effect.disruptedTrait === trait
+  );
+
+  if (existing) {
+    existing.duration = duration;
+    existing.remaining = duration;
+    existing.strength = 1;
+  } else {
+    enemy.statusEffects.push({
+      type: StatusEffectType.TraitDisrupted,
+      duration,
+      remaining: duration,
+      strength: 1,
+      disruptedTrait: trait,
+    });
+  }
+
+  if (trait === EnemyTrait.Shielded) {
+    enemy.shieldCharges = 0;
+  }
+
+  if (trait === EnemyTrait.SwarmLinked) {
+    enemy.swarmLinkedActive = false;
+    enemy.swarmLinkCount = 0;
+  }
+
+  return trait;
 }
 
 export function createEnemy(

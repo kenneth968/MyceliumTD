@@ -11,10 +11,14 @@ import {
   isEnemyInRange,
   getReward,
   getHealthPercent,
+  hasEnemyTrait,
   hasStatusEffect,
   clearStatusEffects,
   respawnEnemy,
   StatusEffectType,
+  EnemyTrait,
+  disruptEnemyTrait,
+  refreshSwarmLinkStates,
   isCamo,
 } from './entities/enemy';
 import { EnemyType } from './systems/wave';
@@ -195,6 +199,59 @@ for (const type of Object.values(EnemyType)) {
   console.assert(e.speed > 0, 'Speed should be positive');
   console.assert(e.reward >= 0, 'Reward should be non-negative');
 }
+console.log('  PASS\n');
+
+console.log('Test 19: Trait disruption temporarily opens Metal enemies to ordinary damage');
+const disruptedMetal = createEnemy(11, EnemyType.ArmoredBeetle, path);
+const disruptedMetalStartingHp = disruptedMetal.hp;
+const disruptedMetalTrait = disruptEnemyTrait(disruptedMetal, 5000);
+assertTest(disruptedMetalTrait === EnemyTrait.Metal, 'Disruption should strip Metal from ArmoredBeetle');
+assertTest(hasEnemyTrait(disruptedMetal, EnemyTrait.Metal) === false, 'Disrupted Metal trait should be inactive');
+const disruptedMetalHit = applyDamageToEnemy(disruptedMetal, 5);
+assertTest(disruptedMetalHit === false, 'Partial ordinary damage should not kill disrupted Metal enemy');
+assertTest(disruptedMetal.hp === disruptedMetalStartingHp - 5, 'Ordinary damage should land while Metal is disrupted');
+updateStatusEffects(disruptedMetal, 4000);
+const refreshedMetalTrait = disruptEnemyTrait(disruptedMetal, 5000);
+assertTest(refreshedMetalTrait === EnemyTrait.Metal, 'Repeated disruption hits should refresh the disrupted Metal trait');
+const refreshedMetalEffect = disruptedMetal.statusEffects.find(
+  effect => effect.type === StatusEffectType.TraitDisrupted && effect.disruptedTrait === EnemyTrait.Metal
+);
+assertTest(refreshedMetalEffect?.remaining === 5000, 'Repeated disruption hits should reset the disruption timer');
+updateStatusEffects(disruptedMetal, 4999);
+assertTest(hasEnemyTrait(disruptedMetal, EnemyTrait.Metal) === false, 'Refreshed Metal disruption should stay active for the full duration');
+updateStatusEffects(disruptedMetal, 5001);
+assertTest(hasEnemyTrait(disruptedMetal, EnemyTrait.Metal) === true, 'Metal trait should return after disruption expires');
+const restoredMetalHp = disruptedMetal.hp;
+const restoredMetalHit = applyDamageToEnemy(disruptedMetal, 5);
+assertTest(restoredMetalHit === false, 'Restored Metal enemy should block ordinary damage');
+assertTest(disruptedMetal.hp === restoredMetalHp, 'Restored Metal enemy HP should stay unchanged after ordinary damage');
+console.log('  PASS\n');
+
+console.log('Test 20: Trait disruption breaks active shields');
+const disruptedShield = createEnemy(12, EnemyType.RainbowStag, path);
+const disruptedShieldStartingHp = disruptedShield.hp;
+const disruptedShieldTrait = disruptEnemyTrait(disruptedShield, 5000);
+assertTest(disruptedShieldTrait === EnemyTrait.Shielded, 'Disruption should strip Shielded first when shield is active');
+assertTest(disruptedShield.shieldCharges === 0, 'Disrupting Shielded should consume the active shield');
+const disruptedShieldHit = applyDamageToEnemy(disruptedShield, 5);
+assertTest(disruptedShieldHit === false, 'Partial hit after shield disruption should not kill Shielded enemy');
+assertTest(disruptedShield.hp === disruptedShieldStartingHp - 5, 'Hit after shield disruption should damage HP immediately');
+console.log('  PASS\n');
+
+console.log('Test 21: Trait disruption removes Swarm-linked enemies from pack bonuses');
+const disruptedSwarmPack = [13, 14, 15].map(id => {
+  const e = createEnemy(id, EnemyType.PinkLadybug, path);
+  e.position = { x: 100, y: 100 };
+  e.hp = 20;
+  e.maxHp = 20;
+  return e;
+});
+const disruptedSwarmTrait = disruptEnemyTrait(disruptedSwarmPack[0], 5000);
+assertTest(disruptedSwarmTrait === EnemyTrait.SwarmLinked, 'Disruption should strip Swarm-linked from PinkLadybug');
+refreshSwarmLinkStates(disruptedSwarmPack);
+assertTest(disruptedSwarmPack[0].swarmLinkedActive === false, 'Disrupted Swarm-linked enemy should not activate pack bonus');
+assertTest(disruptedSwarmPack[1].swarmLinkedActive === false, 'Packmates should lose pack bonus when disrupted enemy no longer counts');
+assertTest(disruptedSwarmPack[2].swarmLinkedActive === false, 'All packmates should require three undisrupted swarm enemies');
 console.log('  PASS\n');
 
 console.log('=== All Tests Passed ===');

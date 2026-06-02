@@ -1,5 +1,6 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path, PathPoint } from './path';
+import { EnemyTrait, StatusEffectType, hasEnemyTrait } from '../entities/enemy';
 
 export enum TargetingMode {
   First = 'first',
@@ -18,7 +19,8 @@ export interface Enemy {
   speed: number;
   alive: boolean;
   enemyType?: string;
-  statusEffects?: { type: string }[];
+  traits?: EnemyTrait[];
+  statusEffects?: { type: string; remaining?: number; disruptedTrait?: string }[];
 }
 
 export interface Tower {
@@ -120,11 +122,11 @@ function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
     return true;
   }
 
-  return enemy.statusEffects?.some(effect => effect.type === 'revealed') ?? false;
+  return enemy.statusEffects?.some(effect => effect.type === StatusEffectType.Revealed) ?? false;
 }
 
 function isCamoEnemy(enemy: Enemy): boolean {
-  return enemy.enemyType === 'white_moth' || enemy.enemyType === 'black_widow';
+  return hasEnemyTrait(enemy, EnemyTrait.Camo);
 }
 
 export function createTower(
