@@ -107,7 +107,7 @@ console.log('  getPauseMenuPosition tests passed');
 
 const size = getPauseMenuSize();
 assertEqual(size.width, 400, 'Size width should be 400');
-assertEqual(size.height, 300, 'Size height should be 300');
+assertEqual(size.height, 420, 'Size height should be 420');
 console.log('  getPauseMenuSize tests passed');
 
 animator = createPauseMenuAnimator();

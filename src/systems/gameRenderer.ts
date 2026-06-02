@@ -1,4 +1,4 @@
-import { GameRunner, GameState, PlacementState, PlacedTower } from './gameRunner';
+import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection, LingeringField, SeededPayload } from './gameRunner';
 import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
@@ -45,6 +45,9 @@ export interface GameFrameRenderData {
   towers: TowerRenderCollection;
   enemies: EnemyRenderCollection;
   projectiles: ProjectileRenderData[];
+  networkConnections: NetworkConnectionRenderData[];
+  lingeringFields: LingeringFieldRenderData[];
+  seededPayloads: SeededPayloadRenderData[];
   
   placementPreview: PlacementPreviewWithTargetingRenderData | null;
   towerSelection: TowerSelectionPreviewRenderData | null;
@@ -81,6 +84,42 @@ export interface SellButtonRenderData {
   size: { width: number; height: number };
   sellValue: number;
   isHovered: boolean;
+}
+
+export interface NetworkConnectionRenderData {
+  sourceTowerId: number | null;
+  sourcePosition: Vec2;
+  targetTowerId: number;
+  targetPosition: Vec2;
+  sourceType: NetworkConnection['sourceType'];
+  color: string;
+  glowColor: string;
+  width: number;
+}
+
+export interface LingeringFieldRenderData {
+  id: number;
+  type: LingeringField['type'];
+  position: Vec2;
+  radius: number;
+  duration: number;
+  remaining: number;
+  slowStrength: number;
+  color: string;
+  borderColor: string;
+  alpha: number;
+}
+
+export interface SeededPayloadRenderData {
+  id: number;
+  type: SeededPayload['type'];
+  position: Vec2;
+  radius: number;
+  delay: number;
+  remaining: number;
+  color: string;
+  borderColor: string;
+  alpha: number;
 }
 
 export interface CameraState {
@@ -220,8 +259,16 @@ export class GameRenderer {
       const renderData = getEnemyRenderData(enemy);
       renderData.statusEffects = enemy.statusEffects.map(e => ({
         type: e.type,
-        color: e.type === StatusEffectType.Slow ? '#3498DB' : e.type === StatusEffectType.Poison ? '#9B59B6' : '#F39C12',
-        icon: e.type === StatusEffectType.Slow ? 'snowflake' : e.type === StatusEffectType.Poison ? 'skull' : 'lightning',
+        color: e.type === StatusEffectType.Slow ? '#3498DB' :
+          e.type === StatusEffectType.Poison ? '#9B59B6' :
+          e.type === StatusEffectType.Revealed ? '#1ABC9C' :
+          e.type === StatusEffectType.Marked ? '#F1C40F' :
+          e.type === StatusEffectType.TraitDisrupted ? '#E67E22' : '#F39C12',
+        icon: e.type === StatusEffectType.Slow ? 'snowflake' :
+          e.type === StatusEffectType.Poison ? 'skull' :
+          e.type === StatusEffectType.Revealed ? 'eye' :
+          e.type === StatusEffectType.Marked ? 'target' :
+          e.type === StatusEffectType.TraitDisrupted ? 'broken-link' : 'lightning',
         intensity: e.strength,
         remainingDuration: e.remaining,
       }));
@@ -289,6 +336,9 @@ export class GameRenderer {
       activeProjectiles,
       this.previousProjectilePositions
     );
+    const networkConnections = this.getNetworkConnectionRenderData(game.getNetworkConnections());
+    const lingeringFields = this.getLingeringFieldRenderData(game.getLingeringFields());
+    const seededPayloads = this.getSeededPayloadRenderData(game.getSeededPayloads());
 
     this.updateTrails(activeProjectiles, deltaTime);
 
@@ -318,6 +368,9 @@ export class GameRenderer {
       towers: towerCollection,
       enemies: enemyCollection,
       projectiles: projectileRenderData,
+      networkConnections,
+      lingeringFields,
+      seededPayloads,
       placementPreview,
       towerSelection,
       healthBars: healthBarsData.healthBars,
@@ -379,6 +432,48 @@ export class GameRenderer {
       isSelected: mode === selectedMode,
       label: labels[mode],
       color: colors[mode],
+    }));
+  }
+
+  private getNetworkConnectionRenderData(connections: NetworkConnection[]): NetworkConnectionRenderData[] {
+    return connections.map(connection => ({
+      sourceTowerId: connection.sourceTowerId,
+      sourcePosition: { ...connection.sourcePosition },
+      targetTowerId: connection.targetTowerId,
+      targetPosition: { ...connection.targetPosition },
+      sourceType: connection.sourceType,
+      color: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.7)' : 'rgba(186, 120, 220, 0.7)',
+      glowColor: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(142, 68, 173, 0.2)',
+      width: connection.sourceType === 'kernel' ? 3 : 2,
+    }));
+  }
+
+  private getLingeringFieldRenderData(fields: LingeringField[]): LingeringFieldRenderData[] {
+    return fields.map(field => ({
+      id: field.id,
+      type: field.type,
+      position: { ...field.position },
+      radius: field.radius,
+      duration: field.duration,
+      remaining: field.remaining,
+      slowStrength: field.slowStrength,
+      color: 'rgba(136, 216, 90, 0.22)',
+      borderColor: 'rgba(202, 255, 128, 0.7)',
+      alpha: Math.max(0.15, field.remaining / field.duration),
+    }));
+  }
+
+  private getSeededPayloadRenderData(payloads: SeededPayload[]): SeededPayloadRenderData[] {
+    return payloads.map(payload => ({
+      id: payload.id,
+      type: payload.type,
+      position: { ...payload.position },
+      radius: payload.radius,
+      delay: payload.delay,
+      remaining: payload.remaining,
+      color: 'rgba(255, 207, 102, 0.75)',
+      borderColor: 'rgba(255, 248, 184, 0.95)',
+      alpha: Math.max(0.25, payload.remaining / payload.delay),
     }));
   }
 

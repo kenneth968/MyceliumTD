@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/vec2';
-import { Enemy, StatusEffectType } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
 
 export interface EnemyRenderData {
@@ -17,6 +17,16 @@ export interface EnemyRenderData {
   pathDistance: number;
   isAlive: boolean;
   isCamo: boolean;
+  isMetal: boolean;
+  isShielded: boolean;
+  shieldActive: boolean;
+  isSwarmLinked: boolean;
+  swarmLinkedActive: boolean;
+  swarmLinkCount: number;
+  traits: EnemyTrait[];
+  armorColor: string | null;
+  shieldColor: string | null;
+  swarmLinkColor: string | null;
   statusEffects: EnemyStatusEffectRender[];
   animationState: EnemyAnimationState;
   facingAngle: number;
@@ -192,6 +202,21 @@ const STATUS_EFFECT_VISUALS: Record<StatusEffectType, {
     icon: 'lightning',
     animationSpeed: 1.5,
   },
+  [StatusEffectType.Revealed]: {
+    color: '#1ABC9C',
+    icon: 'eye',
+    animationSpeed: 1.0,
+  },
+  [StatusEffectType.Marked]: {
+    color: '#F1C40F',
+    icon: 'target',
+    animationSpeed: 1.0,
+  },
+  [StatusEffectType.TraitDisrupted]: {
+    color: '#E67E22',
+    icon: 'broken-link',
+    animationSpeed: 1.2,
+  },
 };
 
 export function getEnemyVisualConfig(enemyType: EnemyType) {
@@ -280,6 +305,13 @@ export function getEnemyRenderData(
 ): EnemyRenderData {
   const config = getEnemyVisualConfig(enemy.enemyType);
   const animationState = getEnemyAnimationState(enemy);
+  const traits = enemy.traits ?? getEnemyTraitsForType(enemy.enemyType);
+  const traitCarrier = { enemyType: enemy.enemyType, traits, statusEffects: enemy.statusEffects };
+  const isMetal = hasEnemyTrait(traitCarrier, EnemyTrait.Metal);
+  const isShielded = hasEnemyTrait(traitCarrier, EnemyTrait.Shielded);
+  const shieldActive = hasActiveShield({ ...traitCarrier, shieldCharges: enemy.shieldCharges });
+  const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
+  const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -297,7 +329,17 @@ export function getEnemyRenderData(
     pathProgress: options?.pathProgress ?? enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     isAlive: enemy.alive,
-    isCamo: enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow,
+    isCamo: hasEnemyTrait(traitCarrier, EnemyTrait.Camo),
+    isMetal,
+    isShielded,
+    shieldActive,
+    isSwarmLinked,
+    swarmLinkedActive,
+    swarmLinkCount: isSwarmLinked ? enemy.swarmLinkCount : 0,
+    traits,
+    armorColor: isMetal ? '#C8D0D8' : null,
+    shieldColor: isShielded ? 'rgba(124, 218, 255, 0.75)' : null,
+    swarmLinkColor: isSwarmLinked ? 'rgba(245, 94, 121, 0.72)' : null,
     statusEffects: statusEffectRenders,
     animationState,
     facingAngle: options?.facingAngle ?? 0,
@@ -520,7 +562,7 @@ export interface CamoIndicator {
 }
 
 export function getCamoIndicator(enemy: Enemy, isRevealed: boolean = false): CamoIndicator {
-  const isCamo = enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow;
+  const isCamo = hasEnemyTrait(enemy, EnemyTrait.Camo);
   if (!isCamo) {
     return { isVisible: false, revealColor: '#FFFFFF', opacity: 0 };
   }
@@ -558,7 +600,7 @@ export function getStatusEffectAuras(enemy: Enemy, time: number): StatusEffectAu
 }
 
 export function isEnemyFullyVisible(enemy: Enemy, hasCamoReveal: boolean = false): boolean {
-  const isCamo = enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow;
+  const isCamo = hasEnemyTrait(enemy, EnemyTrait.Camo);
   if (!isCamo) return true;
   return hasCamoReveal;
 }
@@ -608,7 +650,7 @@ export function getEnemyTypeInfo(enemyType: EnemyType): EnemyTypeInfo {
     },
     [EnemyType.ArmoredBeetle]: {
       name: 'Armored Beetle',
-      description: 'Heavy shell, very slow, high HP',
+      description: 'Metal shell, very slow, needs explosive damage',
       difficulty: 8,
     },
     [EnemyType.RainbowStag]: {
@@ -618,7 +660,7 @@ export function getEnemyTypeInfo(enemyType: EnemyType): EnemyTypeInfo {
     },
     [EnemyType.ShelledSnail]: {
       name: 'Shelled Snail',
-      description: 'Slow but extremely tanky',
+      description: 'Metal shell, slow but extremely tanky',
       difficulty: 10,
     },
   };

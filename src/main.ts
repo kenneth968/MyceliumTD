@@ -1,13 +1,13 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
 import { Vec2 } from './utils/vec2';
 import { TowerGrowthStage, getTowerBodyShape } from './systems/towerRender';
-import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './systems/placementPreview';
+import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData, getUpgradeIndicatorVisualHeight } from './systems/placementPreview';
 import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { PauseMenuRenderData } from './systems/pauseMenuRender';
@@ -741,6 +741,11 @@ class Game {
                 setTimeout(() => this.game.cancelPlacement(), 100);
             }
         } else if (placementState === PlacementState.Selecting) {
+            const upgradeResult = this.game.upgradeTowerAtPosition(x, y);
+            if (upgradeResult.path) {
+                return;
+            }
+
             const sellResult = this.game.sellTowerAtPosition(x, y);
             if (sellResult.success) {
                 return;
@@ -871,7 +876,9 @@ class Game {
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
         this.drawPath(renderData.path);
-        this.drawNetworkConnections();
+        this.drawLingeringFields(renderData.lingeringFields);
+        this.drawSeededPayloads(renderData.seededPayloads);
+        this.drawNetworkConnections(renderData.networkConnections);
         this.drawPlacementPreview(renderData.placementPreview);
         this.drawTowers(renderData);
         this.drawEnemies(renderData);
@@ -1146,53 +1153,118 @@ class Game {
         }
     }
     
-    private drawNetworkConnections(): void {
-        const buffedTowers = this.game.getNetworkBuffedTowers();
-        if (buffedTowers.length === 0) return;
+    private drawNetworkConnections(connections: NetworkConnectionRenderData[]): void {
+        if (connections.length === 0) return;
 
         const time = performance.now() / 1000;
         const ctx = this.ctx;
 
-        for (const entry of buffedTowers) {
-            const target = entry.tower;
+        for (const connection of connections) {
+            const target = connection.targetPosition;
 
-            // Draw buff glow on buffed tower
             const pulseAlpha = 0.15 + Math.sin(time * 3) * 0.08;
             ctx.beginPath();
-            ctx.arc(target.position.x, target.position.y, 18, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(142, 68, 173, ${pulseAlpha})`;
+            ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
+            ctx.fillStyle = connection.sourceType === 'kernel'
+                ? `rgba(74, 222, 128, ${pulseAlpha})`
+                : `rgba(142, 68, 173, ${pulseAlpha})`;
             ctx.fill();
 
-            // Draw connection lines from each source
-            for (const source of entry.sources) {
-                const dx = target.position.x - source.position.x;
-                const dy = target.position.y - source.position.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+            const source = connection.sourcePosition;
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dashOffset = (time * 40) % 20;
 
-                // Animated dash offset for "flowing" effect
-                const dashOffset = (time * 40) % 20;
+            ctx.beginPath();
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            const glowAlpha = 0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08;
+            ctx.strokeStyle = connection.sourceType === 'kernel'
+                ? `rgba(74, 222, 128, ${glowAlpha})`
+                : `rgba(142, 68, 173, ${glowAlpha})`;
+            ctx.lineWidth = connection.width + 4;
+            ctx.stroke();
 
-                ctx.beginPath();
-                ctx.moveTo(source.position.x, source.position.y);
-                ctx.lineTo(target.position.x, target.position.y);
+            ctx.beginPath();
+            ctx.moveTo(source.x, source.y);
+            ctx.lineTo(target.x, target.y);
+            ctx.strokeStyle = connection.color;
+            ctx.lineWidth = connection.width;
+            ctx.setLineDash([8, 12]);
+            ctx.lineDashOffset = -dashOffset;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+        }
+    }
 
-                // Glow layer
-                ctx.strokeStyle = `rgba(142, 68, 173, ${0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08})`;
-                ctx.lineWidth = 6;
-                ctx.stroke();
+    private drawLingeringFields(fields: LingeringFieldRenderData[]): void {
+        if (fields.length === 0) return;
 
-                // Core line with animated dashes
-                ctx.beginPath();
-                ctx.moveTo(source.position.x, source.position.y);
-                ctx.lineTo(target.position.x, target.position.y);
-                ctx.strokeStyle = `rgba(186, 120, 220, ${0.5 + Math.sin(time * 2.5) * 0.2})`;
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 12]);
-                ctx.lineDashOffset = -dashOffset;
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.lineDashOffset = 0;
-            }
+        const time = performance.now() / 1000;
+        const ctx = this.ctx;
+
+        for (const field of fields) {
+            const pulse = 0.92 + Math.sin(time * 2.6 + field.id) * 0.08;
+            const radius = field.radius * pulse;
+
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.85, field.alpha);
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = field.color;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = field.borderColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(field.position.x, field.position.y, radius * 0.55, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(202, 255, 128, 0.16)';
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    private drawSeededPayloads(payloads: SeededPayloadRenderData[]): void {
+        if (payloads.length === 0) return;
+
+        const time = performance.now() / 1000;
+        const ctx = this.ctx;
+
+        for (const payload of payloads) {
+            const pulse = 0.85 + Math.sin(time * 8 + payload.id) * 0.15;
+            const coreRadius = 7 + pulse * 2;
+
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.9, payload.alpha);
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, payload.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 207, 102, 0.22)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 8]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, coreRadius, 0, Math.PI * 2);
+            ctx.fillStyle = payload.color;
+            ctx.fill();
+            ctx.strokeStyle = payload.borderColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(payload.position.x, payload.position.y, coreRadius * 0.45, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(90, 54, 20, 0.55)';
+            ctx.fill();
+            ctx.restore();
         }
     }
 
@@ -1296,6 +1368,62 @@ class Game {
                 this.ctx.strokeStyle = enemy.secondaryColor || 'transparent';
                 this.ctx.lineWidth = 2;
                 this.ctx.stroke();
+            }
+
+            if (enemy.isMetal) {
+                this.ctx.save();
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 4, 0, Math.PI * 2);
+                this.ctx.strokeStyle = enemy.armorColor || '#C8D0D8';
+                this.ctx.lineWidth = 3;
+                this.ctx.setLineDash([3, 3]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                this.ctx.restore();
+            }
+
+            if (enemy.shieldActive) {
+                this.ctx.save();
+                const shieldPulse = 0.65 + Math.sin(performance.now() / 260 + enemy.id) * 0.2;
+                this.ctx.globalAlpha = shieldPulse;
+                this.ctx.shadowColor = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
+                this.ctx.shadowBlur = 10;
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 8, 0, Math.PI * 2);
+                this.ctx.strokeStyle = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+
+            if (enemy.swarmLinkedActive) {
+                this.ctx.save();
+                const linkColor = enemy.swarmLinkColor || 'rgba(245, 94, 121, 0.72)';
+                const swarmPulse = 0.35 + Math.sin(performance.now() / 220 + enemy.id) * 0.12;
+                this.ctx.globalAlpha = swarmPulse;
+                this.ctx.strokeStyle = linkColor;
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 12, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                for (const other of renderData.enemies.enemies) {
+                    if (!other.swarmLinkedActive || other.id <= enemy.id) {
+                        continue;
+                    }
+
+                    const dx = other.position.x - enemy.position.x;
+                    const dy = other.position.y - enemy.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance <= 80) {
+                        this.ctx.globalAlpha = 0.18;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(enemy.position.x, enemy.position.y);
+                        this.ctx.lineTo(other.position.x, other.position.y);
+                        this.ctx.stroke();
+                    }
+                }
+                this.ctx.restore();
             }
 
             // Camo indicator - dashed outline for revealed enemies
@@ -1476,19 +1604,17 @@ class Game {
 
         if (selection.upgradeIndicators) {
             const tower = selection.selection;
-            const indicatorHeight = 6;
-            const indicatorWidth = 30;
-            const indicatorSpacing = 8;
-            const totalWidth = (indicatorWidth + indicatorSpacing) * 4 - indicatorSpacing;
-            let startX = tower.position.x - totalWidth / 2;
-            const startY = tower.position.y + tower.size + 15;
+            const indicatorHeight = getUpgradeIndicatorVisualHeight();
+            const labelY = (selection.upgradeIndicators[0]?.position.y ?? tower.position.y + tower.size + 15) + indicatorHeight + 14;
 
             const paths = ['Damage', 'Range', 'FireRate', 'Special'];
             const colors = ['#FF4444', '#44FF44', '#4444FF', '#FF44FF'];
 
             for (let i = 0; i < selection.upgradeIndicators.length; i++) {
                 const indicator = selection.upgradeIndicators[i];
-                const x = startX + i * (indicatorWidth + indicatorSpacing);
+                const x = indicator.position.x;
+                const startY = indicator.position.y;
+                const indicatorWidth = indicator.size.width;
 
                 this.ctx.fillStyle = '#333';
                 this.ctx.fillRect(x, startY, indicatorWidth, indicatorHeight);
@@ -1511,7 +1637,7 @@ class Game {
             this.ctx.font = '10px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#aaa';
-            this.ctx.fillText(paths.join(' | '), tower.position.x, startY + indicatorHeight + 14);
+            this.ctx.fillText(paths.join(' | '), tower.position.x, labelY);
         }
     }
 
@@ -1616,7 +1742,7 @@ class Game {
     private drawMapSelection(mapSelection: MapSelectionRenderData | null): void {
         if (!mapSelection || !mapSelection.isVisible) return;
 
-        this.ctx.globalAlpha = mapSelection.opacity;
+        this.ctx.globalAlpha = mapSelection.progress;
 
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1842,7 +1968,7 @@ class Game {
         this.ctx.fillStyle = '#333';
         this.ctx.fillRect(x, y + 25, width, height);
         
-        const fillWidth = width * progress.enemyProgress;
+        const fillWidth = width * progress.progress;
         this.ctx.fillStyle = '#4CAF50';
         this.ctx.fillRect(x, y + 25, fillWidth, height);
         
@@ -1854,7 +1980,7 @@ class Game {
     private drawGameOverVictory(gov: GameOverVictoryRenderData): void {
         if (gov.state === 'hidden') return;
         
-        this.ctx.globalAlpha = gov.opacity || 1;
+        this.ctx.globalAlpha = gov.backgroundOpacity || 1;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
@@ -1879,7 +2005,7 @@ class Game {
         if (!panel || !panel.isVisible) return;
         
         const width = 280;
-        const height = panel.isExpanded ? 350 : 200;
+        const height = panel.size.height;
         const x = 20;
         const y = CANVAS_HEIGHT - height - 20;
         
@@ -1900,7 +2026,7 @@ class Game {
         
         let statY = y + 85;
         for (const stat of panel.stats) {
-            this.ctx.fillStyle = stat.isUpgrade ? '#4CAF50' : '#fff';
+            this.ctx.fillStyle = panel.textColor;
             this.ctx.fillText(`${stat.label}: ${stat.value}`, x + 15, statY);
             statY += 22;
         }

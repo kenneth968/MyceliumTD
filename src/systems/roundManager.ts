@@ -219,9 +219,11 @@ export class RoundManager {
         this.events.onVictory(this.roundNumber);
       }
     } else if (this.config.autoStartNextRound) {
-      this.startNextRound();
+      if (this.startNextRound()) {
+        this.startRound();
+      }
     } else {
-      this.startIntermission();
+      this.startNextRound();
     }
 
     return this.state;

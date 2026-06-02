@@ -1,6 +1,6 @@
 import { GameRunner, GameState, GameSpeed, PlacementState, PlacedTower } from './gameRunner';
 import { TowerType, Tower } from '../entities/tower';
-import { Enemy, StatusEffect, StatusEffectType } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType, getInitialShieldChargesForType } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { RoundState } from './roundManager';
 
@@ -9,6 +9,7 @@ export interface SerializedStatusEffect {
   duration: number;
   remaining: number;
   strength: number;
+  disruptedTrait?: string;
 }
 
 export interface SerializedEnemy {
@@ -23,6 +24,10 @@ export interface SerializedEnemy {
   baseSpeed: number;
   reward: number;
   alive: boolean;
+  traits?: string[];
+  shieldCharges?: number;
+  swarmLinkedActive?: boolean;
+  swarmLinkCount?: number;
   statusEffects: SerializedStatusEffect[];
   hasReachedEnd: boolean;
 }
@@ -130,11 +135,16 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     baseSpeed: enemy.baseSpeed,
     reward: enemy.reward,
     alive: enemy.alive,
+    traits: enemy.traits.map(trait => trait.toString()),
+    shieldCharges: enemy.shieldCharges,
+    swarmLinkedActive: enemy.swarmLinkedActive,
+    swarmLinkCount: enemy.swarmLinkCount,
     statusEffects: enemy.statusEffects.map(e => ({
       type: e.type,
       duration: e.duration,
       remaining: e.remaining,
       strength: e.strength,
+      disruptedTrait: e.disruptedTrait,
     })),
     hasReachedEnd: enemy.hasReachedEnd,
   };
@@ -259,7 +269,16 @@ export function deserializeStatusEffect(data: SerializedStatusEffect): StatusEff
     duration: data.duration,
     remaining: data.remaining,
     strength: data.strength,
+    disruptedTrait: data.disruptedTrait as EnemyTrait | undefined,
   };
+}
+
+function reconcileEnemyTraits(enemyType: string, traits?: string[]): EnemyTrait[] {
+  const mergedTraits = new Set<EnemyTrait>(getEnemyTraitsForType(enemyType));
+  for (const trait of traits ?? []) {
+    mergedTraits.add(trait as EnemyTrait);
+  }
+  return Array.from(mergedTraits);
 }
 
 export function deserializeEnemy(data: SerializedEnemy): Enemy {
@@ -275,6 +294,10 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
     baseSpeed: data.baseSpeed,
     reward: data.reward,
     alive: data.alive,
+    traits: reconcileEnemyTraits(data.enemyType, data.traits),
+    shieldCharges: data.shieldCharges ?? getInitialShieldChargesForType(data.enemyType),
+    swarmLinkedActive: data.swarmLinkedActive ?? false,
+    swarmLinkCount: data.swarmLinkCount ?? 0,
     statusEffects: data.statusEffects.map(deserializeStatusEffect),
     hasReachedEnd: data.hasReachedEnd,
   };

@@ -56,7 +56,7 @@ console.log('--- getTowerSelectionRenderData ---');
   expectEqual(result!.glowColor, '#64B5F6', 'selection glow color');
   expectEqual(result!.size, 20, 'puffball size');
   expectEqual(result!.upgradeLevel, 0, 'initial upgrade level is 0');
-  expectEqual(result!.sellValue, 0, 'initial sell value is 0');
+  expectEqual(result!.sellValue, 70, 'initial sell value includes base refund');
   expectEqual(result!.targetingMode, TargetingMode.First, 'targeting mode matches');
 }
 
@@ -70,7 +70,7 @@ console.log('--- getTowerSelectionRenderData ---');
   
   expectEqual(result!.towerId, 5, 'tower id is 5');
   expectEqual(result!.upgradeLevel, 3, 'upgrade level is sum of all paths');
-  expectEqual(result!.sellValue, 140, 'sell value is 70% of total upgrade cost');
+  expectEqual(result!.sellValue, 210, 'sell value includes base and upgrade refund');
 }
 
 console.log('\n--- getTowerUpgradeIndicators ---');
@@ -121,7 +121,7 @@ console.log('\n--- getTowerSellButton ---');
   const tower = createMockTower();
   const result = getTowerSellButton(tower);
   
-  expectEqual(result.sellValue, 0, 'sell value is 0 for base tower');
+  expectEqual(result.sellValue, 70, 'sell value includes base refund');
   expectEqual(result.color, '#F44336', 'sell button is red');
   expectEqual(result.textColor, '#FFFFFF', 'text is white');
 }
@@ -132,7 +132,7 @@ console.log('\n--- getTowerSellButton ---');
   const position: Vec2 = { x: 100, y: 100 };
   const result = getTowerSellButton(tower, position);
   
-  expectEqual(result.sellValue, 350, 'sell value is 70% of 500');
+  expectEqual(result.sellValue, 420, 'sell value includes base and upgrade refund');
 }
 
 console.log('\n--- getTowerSelectionPreviewRenderData ---');

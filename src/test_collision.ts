@@ -14,9 +14,10 @@ import {
   AreaDamageResult,
 } from './systems/collision';
 import { Projectile, TowerType } from './entities/tower';
-import { Enemy, StatusEffectType, createEnemy } from './entities/enemy';
+import { Enemy, StatusEffectType, createEnemy, disruptEnemyTrait, hasStatusEffect, markEnemy, updateStatusEffects } from './entities/enemy';
 import { EnemyType } from './systems/wave';
 import { createDefaultPath } from './systems/path';
+import { TargetingMode, getTarget } from './systems/targeting';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -193,6 +194,156 @@ test('applyHitEffects applies stun to enemy', () => {
   applyHitEffects(enemy, effects, 16);
   const stunEffect = enemy.statusEffects.find(e => e.type === StatusEffectType.Stun);
   assertTrue(stunEffect !== undefined, 'Should have stun effect');
+});
+
+test('ordinary towers ignore unrevealed camo enemies', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 200,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.PuffballFungus,
+    specialEffect: 'area_damage',
+  };
+  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  camoEnemy.position = { x: 60, y: 300 };
+  camoEnemy.pathDistance = 200;
+  camoEnemy.pathProgress = 200;
+  const visibleEnemy = createEnemy(2, EnemyType.RedMushroom, path);
+  visibleEnemy.position = { x: 70, y: 300 };
+  visibleEnemy.pathDistance = 100;
+  visibleEnemy.pathProgress = 100;
+
+  const result = getTarget(tower, [camoEnemy, visibleEnemy], path);
+
+  assertEqual(result.target?.id, visibleEnemy.id, 'Ordinary tower should skip unrevealed camo and target visible enemy');
+});
+
+test('Bioluminescent towers natively target camo enemies', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 200,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.BioluminescentShroom,
+    specialEffect: 'reveal_camo',
+  };
+  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  camoEnemy.position = { x: 60, y: 300 };
+  camoEnemy.pathDistance = 200;
+  camoEnemy.pathProgress = 200;
+
+  const result = getTarget(tower, [camoEnemy], path);
+
+  assertEqual(result.target?.id, camoEnemy.id, 'Bioluminescent tower should target camo enemy');
+});
+
+test('reveal_camo hit effect makes camo enemies targetable until it expires', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 200,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.PuffballFungus,
+    specialEffect: 'area_damage',
+  };
+  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  camoEnemy.position = { x: 60, y: 300 };
+  camoEnemy.pathDistance = 200;
+  camoEnemy.pathProgress = 200;
+
+  const hiddenResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(hiddenResult.target === null, 'Camo enemy should start hidden from ordinary tower');
+
+  applyHitEffects(camoEnemy, [{ type: 'reveal_camo', strength: 1, duration: 500 }], 16);
+  assertTrue(hasStatusEffect(camoEnemy, StatusEffectType.Revealed), 'Reveal effect should add revealed status');
+
+  const revealedResult = getTarget(tower, [camoEnemy], path);
+  assertEqual(revealedResult.target?.id, camoEnemy.id, 'Revealed camo enemy should be targetable');
+
+  updateStatusEffects(camoEnemy, 501);
+  const expiredResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(expiredResult.target === null, 'Camo enemy should hide again after reveal expires');
+});
+
+test('trait disruption makes camo enemies targetable until it expires', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 200,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.PuffballFungus,
+    specialEffect: 'area_damage',
+  };
+  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  camoEnemy.position = { x: 60, y: 300 };
+  camoEnemy.pathDistance = 200;
+  camoEnemy.pathProgress = 200;
+
+  const hiddenResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(hiddenResult.target === null, 'Camo enemy should start hidden from ordinary tower');
+
+  disruptEnemyTrait(camoEnemy, 500);
+  const disruptedResult = getTarget(tower, [camoEnemy], path);
+  assertEqual(disruptedResult.target?.id, camoEnemy.id, 'Trait-disrupted camo enemy should be targetable');
+
+  updateStatusEffects(camoEnemy, 501);
+  const expiredResult = getTarget(tower, [camoEnemy], path);
+  assertTrue(expiredResult.target === null, 'Camo enemy should hide again after trait disruption expires');
+});
+
+test('execute towers prioritize visible marked enemies', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 240,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.VenusFlytower,
+    specialEffect: 'instakill',
+  };
+  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  unmarkedAhead.position = { x: 80, y: 300 };
+  unmarkedAhead.pathDistance = 220;
+  unmarkedAhead.pathProgress = 220;
+  const markedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  markedBehind.position = { x: 70, y: 300 };
+  markedBehind.pathDistance = 120;
+  markedBehind.pathProgress = 120;
+  markEnemy(markedBehind, 4000);
+
+  const result = getTarget(tower, [unmarkedAhead, markedBehind], path);
+
+  assertEqual(result.target?.id, markedBehind.id, 'Execute tower should prefer the visible marked enemy');
+});
+
+test('execute towers ignore expired mark effects while targeting', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 240,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.VenusFlytower,
+    specialEffect: 'instakill',
+  };
+  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  unmarkedAhead.position = { x: 80, y: 300 };
+  unmarkedAhead.pathDistance = 220;
+  unmarkedAhead.pathProgress = 220;
+  const expiredMarkedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  expiredMarkedBehind.position = { x: 70, y: 300 };
+  expiredMarkedBehind.pathDistance = 120;
+  expiredMarkedBehind.pathProgress = 120;
+  markEnemy(expiredMarkedBehind, 0);
+
+  const result = getTarget(tower, [unmarkedAhead, expiredMarkedBehind], path);
+
+  assertEqual(result.target?.id, unmarkedAhead.id, 'Execute tower should ignore expired marks and use normal targeting');
 });
 
 test('getHitEffectsForTowerType returns correct effects for PuffballFungus', () => {

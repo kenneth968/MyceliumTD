@@ -79,6 +79,7 @@ export class WaveSpawner {
   private totalSpawnedInWave: number = 0;
   private currentGroupIndex: number = 0;
   private enemiesInCurrentGroup: number = 0;
+  private hasWaveStartTime: boolean = false;
 
   constructor(path: Path, waves: Wave[] = []) {
     this.path = path;
@@ -118,7 +119,8 @@ export class WaveSpawner {
     }
     this.currentWaveIndex++;
     this.isActive = true;
-    this.waveStartTime = performance.now();
+    this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -132,7 +134,8 @@ export class WaveSpawner {
     }
     this.currentWaveIndex = waveIndex;
     this.isActive = true;
-    this.waveStartTime = performance.now();
+    this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -146,6 +149,7 @@ export class WaveSpawner {
     this.spawnedEnemies = [];
     this.spawnTimers.clear();
     this.waveStartTime = 0;
+    this.hasWaveStartTime = false;
     this.totalSpawnedInWave = 0;
     this.currentGroupIndex = 0;
     this.enemiesInCurrentGroup = 0;
@@ -162,23 +166,29 @@ export class WaveSpawner {
       return [];
     }
 
+    if (!this.hasWaveStartTime) {
+      this.waveStartTime = currentTime;
+      this.hasWaveStartTime = true;
+    }
+
     const newEnemies: Enemy[] = [];
     const elapsed = currentTime - this.waveStartTime;
 
-    if (this.currentGroupIndex >= wave.groups.length) {
-      if (this.totalSpawnedInWave >= this.getTotalEnemyCount(wave)) {
-        this.isActive = false;
+    while (this.currentGroupIndex < wave.groups.length) {
+      const group = wave.groups[this.currentGroupIndex];
+      const groupStartTime = this.getGroupStartTime(wave, this.currentGroupIndex);
+      const timeSinceGroupStart = elapsed - groupStartTime;
+
+      if (timeSinceGroupStart < 0) {
+        break;
       }
-      return [];
-    }
 
-    const group = wave.groups[this.currentGroupIndex];
-    const groupStartTime = this.getGroupStartTime(wave, this.currentGroupIndex);
-    const timeSinceGroupStart = elapsed - groupStartTime;
+      while (this.enemiesInCurrentGroup < group.count) {
+        const spawnOffset = this.enemiesInCurrentGroup * group.interval;
+        if (timeSinceGroupStart < spawnOffset) {
+          break;
+        }
 
-    if (timeSinceGroupStart >= 0 && this.enemiesInCurrentGroup < group.count) {
-      const spawnOffset = this.enemiesInCurrentGroup * group.interval;
-      if (timeSinceGroupStart >= spawnOffset) {
         const enemy = this.spawnEnemy(group.enemyType);
         newEnemies.push(enemy);
         this.spawnedEnemies.push({
@@ -189,14 +199,20 @@ export class WaveSpawner {
         this.totalSpawnedInWave++;
         this.enemiesInCurrentGroup++;
       }
-    }
 
-    const groupComplete = this.enemiesInCurrentGroup >= group.count;
-    const groupDelayPassed = timeSinceGroupStart >= group.count * group.interval + wave.delayBetweenGroups;
+      const groupComplete = this.enemiesInCurrentGroup >= group.count;
+      const groupDelayPassed = timeSinceGroupStart >= group.count * group.interval + wave.delayBetweenGroups;
 
-    if (groupComplete && groupDelayPassed && this.currentGroupIndex < wave.groups.length - 1) {
+      if (!groupComplete || !groupDelayPassed) {
+        break;
+      }
+
       this.currentGroupIndex++;
       this.enemiesInCurrentGroup = 0;
+    }
+
+    if (this.currentGroupIndex >= wave.groups.length && this.totalSpawnedInWave >= this.getTotalEnemyCount(wave)) {
+      this.isActive = false;
     }
 
     return newEnemies;
@@ -234,6 +250,19 @@ export class WaveSpawner {
       return 0;
     }
     return wave.groups[this.currentGroupIndex].count - this.enemiesInCurrentGroup;
+  }
+
+  getRemainingEnemyCount(): number {
+    const wave = this.getCurrentWave();
+    if (!wave || this.currentGroupIndex >= wave.groups.length) {
+      return 0;
+    }
+
+    let total = this.getRemainingInCurrentGroup();
+    for (let i = this.currentGroupIndex + 1; i < wave.groups.length; i++) {
+      total += wave.groups[i].count;
+    }
+    return total;
   }
 
   getRemainingGroups(): number {

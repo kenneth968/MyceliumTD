@@ -161,8 +161,8 @@ export class GameEconomy {
     return this.spend(cost, `Purchased ${towerName}`);
   }
 
-  sellTower(originalCost: number): number {
-    const refund = Math.floor(originalCost * this.config.sellRefundPercent);
+  sellTower(originalCost: number, refundOverride?: number): number {
+    const refund = refundOverride ?? Math.floor(originalCost * this.config.sellRefundPercent);
     this.money += refund;
     this.totalEarned += refund;
     this.transactions.push({

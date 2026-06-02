@@ -87,7 +87,7 @@ function startWaveTriggersAnnouncementTests() {
   game.startWave(0);
 
   assertEqual(animator.state, 'announcing', 'animator state is announcing after wave start');
-  assertEqual(animator.waveIndex, 0, 'wave index set correctly');
+  assertEqual(animator.waveIndex, 1, 'wave display number set correctly');
 
   game.reset();
   passed++;
@@ -125,7 +125,7 @@ function announcementAnimationUpdateTests() {
 
   const renderData2 = game.getWaveAnnouncementRenderData();
   assertEqual(renderData2.isAnyVisible, true, 'announcement visible after wave start');
-  assertEqual(renderData2.announcement.waveNumber, 0, 'wave number correct');
+  assertEqual(renderData2.announcement.waveNumber, 1, 'wave number correct');
 
   game.update(100);
   game.update(100);
@@ -193,8 +193,9 @@ function multiWaveAnnouncementTests() {
   game.reset();
   game.start();
   game.startWave(1);
+  const secondWaveAnimator = game.getWaveAnnouncementAnimator();
 
-  assert(animator.waveIndex >= 0, 'wave index is valid');
+  assertEqual(secondWaveAnimator.waveIndex, 2, 'second wave display number is one-based');
 
   game.reset();
   passed++;

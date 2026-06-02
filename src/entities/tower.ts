@@ -2,6 +2,7 @@ import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
 import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
+import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getMarkedAdjustedDamage, getTraitAdjustedDamage } from './enemy';
 
 export enum TowerType {
   PuffballFungus = 'puffball_fungus',
@@ -83,6 +84,7 @@ export interface Projectile {
   id: number;
   position: Vec2;
   targetId: number;
+  sourceTowerId?: number;
   speed: number;
   damage: number;
   towerType: TowerType;
@@ -90,6 +92,13 @@ export interface Projectile {
   effectStrength?: number;
   effectDuration?: number;
   areaRadius?: number;
+  extraHitEffects?: ProjectileHitEffect[];
+}
+
+export interface ProjectileHitEffect {
+  type: 'damage' | 'slow' | 'poison' | 'stun' | 'area_damage' | 'instakill' | 'reveal_camo';
+  strength: number;
+  duration?: number;
 }
 
 export interface Tower extends TowerBase {
@@ -160,6 +169,7 @@ export function fireTower(
     id: 0,
     position: { ...tower.position },
     targetId: result.target.id,
+    sourceTowerId: tower.id,
     speed: tower.projectileSpeed,
     damage: tower.damage,
     towerType: tower.towerType,
@@ -217,6 +227,12 @@ export function updateProjectile(
     return { hit: true, damage: projectile.damage, target };
   }
 
+  if (projectile.speed <= 0) {
+    projectile.position = { ...target.position };
+    projectile.alive = false;
+    return { hit: true, damage: projectile.damage, target };
+  }
+
   const moveDistance = projectile.speed * (deltaTime / 1000);
   if (moveDistance >= dist) {
     projectile.position = { ...target.position };
@@ -231,12 +247,19 @@ export function updateProjectile(
   return { hit: false, damage: 0, target: null };
 }
 
-export function applyDamage(enemy: Enemy, damage: number): boolean {
+export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
   if (!enemy.alive || enemy.hp <= 0) {
     return false;
   }
+  if (consumeShieldBlock(enemy)) {
+    return false;
+  }
+  if (!canDamageEnemy(enemy, options)) {
+    return false;
+  }
 
-  enemy.hp -= damage;
+  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
+  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
   if (enemy.hp <= 0) {
     enemy.hp = 0;
     enemy.alive = false;
@@ -244,6 +267,15 @@ export function applyDamage(enemy: Enemy, damage: number): boolean {
   }
 
   return false;
+}
+
+export function getTowerDamageType(towerType: TowerType): DamageType {
+  switch (towerType) {
+    case TowerType.PuffballFungus:
+      return DamageType.Explosive;
+    default:
+      return DamageType.Normal;
+  }
 }
 
 export function getKillReward(enemy: Enemy): number {

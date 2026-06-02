@@ -174,6 +174,9 @@ export function applyHitEffects(
       case 'stun':
         applyStatusEffect(enemy, StatusEffectType.Stun, effect.duration || 500, effect.strength);
         break;
+      case 'reveal_camo':
+        applyStatusEffect(enemy, StatusEffectType.Revealed, effect.duration || 500, effect.strength);
+        break;
       case 'area_damage':
         break;
     }

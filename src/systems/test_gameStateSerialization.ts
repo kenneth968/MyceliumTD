@@ -15,6 +15,7 @@ const {
   serializeEconomy,
   serializeRoundManager,
   serializeWaveSpawner,
+  deserializeEnemy,
 } = require('./gameStateSerialization');
 
 let passed = 0;
@@ -76,6 +77,67 @@ console.log('serializeEnemy:');
   assertEqual(serialized.alive, true, 'alive is true');
 }
 
+console.log('\nserializeEnemy with traits:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(2, EnemyType.ArmoredBeetle, path);
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(Array.isArray(serialized.traits), 'traits are serialized');
+  assertTruthy(serialized.traits.includes('metal'), 'Metal trait is serialized');
+}
+
+console.log('\nserializeEnemy with shield state:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(3, EnemyType.RainbowStag, path);
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(serialized.traits.includes('shielded'), 'Shielded trait is serialized');
+  assertEqual(serialized.shieldCharges, 1, 'shield charge count is serialized');
+}
+
+console.log('\nserializeEnemy with swarm-link state:');
+{
+  const path = createDefaultPath();
+  const { createEnemy } = require('../entities/enemy');
+  const enemy = createEnemy(4, EnemyType.PinkLadybug, path);
+  enemy.swarmLinkedActive = true;
+  enemy.swarmLinkCount = 3;
+
+  const serialized = serializeEnemy(enemy);
+  assertTruthy(serialized.traits.includes('swarm_linked'), 'Swarm-linked trait is serialized');
+  assertEqual(serialized.swarmLinkedActive, true, 'swarm-link active state is serialized');
+  assertEqual(serialized.swarmLinkCount, 3, 'swarm-link nearby count is serialized');
+}
+
+console.log('\ndeserializeEnemy reconciles older swarm saves:');
+{
+  const deserialized = deserializeEnemy({
+    id: 44,
+    enemyType: 'pink_ladybug',
+    position: { x: 120, y: 300 },
+    hp: 5,
+    maxHp: 5,
+    pathProgress: 120,
+    pathDistance: 120,
+    speed: 70,
+    baseSpeed: 70,
+    reward: 5,
+    alive: true,
+    traits: [],
+    shieldCharges: 0,
+    statusEffects: [],
+    hasReachedEnd: false,
+  });
+
+  assertTruthy(deserialized.traits.includes('swarm_linked'), 'older PinkLadybug saves receive current Swarm-linked trait');
+  assertEqual(deserialized.swarmLinkedActive, false, 'missing swarm-link active state defaults false');
+  assertEqual(deserialized.swarmLinkCount, 0, 'missing swarm-link count defaults to 0');
+}
+
 console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();
@@ -92,6 +154,22 @@ console.log('\nserializeEnemy with status effects:');
   assertEqual(serialized.statusEffects.length, 1, 'has 1 status effect');
   assertEqual(serialized.statusEffects[0].type, 'slow', 'effect type is slow');
   assertEqual(serialized.statusEffects[0].strength, 0.3, 'strength is 0.3');
+}
+
+console.log('\nserializeEnemy with trait disruption status:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, disruptEnemyTrait, EnemyTrait, StatusEffectType } = require('../entities/enemy');
+  const enemy = createEnemy(1, EnemyType.ArmoredBeetle, path);
+  const disruptedTrait = disruptEnemyTrait(enemy, 1234);
+
+  const serialized = serializeEnemy(enemy);
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(disruptedTrait, EnemyTrait.Metal, 'Metal trait was disrupted');
+  assertEqual(serialized.statusEffects[0].type, StatusEffectType.TraitDisrupted, 'disruption status is serialized');
+  assertEqual(serialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait is serialized');
+  assertEqual(deserialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait survives deserialize');
 }
 
 console.log('\nserializeProjectile:');
@@ -252,10 +330,7 @@ console.log('\nserializeGameState (full game state):');
 console.log('\nserializeGameState after placing towers:');
 {
   const game = createTestGame();
-  game.start();
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 placed tower');
@@ -299,9 +374,7 @@ console.log('\ngetSerializedGameStateSize with towers:');
   
   const sizeBefore = getSerializedGameStateSize(game);
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
   
   const sizeAfter = getSerializedGameStateSize(game);
   assertGreaterThan(sizeAfter, sizeBefore, 'size increased after adding tower');
@@ -348,17 +421,9 @@ console.log('\nserialize game with multiple towers:');
   const game = createTestGame();
   game.start();
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(100, 100);
-  game.confirmPlacement();
-  
-  game.startTowerPlacement(TowerType.OrchidTrap);
-  game.updatePlacementPosition(200, 200);
-  game.confirmPlacement();
-  
-  game.startTowerPlacement(TowerType.VenusFlytower);
-  game.updatePlacementPosition(300, 300);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.OrchidTrap, 200, 200);
+  game.placeTower(TowerType.VenusFlytower, 300, 300);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 3, 'has 3 towers');
@@ -372,9 +437,7 @@ console.log('\nserialize game with tower (upgrade may not apply in test context)
   const game = createTestGame();
   game.start();
   
-  game.startTowerPlacement(TowerType.PuffballFungus);
-  game.updatePlacementPosition(150, 150);
-  game.confirmPlacement();
+  game.placeTower(TowerType.PuffballFungus, 150, 150);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 tower');

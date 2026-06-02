@@ -1,5 +1,6 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path, PathPoint } from './path';
+import { EnemyTrait, StatusEffectType, hasEnemyTrait, isMarked } from '../entities/enemy';
 
 export enum TargetingMode {
   First = 'first',
@@ -17,6 +18,9 @@ export interface Enemy {
   pathDistance: number;
   speed: number;
   alive: boolean;
+  enemyType?: string;
+  traits?: EnemyTrait[];
+  statusEffects?: { type: string; remaining?: number; disruptedTrait?: string }[];
 }
 
 export interface Tower {
@@ -24,6 +28,8 @@ export interface Tower {
   position: Vec2;
   range: number;
   targetingMode: TargetingMode;
+  towerType?: string;
+  specialEffect?: string;
 }
 
 export interface TargetingResult {
@@ -36,14 +42,18 @@ export function getTarget(
   enemies: Enemy[],
   path: Path
 ): TargetingResult {
-  const inRange = enemies.filter(e => {
-    if (!e.alive || e.hp <= 0) return false;
-    const dist = vec2Distance(tower.position, e.position);
-    return dist <= tower.range;
-  });
+  const inRange = getEnemiesInRange(tower, enemies);
 
   if (inRange.length === 0) {
     return { target: null, distance: Infinity };
+  }
+
+  if (tower.specialEffect === 'instakill') {
+    const markedTargets = inRange.filter(e => isMarked(e));
+    if (markedTargets.length > 0) {
+      const target = findFirst(markedTargets);
+      return { target, distance: vec2Distance(tower.position, target.position) };
+    }
   }
 
   let target: Enemy;
@@ -100,6 +110,7 @@ export function canTarget(
   enemy: Enemy
 ): boolean {
   if (!enemy.alive || enemy.hp <= 0) return false;
+  if (!canSeeEnemy(tower, enemy)) return false;
   return vec2Distance(tower.position, enemy.position) <= tower.range;
 }
 
@@ -108,6 +119,22 @@ export function getEnemiesInRange(
   enemies: Enemy[]
 ): Enemy[] {
   return enemies.filter(e => canTarget(tower, e));
+}
+
+function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
+  if (!isCamoEnemy(enemy)) {
+    return true;
+  }
+
+  if (tower.towerType === 'bioluminescent_shroom' || tower.specialEffect === 'reveal_camo') {
+    return true;
+  }
+
+  return enemy.statusEffects?.some(effect => effect.type === StatusEffectType.Revealed) ?? false;
+}
+
+function isCamoEnemy(enemy: Enemy): boolean {
+  return hasEnemyTrait(enemy, EnemyTrait.Camo);
 }
 
 export function createTower(

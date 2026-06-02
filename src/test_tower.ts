@@ -134,6 +134,19 @@ if (projDeadTarget.projectile) {
 }
 console.log('  ✓ updateProjectile handles dead target');
 
+const instantTower = createTower(13, 200, 200, TowerType.VenusFlytower, TargetingMode.First);
+const instantEnemy = createEnemy(201, 0, 10, 50, path);
+instantEnemy.position = { x: 230, y: 200 };
+const instantFire = fireTower(instantTower, [instantEnemy], path, currentTime + instantTower.fireRate);
+assert(instantFire.projectile !== null, 'Venus should fire an instant projectile');
+const instantUpdate = updateProjectile(instantFire.projectile!, [instantEnemy], deltaTime);
+assert(instantUpdate.hit === true, 'Zero-speed Venus projectile should resolve as an instant hit');
+assert(instantUpdate.target === instantEnemy, 'Instant projectile should report its target');
+assert(instantFire.projectile!.alive === false, 'Instant projectile should be consumed on hit');
+assertEqual(instantFire.projectile!.position.x, instantEnemy.position.x, 'Instant projectile should snap to target x');
+assertEqual(instantFire.projectile!.position.y, instantEnemy.position.y, 'Instant projectile should snap to target y');
+console.log('  ✓ updateProjectile resolves zero-speed instant shots');
+
 const enemyWithHp = createEnemy(300, 0, ENEMY_STATS[EnemyType.BlueBeetle].hp, ENEMY_STATS[EnemyType.BlueBeetle].speed, path);
 const initialHp = enemyWithHp.hp;
 const killed = applyDamage(enemyWithHp, 2);

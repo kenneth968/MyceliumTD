@@ -28,6 +28,10 @@ export function processStatusEffectHit(
         applyStatusEffect(enemy, StatusEffectType.Stun, effect.duration || 500, effect.strength);
         effectsApplied.push(StatusEffectType.Stun);
         break;
+      case 'reveal_camo':
+        applyStatusEffect(enemy, StatusEffectType.Revealed, effect.duration || 500, effect.strength);
+        effectsApplied.push(StatusEffectType.Revealed);
+        break;
       case 'damage':
         totalDamage += effect.strength;
         break;

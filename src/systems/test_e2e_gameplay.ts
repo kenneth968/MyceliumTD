@@ -52,9 +52,10 @@ test('Full game session: start -> place towers -> play wave -> verify economy tr
   assert(game.isWaveActive(), 'Wave should be active after starting');
   
   let enemySpawned = false;
+  const sessionStartTime = Date.now();
   
   for (let i = 0; i < 500; i++) {
-    game.update(Date.now() + 16);
+    game.update(sessionStartTime + i * 16);
     
     const enemies = game.getActiveEnemies();
     if (enemies.length > 0 && !enemySpawned) {
@@ -119,6 +120,100 @@ test('Wave progression: starting wave changes wave index', () => {
   
   const waveIndex = game.getWaveSpawner().getCurrentWaveIndex();
   assert(waveIndex === 0, `First wave should be index 0, got ${waveIndex}`);
+});
+
+test('Manual next wave start advances after the previous wave completes', () => {
+  const game = createGameRunner({ startingMoney: 650, startingLives: 20, maxWaves: 10 });
+  game.start();
+
+  game.startWave(0);
+
+  let currentTime = 0;
+  for (let i = 0; i < 80; i++) {
+    currentTime += 1000;
+    game.update(currentTime);
+    if (!game.isWaveActive() && game.getActiveEnemies().length === 0) {
+      break;
+    }
+  }
+
+  assert(!game.isWaveActive(), 'First wave should finish spawning');
+  assert(game.getActiveEnemies().length === 0, 'First wave enemies should have left or died');
+  assert(game.getWaveSpawner().getCurrentWaveIndex() === 0, 'Completed wave should be wave index 0 before the next start');
+
+  const started = game.startWave();
+
+  assert(started === true, 'Manual next wave start should succeed after intermission begins');
+  assert(game.getWaveSpawner().getCurrentWaveIndex() === 1, 'Manual next wave start should advance to wave index 1');
+});
+
+test('Recommended build order can reach victory across all 10 waves', () => {
+  const game = createGameRunner({ startingMoney: 650, startingLives: 20, maxWaves: 10 });
+  game.start();
+
+  const buildOrder = [
+    { type: TowerType.StinkhornLine, x: 340, y: 440, mode: TargetingMode.First },
+    { type: TowerType.BioluminescentShroom, x: 340, y: 160, mode: TargetingMode.First },
+    { type: TowerType.PuffballFungus, x: 100, y: 240, mode: TargetingMode.First },
+    { type: TowerType.PuffballFungus, x: 100, y: 360, mode: TargetingMode.First },
+    { type: TowerType.StinkhornLine, x: 460, y: 440, mode: TargetingMode.First },
+    { type: TowerType.OrchidTrap, x: 260, y: 160, mode: TargetingMode.First },
+    { type: TowerType.PuffballFungus, x: 340, y: 300, mode: TargetingMode.First },
+    { type: TowerType.BioluminescentShroom, x: 660, y: 360, mode: TargetingMode.First },
+    { type: TowerType.StinkhornLine, x: 540, y: 440, mode: TargetingMode.First },
+    { type: TowerType.PuffballFungus, x: 460, y: 300, mode: TargetingMode.First },
+    { type: TowerType.VenusFlytower, x: 660, y: 240, mode: TargetingMode.Strong },
+    { type: TowerType.StinkhornLine, x: 340, y: 560, mode: TargetingMode.First },
+    { type: TowerType.BioluminescentShroom, x: 700, y: 360, mode: TargetingMode.First },
+    { type: TowerType.PuffballFungus, x: 700, y: 240, mode: TargetingMode.First },
+    { type: TowerType.OrchidTrap, x: 500, y: 300, mode: TargetingMode.First },
+    { type: TowerType.VenusFlytower, x: 460, y: 160, mode: TargetingMode.Strong },
+  ];
+  let nextBuildIndex = 0;
+  let wavesStarted = 0;
+  let lastWaveIndex = -1;
+
+  const buyAffordableTowers = () => {
+    while (nextBuildIndex < buildOrder.length) {
+      const next = buildOrder[nextBuildIndex];
+      if (!game.getEconomy().canAfford(TOWER_STATS[next.type].cost)) {
+        return;
+      }
+
+      const tower = game.placeTower(next.type, next.x, next.y, next.mode);
+      assert(tower !== null, `Build order tower ${next.type} should be placeable at ${next.x},${next.y}`);
+      nextBuildIndex++;
+    }
+  };
+
+  buyAffordableTowers();
+  let currentTime = 0;
+  for (let i = 0; i < 30000; i++) {
+    const stats = game.getGameStats();
+    if (stats.state === GameState.Victory || stats.state === GameState.GameOver) {
+      break;
+    }
+
+    if (!game.isWaveActive() && game.getActiveEnemies().length === 0) {
+      buyAffordableTowers();
+      const started = game.startWave();
+      const waveIndex = game.getWaveSpawner().getCurrentWaveIndex();
+      if (started && waveIndex !== lastWaveIndex) {
+        wavesStarted++;
+        lastWaveIndex = waveIndex;
+      }
+    }
+
+    currentTime += 100;
+    game.update(currentTime);
+  }
+
+  const finalStats = game.getGameStats();
+  assert(finalStats.state === GameState.Victory, `Build order should reach victory, got ${finalStats.state}`);
+  assert(finalStats.wave === 10, `Victory should happen after wave 10, got wave ${finalStats.wave}`);
+  assert(wavesStarted === 10, `Should manually start all 10 waves, got ${wavesStarted}`);
+  assert(finalStats.lives > 0, `Victory should preserve at least one life, got ${finalStats.lives}`);
+  assert(nextBuildIndex === buildOrder.length, 'Build order should be fully affordable by the end of the game');
 });
 
 test('Sell tower returns value and removes from placed towers', () => {
@@ -188,18 +283,19 @@ test('Game speed changes affect update delta time', () => {
   assert(game.getGameSpeed() === 1, 'Game speed should be back to 1x');
 });
 
-test('Economy interest accrues over time', () => {
+test('Economy does not accrue passive interest by default', () => {
   const game = createGameRunner({ startingMoney: 650 });
   game.start();
   
   const initialMoney = game.getGameStats().money;
+  const interestStartTime = Date.now();
   
   for (let i = 0; i < 10; i++) {
-    game.update(Date.now() + 5000);
+    game.update(interestStartTime + i * 5000);
   }
   
   const laterMoney = game.getGameStats().money;
-  assert(laterMoney > initialMoney, 'Money should increase over time with interest');
+  assert(laterMoney === initialMoney, 'Money should stay stable because default passive interest is disabled');
 });
 
 test('Towers can be placed and tracked in game state', () => {
@@ -270,8 +366,9 @@ test('Game runner update loop runs without errors through multiple frames', () =
   game.placeTower(TowerType.OrchidTrap, 200, 100, TargetingMode.Last);
   game.startWave(0);
   
+  const loopStartTime = Date.now();
   for (let i = 0; i < 100; i++) {
-    game.update(Date.now() + 16);
+    game.update(loopStartTime + i * 16);
   }
   
   const stats = game.getGameStats();
@@ -287,8 +384,9 @@ test('Enemies spawn from wave spawner when wave starts', () => {
   game.startWave(0);
   
   let enemySpawned = false;
+  const spawnStartTime = Date.now();
   for (let i = 0; i < 500; i++) {
-    game.update(Date.now() + 16);
+    game.update(spawnStartTime + i * 16);
     
     if (game.getActiveEnemies().length > 0) {
       enemySpawned = true;
@@ -308,9 +406,10 @@ test('Lives decrease when enemies reach end of path', () => {
   game.startWave(0);
   
   const initialLives = game.getGameStats().lives;
+  const livesStartTime = Date.now();
   
-  for (let i = 0; i < 1000; i++) {
-    game.update(Date.now() + 16);
+  for (let i = 0; i < 40; i++) {
+    game.update(livesStartTime + i * 1000);
     
     const currentLives = game.getGameStats().lives;
     if (currentLives < initialLives) {

@@ -203,6 +203,41 @@ test('Wave spawn timing respects interval', () => {
   assertEqual(spawned.length, 3, 'All 3 enemies spawned');
 });
 
+test('WaveSpawner catches up all due enemies after a long frame', () => {
+  const wave = createWave(1, 'Catch-up Test', [
+    { enemyType: EnemyType.RedMushroom, count: 5, interval: 100 }
+  ]);
+
+  const spawner = new WaveSpawner(path, [wave]);
+  spawner.setNextEnemyId(1);
+  spawner.startWave(0);
+
+  const waveStartTime = Date.now();
+  const firstSpawn = spawner.update(waveStartTime);
+  const catchUpSpawn = spawner.update(waveStartTime + 350);
+
+  assertEqual(firstSpawn.length, 1, 'First update spawns opening enemy');
+  assertEqual(catchUpSpawn.length, 3, 'Long frame spawns every enemy due at 100ms, 200ms, and 300ms');
+  assertEqual(spawner.getRemainingInCurrentGroup(), 1, 'Only the 400ms enemy remains after catch-up');
+});
+
+test('WaveSpawner deactivates after the final group has spawned and its delay has elapsed', () => {
+  const wave = createWave(1, 'Completion Test', [
+    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 }
+  ], 200);
+
+  const spawner = new WaveSpawner(path, [wave]);
+  spawner.setNextEnemyId(1);
+  spawner.startWave(0);
+
+  const waveStartTime = Date.now();
+  spawner.update(waveStartTime);
+  spawner.update(waveStartTime + 100);
+  spawner.update(waveStartTime + 400);
+
+  assertEqual(spawner.isWaveActive(), false, 'Wave is inactive after the final group is fully complete');
+});
+
 test('Wave with multiple groups spawns correctly', () => {
   const wave = createWave(1, 'MultiGroup', [
     { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 },

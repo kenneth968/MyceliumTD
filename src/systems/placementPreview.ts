@@ -1,7 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './input';
-import { TowerWithUpgrades, UpgradePath } from './upgrade';
+import { TowerWithUpgrades, UpgradePath, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
 
 export interface TargetingModeButton {
@@ -350,23 +350,33 @@ export function getTowerSelectionRenderData(
     glowColor: colors.glow,
     size: TOWER_SIZES[tower.towerType] || 18,
     upgradeLevel,
-    sellValue: tower.totalUpgradeCost * 0.7,
+    sellValue: getTotalSellValue(tower),
     targetingMode: tower.targetingMode,
   };
 }
 
 export interface TowerUpgradeIndicator {
-  path: string;
+  path: UpgradePath;
   currentTier: number;
   maxTier: number;
   canUpgrade: boolean;
   nextCost: number;
+  position: Vec2;
+  size: { width: number; height: number };
 }
+
+const UPGRADE_INDICATOR_WIDTH = 30;
+const UPGRADE_INDICATOR_VISUAL_HEIGHT = 6;
+const UPGRADE_INDICATOR_HIT_HEIGHT = 24;
+const UPGRADE_INDICATOR_SPACING = 8;
+const UPGRADE_INDICATOR_OFFSET_Y = 15;
 
 export function getTowerUpgradeIndicators(
   tower: TowerWithUpgrades,
   canAffordUpgrade: (path: UpgradePath, tier: number) => boolean,
-  getUpgradeCostFn: (towerType: TowerType, path: UpgradePath, tier: number) => number
+  getUpgradeCostFn: (towerType: TowerType, path: UpgradePath, tier: number) => number,
+  position: Vec2 = { x: 0, y: 0 },
+  towerSize: number = 0
 ): TowerUpgradeIndicator[] {
   const paths: Array<{ path: UpgradePath; currentTier: number }> = [
     { path: UpgradePath.Damage, currentTier: tower.upgradeLevels[UpgradePath.Damage] },
@@ -374,20 +384,58 @@ export function getTowerUpgradeIndicators(
     { path: UpgradePath.FireRate, currentTier: tower.upgradeLevels[UpgradePath.FireRate] },
     { path: UpgradePath.Special, currentTier: tower.upgradeLevels[UpgradePath.Special] },
   ];
+  const totalWidth = (UPGRADE_INDICATOR_WIDTH + UPGRADE_INDICATOR_SPACING) * paths.length - UPGRADE_INDICATOR_SPACING;
+  const startX = position.x - totalWidth / 2;
+  const startY = position.y + towerSize + UPGRADE_INDICATOR_OFFSET_Y;
 
-  return paths.map(({ path, currentTier }) => {
+  return paths.map(({ path, currentTier }, index) => {
     const nextTier = currentTier + 1;
     const canUpgrade = currentTier < 3 && canAffordUpgrade(path, nextTier);
     const nextCost = currentTier < 3 ? getUpgradeCostFn(tower.towerType, path, nextTier) : 0;
 
     return {
-      path: path as string,
+      path,
       currentTier,
       maxTier: 3,
       canUpgrade,
       nextCost,
+      position: {
+        x: startX + index * (UPGRADE_INDICATOR_WIDTH + UPGRADE_INDICATOR_SPACING),
+        y: startY,
+      },
+      size: {
+        width: UPGRADE_INDICATOR_WIDTH,
+        height: UPGRADE_INDICATOR_HIT_HEIGHT,
+      },
     };
   });
+}
+
+export function getUpgradeIndicatorVisualHeight(): number {
+  return UPGRADE_INDICATOR_VISUAL_HEIGHT;
+}
+
+export function getTowerUpgradeIndicatorAtPosition(
+  indicators: TowerUpgradeIndicator[] | null,
+  x: number,
+  y: number
+): UpgradePath | null {
+  if (!indicators) {
+    return null;
+  }
+
+  for (const indicator of indicators) {
+    if (
+      x >= indicator.position.x &&
+      x <= indicator.position.x + indicator.size.width &&
+      y >= indicator.position.y &&
+      y <= indicator.position.y + indicator.size.height
+    ) {
+      return indicator.path;
+    }
+  }
+
+  return null;
 }
 
 export interface TowerSellButton {
@@ -413,12 +461,12 @@ export function getTowerSellButton(
   tower: TowerWithUpgrades,
   position?: Vec2
 ): TowerSellButton {
-  const sellValue = tower.totalUpgradeCost * 0.7;
+  const sellValue = getTotalSellValue(tower);
   const buttonPosition = position ? getSellButtonPosition(position, position) : { x: 0, y: 0 };
   return {
     position: buttonPosition,
     size: getSellButtonSize(),
-    sellValue: Math.round(sellValue),
+    sellValue,
     color: '#F44336',
     textColor: '#FFFFFF',
   };
@@ -454,7 +502,13 @@ export function getTowerSelectionPreviewRenderData(
   }
 
   const selection = getTowerSelectionRenderData(tower, position);
-  const upgradeIndicators = getTowerUpgradeIndicators(tower, canAffordUpgrade, getUpgradeCostFn);
+  const upgradeIndicators = getTowerUpgradeIndicators(
+    tower,
+    canAffordUpgrade,
+    getUpgradeCostFn,
+    position,
+    selection?.size ?? 0
+  );
   const sellButton = getTowerSellButton(tower, position);
   const rangePreview = getTowerSelectionRangePreview(tower, position);
 

@@ -166,6 +166,38 @@ runTest('getEnemyRenderData sets isCamo true for WhiteMoth and BlackWidow', () =
   assert(blackWidowRender.isCamo === true, 'BlackWidow should be camo');
 });
 
+runTest('getEnemyRenderData exposes Metal armor trait for ArmoredBeetle and ShelledSnail', () => {
+  const armoredBeetle = createEnemy(3, EnemyType.ArmoredBeetle, path);
+  const shelledSnail = createEnemy(4, EnemyType.ShelledSnail, path);
+  const armoredRender = getEnemyRenderData(armoredBeetle) as any;
+  const snailRender = getEnemyRenderData(shelledSnail) as any;
+  assert(armoredRender.isMetal === true, 'ArmoredBeetle should render as metal');
+  assert(snailRender.isMetal === true, 'ShelledSnail should render as metal');
+  assert(armoredRender.traits.includes('metal'), 'ArmoredBeetle render data should include Metal trait');
+  assert(armoredRender.armorColor === '#C8D0D8', 'Metal render data should expose armor color');
+});
+
+runTest('getEnemyRenderData exposes active Shielded trait for RainbowStag', () => {
+  const shieldedEnemy = createEnemy(5, EnemyType.RainbowStag, path);
+  const shieldedRender = getEnemyRenderData(shieldedEnemy) as any;
+  assert(shieldedRender.isShielded === true, 'RainbowStag should render as shielded');
+  assert(shieldedRender.shieldActive === true, 'RainbowStag should start with visible shield active');
+  assert(shieldedRender.traits.includes('shielded'), 'RainbowStag render data should include Shielded trait');
+  assert(shieldedRender.shieldColor === 'rgba(124, 218, 255, 0.75)', 'Shielded render data should expose shield color');
+});
+
+runTest('getEnemyRenderData exposes active Swarm-linked trait for PinkLadybug', () => {
+  const swarmEnemy = createEnemy(6, EnemyType.PinkLadybug, path) as any;
+  swarmEnemy.swarmLinkedActive = true;
+  swarmEnemy.swarmLinkCount = 3;
+  const swarmRender = getEnemyRenderData(swarmEnemy) as any;
+  assert(swarmRender.isSwarmLinked === true, 'PinkLadybug should render as Swarm-linked');
+  assert(swarmRender.swarmLinkedActive === true, 'PinkLadybug should expose active swarm bonus');
+  assert(swarmRender.swarmLinkCount === 3, 'Swarm-linked render data should include nearby count');
+  assert(swarmRender.traits.includes('swarm_linked'), 'PinkLadybug render data should include Swarm-linked trait');
+  assert(swarmRender.swarmLinkColor === 'rgba(245, 94, 121, 0.72)', 'Swarm-linked render data should expose link color');
+});
+
 runTest('getEnemyRenderData returns Dead animation state for dead enemy', () => {
   const enemy = createEnemy(1, EnemyType.RedMushroom, path);
   enemy.alive = false;
