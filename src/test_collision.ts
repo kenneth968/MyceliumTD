@@ -14,7 +14,7 @@ import {
   AreaDamageResult,
 } from './systems/collision';
 import { Projectile, TowerType } from './entities/tower';
-import { Enemy, StatusEffectType, createEnemy, disruptEnemyTrait, hasStatusEffect, updateStatusEffects } from './entities/enemy';
+import { Enemy, StatusEffectType, createEnemy, disruptEnemyTrait, hasStatusEffect, markEnemy, updateStatusEffects } from './entities/enemy';
 import { EnemyType } from './systems/wave';
 import { createDefaultPath } from './systems/path';
 import { TargetingMode, getTarget } from './systems/targeting';
@@ -294,6 +294,56 @@ test('trait disruption makes camo enemies targetable until it expires', () => {
   updateStatusEffects(camoEnemy, 501);
   const expiredResult = getTarget(tower, [camoEnemy], path);
   assertTrue(expiredResult.target === null, 'Camo enemy should hide again after trait disruption expires');
+});
+
+test('execute towers prioritize visible marked enemies', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 240,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.VenusFlytower,
+    specialEffect: 'instakill',
+  };
+  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  unmarkedAhead.position = { x: 80, y: 300 };
+  unmarkedAhead.pathDistance = 220;
+  unmarkedAhead.pathProgress = 220;
+  const markedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  markedBehind.position = { x: 70, y: 300 };
+  markedBehind.pathDistance = 120;
+  markedBehind.pathProgress = 120;
+  markEnemy(markedBehind, 4000);
+
+  const result = getTarget(tower, [unmarkedAhead, markedBehind], path);
+
+  assertEqual(result.target?.id, markedBehind.id, 'Execute tower should prefer the visible marked enemy');
+});
+
+test('execute towers ignore expired mark effects while targeting', () => {
+  const path = createDefaultPath();
+  const tower = {
+    id: 1,
+    position: { x: 0, y: 300 },
+    range: 240,
+    targetingMode: TargetingMode.First,
+    towerType: TowerType.VenusFlytower,
+    specialEffect: 'instakill',
+  };
+  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  unmarkedAhead.position = { x: 80, y: 300 };
+  unmarkedAhead.pathDistance = 220;
+  unmarkedAhead.pathProgress = 220;
+  const expiredMarkedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  expiredMarkedBehind.position = { x: 70, y: 300 };
+  expiredMarkedBehind.pathDistance = 120;
+  expiredMarkedBehind.pathProgress = 120;
+  markEnemy(expiredMarkedBehind, 0);
+
+  const result = getTarget(tower, [unmarkedAhead, expiredMarkedBehind], path);
+
+  assertEqual(result.target?.id, unmarkedAhead.id, 'Execute tower should ignore expired marks and use normal targeting');
 });
 
 test('getHitEffectsForTowerType returns correct effects for PuffballFungus', () => {

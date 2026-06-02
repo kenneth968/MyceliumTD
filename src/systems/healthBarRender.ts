@@ -62,6 +62,7 @@ const STATUS_EFFECT_COLORS: Record<StatusEffectType, string> = {
   [StatusEffectType.Poison]: '#9B59B6',
   [StatusEffectType.Stun]: '#F39C12',
   [StatusEffectType.Revealed]: '#1ABC9C',
+  [StatusEffectType.Marked]: '#F1C40F',
   [StatusEffectType.TraitDisrupted]: '#E67E22',
 };
 
@@ -70,6 +71,7 @@ const STATUS_EFFECT_ICONS: Record<StatusEffectType, string> = {
   [StatusEffectType.Poison]: 'skull',
   [StatusEffectType.Stun]: 'lightning',
   [StatusEffectType.Revealed]: 'eye',
+  [StatusEffectType.Marked]: 'target',
   [StatusEffectType.TraitDisrupted]: 'broken-link',
 };
 

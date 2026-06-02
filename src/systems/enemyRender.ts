@@ -207,6 +207,11 @@ const STATUS_EFFECT_VISUALS: Record<StatusEffectType, {
     icon: 'eye',
     animationSpeed: 1.0,
   },
+  [StatusEffectType.Marked]: {
+    color: '#F1C40F',
+    icon: 'target',
+    animationSpeed: 1.0,
+  },
   [StatusEffectType.TraitDisrupted]: {
     color: '#E67E22',
     icon: 'broken-link',

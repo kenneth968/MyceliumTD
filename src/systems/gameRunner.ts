@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower, Enemy as BaseEnemy } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { Enemy, StatusEffectType, DamageType, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait } from '../entities/enemy';
+import { Enemy, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -313,7 +313,7 @@ export class GameRunner {
     });
     this.roundManager.setEvents({
       onRoundStart: (roundNumber: number, wave: Wave) => {
-        startWaveAnnouncement(this.waveAnnouncementAnimator, roundNumber - 1, wave.name, this.currentTime);
+        startWaveAnnouncement(this.waveAnnouncementAnimator, wave.id, wave.name, this.currentTime);
         showWaveProgress(this.waveProgressAnimator, this.currentTime);
         showEnemyCountDisplay(this.enemyCountDisplayAnimator, this.currentTime);
       },
@@ -716,7 +716,7 @@ export class GameRunner {
       }
 
       if (statusResult.poisonDamage > 0) {
-        applyDamageToEnemy(enemy, statusResult.poisonDamage);
+        applyDamageToEnemy(enemy, statusResult.poisonDamage, { applyMarkBonus: false });
       }
 
       if (enemy.hasReachedEnd) {
@@ -767,6 +767,51 @@ export class GameRunner {
     }
 
     disruptEnemyTrait(enemy, TRAIT_DISRUPTION_DURATION);
+  }
+
+  private canProjectileMarkEnemies(projectile: Projectile): boolean {
+    if (projectile.towerType !== TowerType.PuffballFungus || projectile.sourceTowerId === undefined) {
+      return false;
+    }
+
+    const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
+    return !!placed &&
+      placed.tower.upgradeLevels[UpgradePath.Special] > 0 &&
+      this.isTowerConnectedToNetwork(placed.tower.id);
+  }
+
+  private applyMarkFromProjectile(projectile: Projectile, enemy: Enemy): void {
+    if (!this.canProjectileMarkEnemies(projectile)) {
+      return;
+    }
+
+    markEnemy(enemy, MARK_DURATION);
+  }
+
+  private canProjectileExecuteMarkedEnemy(projectile: Projectile): boolean {
+    if (projectile.towerType !== TowerType.VenusFlytower || projectile.sourceTowerId === undefined) {
+      return false;
+    }
+
+    const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
+    return !!placed &&
+      placed.tower.upgradeLevels[UpgradePath.Special] > 0 &&
+      this.isTowerConnectedToNetwork(placed.tower.id);
+  }
+
+  private applyExecuteFromProjectile(projectile: Projectile, enemy: Enemy): boolean {
+    if (!this.canProjectileExecuteMarkedEnemy(projectile) || !isMarked(enemy)) {
+      return false;
+    }
+
+    if (consumeShieldBlock(enemy)) {
+      return true;
+    }
+
+    enemy.hp = 0;
+    enemy.alive = false;
+    this.refreshEnemyTraitStates();
+    return true;
   }
 
   private updateLingeringFields(deltaTime: number): void {
@@ -891,8 +936,12 @@ export class GameRunner {
         );
         effects.push(...(projectile.extraHitEffects ?? []));
         this.applyTraitDisruptionFromProjectile(projectile, result.target as Enemy);
-        applyHitEffects(result.target as any, effects, deltaTime);
-        this.applyTowerDamageWithFreshTraits(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
+        this.applyMarkFromProjectile(projectile, result.target as Enemy);
+        const executeHandled = this.applyExecuteFromProjectile(projectile, result.target as Enemy);
+        if (!executeHandled) {
+          applyHitEffects(result.target as any, effects, deltaTime);
+          this.applyTowerDamageWithFreshTraits(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
+        }
 
         // Emit hit event for visual effects
         this.eventQueue.push({

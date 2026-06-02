@@ -1,6 +1,6 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path, PathPoint } from './path';
-import { EnemyTrait, StatusEffectType, hasEnemyTrait } from '../entities/enemy';
+import { EnemyTrait, StatusEffectType, hasEnemyTrait, isMarked } from '../entities/enemy';
 
 export enum TargetingMode {
   First = 'first',
@@ -46,6 +46,14 @@ export function getTarget(
 
   if (inRange.length === 0) {
     return { target: null, distance: Infinity };
+  }
+
+  if (tower.specialEffect === 'instakill') {
+    const markedTargets = inRange.filter(e => isMarked(e));
+    if (markedTargets.length > 0) {
+      const target = findFirst(markedTargets);
+      return { target, distance: vec2Distance(tower.position, target.position) };
+    }
   }
 
   let target: Enemy;

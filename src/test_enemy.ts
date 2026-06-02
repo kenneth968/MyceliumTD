@@ -18,6 +18,7 @@ import {
   StatusEffectType,
   EnemyTrait,
   disruptEnemyTrait,
+  markEnemy,
   refreshSwarmLinkStates,
   isCamo,
 } from './entities/enemy';
@@ -252,6 +253,26 @@ refreshSwarmLinkStates(disruptedSwarmPack);
 assertTest(disruptedSwarmPack[0].swarmLinkedActive === false, 'Disrupted Swarm-linked enemy should not activate pack bonus');
 assertTest(disruptedSwarmPack[1].swarmLinkedActive === false, 'Packmates should lose pack bonus when disrupted enemy no longer counts');
 assertTest(disruptedSwarmPack[2].swarmLinkedActive === false, 'All packmates should require three undisrupted swarm enemies');
+console.log('  PASS\n');
+
+console.log('Test 22: Mark adds one damage per hit and refreshes without stacking');
+const markedEnemy = createEnemy(16, EnemyType.BlueBeetle, path);
+markedEnemy.hp = 10;
+markedEnemy.maxHp = 10;
+markEnemy(markedEnemy, 4000);
+assertTest(hasStatusEffect(markedEnemy, StatusEffectType.Marked), 'Marked enemy should receive Marked status');
+const markedHit = applyDamageToEnemy(markedEnemy, 2);
+assertTest(markedHit === false, 'Partial hit should not kill marked enemy');
+assertTest(markedEnemy.hp === 7, 'Marked enemy should take +1 damage from a hit');
+updateStatusEffects(markedEnemy, 3000);
+markEnemy(markedEnemy, 4000);
+const markEffects = markedEnemy.statusEffects.filter(effect => effect.type === StatusEffectType.Marked);
+assertTest(markEffects.length === 1, 'Repeated mark should refresh the existing mark instead of stacking');
+assertTest(markEffects[0].remaining === 4000, 'Repeated mark should reset the mark timer');
+updateStatusEffects(markedEnemy, 4001);
+const unmarkedHp = markedEnemy.hp;
+applyDamageToEnemy(markedEnemy, 2);
+assertTest(markedEnemy.hp === unmarkedHp - 2, 'Expired mark should no longer add bonus damage');
 console.log('  PASS\n');
 
 console.log('=== All Tests Passed ===');

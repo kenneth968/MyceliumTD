@@ -1,6 +1,6 @@
 import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner';
 import { TowerType } from '../entities/tower';
-import { EnemyTrait, StatusEffectType, createEnemy } from '../entities/enemy';
+import { EnemyTrait, StatusEffectType, createEnemy, markEnemy } from '../entities/enemy';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
 import { RoundState } from './roundManager';
@@ -320,6 +320,109 @@ assertEqual(
   seededSwarmTargets[0].hp,
   11,
   'Seeded payload damage should refresh Swarm-linked state before detonation damage'
+);
+
+const markApplicationGame = createGameRunner({ startingMoney: 5000 });
+markApplicationGame.start();
+const markingTower = markApplicationGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
+const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
+assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
+const markTarget = createEnemy(914, EnemyType.BlueBeetle, markApplicationGame.getPath());
+markTarget.hp = 10;
+markTarget.maxHp = 10;
+markTarget.pathDistance = 1540;
+markTarget.pathProgress = 1540;
+markTarget.position = { ...markApplicationGame.getPath().getPointAtDistance(markTarget.pathDistance).position };
+markTarget.speed = 0;
+markTarget.baseSpeed = 0;
+markApplicationGame.getActiveEnemies().push(markTarget);
+markApplicationGame.update(1000);
+markApplicationGame.update(1400);
+assert(
+  markTarget.statusEffects.some(effect => effect.type === StatusEffectType.Marked),
+  'Connected Special Puffball should mark its direct target'
+);
+assert(
+  markTarget.hp <= 8,
+  'The marked Puffball hit should include the +1 marked damage bonus'
+);
+
+const executeMarkedGame = createGameRunner({ startingMoney: 5000 });
+executeMarkedGame.start();
+const executeTower = executeMarkedGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+assert(executeTower !== null, 'Should place Venus execute placeholder tower');
+const executeUpgrade = executeMarkedGame.upgradeTower(executeTower!.id, UpgradePath.Special);
+assert(executeUpgrade.success === true, 'Connected Venus should buy Special execute upgrade');
+const executeTarget = createEnemy(915, EnemyType.ArmoredBeetle, executeMarkedGame.getPath());
+executeTarget.pathDistance = 1520;
+executeTarget.pathProgress = 1520;
+executeTarget.position = { ...executeMarkedGame.getPath().getPointAtDistance(executeTarget.pathDistance).position };
+executeTarget.speed = 0;
+executeTarget.baseSpeed = 0;
+markEnemy(executeTarget, 4000);
+executeMarkedGame.getActiveEnemies().push(executeTarget);
+executeMarkedGame.getActiveProjectiles().push({
+  id: 992,
+  position: { ...executeTarget.position },
+  targetId: executeTarget.id,
+  sourceTowerId: executeTower!.id,
+  speed: 0,
+  damage: executeTower!.damage,
+  towerType: TowerType.VenusFlytower,
+  alive: true,
+});
+const moneyBeforeExecute = executeMarkedGame.getEconomy().getMoney();
+executeMarkedGame.update(0);
+assert(
+  executeTarget.alive === false && executeTarget.hp === 0,
+  'Connected Special Venus should execute a marked Metal enemy without ordinary damage checks'
+);
+executeMarkedGame.update(16);
+assertEqual(
+  executeMarkedGame.getEconomy().getMoney(),
+  moneyBeforeExecute + executeTarget.reward,
+  'Executed enemy should grant its normal death reward on cleanup'
+);
+
+const shieldedExecuteGame = createGameRunner({ startingMoney: 5000 });
+shieldedExecuteGame.start();
+const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+assert(shieldExecuteTower !== null, 'Should place Venus shield execute tower');
+const shieldExecuteUpgrade = shieldedExecuteGame.upgradeTower(shieldExecuteTower!.id, UpgradePath.Special);
+assert(shieldExecuteUpgrade.success === true, 'Connected Venus should buy Special shield execute upgrade');
+const shieldedExecuteTarget = createEnemy(916, EnemyType.RainbowStag, shieldedExecuteGame.getPath());
+shieldedExecuteTarget.pathDistance = 1520;
+shieldedExecuteTarget.pathProgress = 1520;
+shieldedExecuteTarget.position = { ...shieldedExecuteGame.getPath().getPointAtDistance(shieldedExecuteTarget.pathDistance).position };
+shieldedExecuteTarget.speed = 0;
+shieldedExecuteTarget.baseSpeed = 0;
+markEnemy(shieldedExecuteTarget, 4000);
+shieldedExecuteGame.getActiveEnemies().push(shieldedExecuteTarget);
+shieldedExecuteGame.getActiveProjectiles().push({
+  id: 993,
+  position: { ...shieldedExecuteTarget.position },
+  targetId: shieldedExecuteTarget.id,
+  sourceTowerId: shieldExecuteTower!.id,
+  speed: 0,
+  damage: shieldExecuteTower!.damage,
+  towerType: TowerType.VenusFlytower,
+  alive: true,
+});
+shieldedExecuteGame.update(0);
+assertEqual(
+  shieldedExecuteTarget.hp,
+  shieldedExecuteTarget.maxHp,
+  'Shielded execute target should keep full HP when shield absorbs Execute'
+);
+assertEqual(
+  shieldedExecuteTarget.shieldCharges,
+  0,
+  'Shielded execute target should lose its shield charge'
+);
+assert(
+  shieldedExecuteTarget.alive === true,
+  'Shielded execute target should survive shield-absorbed Execute'
 );
 
 game.pause();

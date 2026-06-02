@@ -15,6 +15,7 @@ export enum StatusEffectType {
   Poison = 'poison',
   Stun = 'stun',
   Revealed = 'revealed',
+  Marked = 'marked',
   TraitDisrupted = 'trait_disrupted',
 }
 
@@ -32,6 +33,7 @@ export enum DamageType {
 
 export interface DamageOptions {
   damageType?: DamageType | `${DamageType}`;
+  applyMarkBonus?: boolean;
 }
 
 export interface Enemy {
@@ -58,6 +60,8 @@ export const SWARM_LINK_RADIUS = 80;
 export const SWARM_LINK_THRESHOLD = 3;
 export const SWARM_LINK_SPEED_MULTIPLIER = 1.2;
 export const SWARM_LINK_DAMAGE_MULTIPLIER = 0.9;
+export const MARK_DURATION = 4000;
+export const MARK_DAMAGE_BONUS = 1;
 export const TRAIT_DISRUPTION_DURATION = 5000;
 
 type TraitCarrier = {
@@ -180,6 +184,41 @@ export function canDamageEnemy(
   }
 
   return options.damageType === DamageType.Explosive;
+}
+
+type StatusCarrier = {
+  statusEffects?: Array<{
+    type: StatusEffectType | string;
+    remaining?: number;
+    strength?: number;
+  }>;
+};
+
+export function isMarked(enemy: StatusCarrier): boolean {
+  return enemy.statusEffects?.some(effect =>
+    effect.type === StatusEffectType.Marked &&
+    (effect.remaining ?? 0) > 0
+  ) ?? false;
+}
+
+export function getMarkedAdjustedDamage(
+  enemy: StatusCarrier,
+  damage: number,
+  options: DamageOptions = {}
+): number {
+  if (options.applyMarkBonus === false || !isMarked(enemy)) {
+    return damage;
+  }
+
+  const mark = enemy.statusEffects?.find(effect =>
+    effect.type === StatusEffectType.Marked &&
+    (effect.remaining ?? 0) > 0
+  );
+  return damage + (mark?.strength ?? MARK_DAMAGE_BONUS);
+}
+
+export function markEnemy(enemy: Enemy, duration: number = MARK_DURATION): void {
+  applyStatusEffect(enemy, StatusEffectType.Marked, duration, MARK_DAMAGE_BONUS);
 }
 
 export function disruptEnemyTrait(enemy: Enemy, duration: number = TRAIT_DISRUPTION_DURATION): EnemyTrait | null {
@@ -347,7 +386,8 @@ export function applyDamageToEnemy(enemy: Enemy, damage: number, options: Damage
   if (consumeShieldBlock(enemy)) return false;
   if (!canDamageEnemy(enemy, options)) return false;
 
-  enemy.hp -= getTraitAdjustedDamage(enemy, damage);
+  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
+  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
   if (enemy.hp <= 0) {
     enemy.hp = 0;
     enemy.alive = false;

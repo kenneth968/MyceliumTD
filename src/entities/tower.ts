@@ -2,7 +2,7 @@ import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
 import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
-import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getTraitAdjustedDamage } from './enemy';
+import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getMarkedAdjustedDamage, getTraitAdjustedDamage } from './enemy';
 
 export enum TowerType {
   PuffballFungus = 'puffball_fungus',
@@ -227,6 +227,12 @@ export function updateProjectile(
     return { hit: true, damage: projectile.damage, target };
   }
 
+  if (projectile.speed <= 0) {
+    projectile.position = { ...target.position };
+    projectile.alive = false;
+    return { hit: true, damage: projectile.damage, target };
+  }
+
   const moveDistance = projectile.speed * (deltaTime / 1000);
   if (moveDistance >= dist) {
     projectile.position = { ...target.position };
@@ -252,7 +258,8 @@ export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions
     return false;
   }
 
-  enemy.hp -= getTraitAdjustedDamage(enemy, damage);
+  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
+  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
   if (enemy.hp <= 0) {
     enemy.hp = 0;
     enemy.alive = false;
