@@ -77,6 +77,10 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   expectEqual(result.stats[1].label, 'Range', 'second stat is range');
   expectEqual(result.stats[2].label, 'Fire Rate', 'third stat is fire rate');
   expectEqual(result.upgrades.length, 4, 'has 4 upgrade paths');
+  expectEqual(result.upgrades[0].label, 'Spore Density', 'Puffball damage path has role label');
+  expectTrue(result.upgrades[0].description.includes('layer'), 'Puffball path explains effect');
+  expectEqual(result.upgrades[3].label, 'Lingering Field', 'Puffball special path has behavior label');
+  expectTrue(result.upgrades[3].isNetworkPath, 'special path is marked as network path');
   expectEqual(result.sellValue, 70, 'sell value is 70% of base cost');
 }
 
@@ -90,6 +94,7 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   
   expectEqual(result.towerName, 'Orchid Trap', 'tower name for Orchid');
   expectEqual(result.specialEffect?.type, 'slow', 'Orchid has slow effect');
+  expectEqual(result.upgrades[3].label, 'Trait Disrupt', 'Orchid special path advertises trait disruption');
 }
 
 {
@@ -302,8 +307,8 @@ console.log('\n--- getTowerInfoPanelSize ---');
 {
   const size = getTowerInfoPanelSize();
   
-  expectEqual(size.width, 200, 'width is 200');
-  expectEqual(size.height, 320, 'height is 320');
+  expectEqual(size.width, 300, 'width leaves room for upgrade role descriptions');
+  expectEqual(size.height, 350, 'height leaves room for four upgrade rows plus sell value');
 }
 
 console.log('\n--- getPanelColorConfig ---');
@@ -338,6 +343,7 @@ console.log('\n--- getUpgradePathLabel ---');
   expectEqual(getUpgradePathLabel(UpgradePath.Range), 'Range', 'range label');
   expectEqual(getUpgradePathLabel(UpgradePath.FireRate), 'Fire Rate', 'fire rate label');
   expectEqual(getUpgradePathLabel(UpgradePath.Special), 'Special', 'special label');
+  expectEqual(getUpgradePathLabel(UpgradePath.Special, TowerType.BioluminescentShroom), 'Network Reveal', 'tower-specific special label');
 }
 
 console.log('\n--- canUpgrade flag ---');

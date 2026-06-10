@@ -12,6 +12,9 @@ export interface TowerPurchaseButton {
   hotkey: string;
   label: string;
   description: string;
+  role: string;
+  counterTags: string[];
+  tacticalHint: string;
 }
 
 export interface TowerPurchaseRenderData {
@@ -42,6 +45,33 @@ const TOWER_DESCRIPTIONS: Record<TowerType, string> = {
   [TowerType.BioluminescentShroom]: 'Reveals camo enemies',
   [TowerType.StinkhornLine]: 'Poisons enemies over time',
   [TowerType.MyceliumNetwork]: 'Buffs nearby towers with mycelium network',
+};
+
+const TOWER_ROLES: Record<TowerType, string> = {
+  [TowerType.PuffballFungus]: 'Splash',
+  [TowerType.OrchidTrap]: 'Control',
+  [TowerType.VenusFlytower]: 'Execute',
+  [TowerType.BioluminescentShroom]: 'Reveal',
+  [TowerType.StinkhornLine]: 'Damage Over Time',
+  [TowerType.MyceliumNetwork]: 'Network',
+};
+
+const TOWER_COUNTER_TAGS: Record<TowerType, string[]> = {
+  [TowerType.PuffballFungus]: ['Swarm', 'Metal'],
+  [TowerType.OrchidTrap]: ['Fast', 'Traits'],
+  [TowerType.VenusFlytower]: ['Marked', 'Elite'],
+  [TowerType.BioluminescentShroom]: ['Camo', 'Support'],
+  [TowerType.StinkhornLine]: ['Tank', 'Long Lane'],
+  [TowerType.MyceliumNetwork]: ['Bottom Path', 'Support'],
+};
+
+const TOWER_TACTICAL_HINTS: Record<TowerType, string> = {
+  [TowerType.PuffballFungus]: 'Best when clustered enemies bunch on bends.',
+  [TowerType.OrchidTrap]: 'Slows fast threats and strips trait pressure.',
+  [TowerType.VenusFlytower]: 'Finishes marked or weakened high-value targets.',
+  [TowerType.BioluminescentShroom]: 'Reveals camo lanes so other towers can fire.',
+  [TowerType.StinkhornLine]: 'Stacks poison on durable enemies over long lanes.',
+  [TowerType.MyceliumNetwork]: 'Links towers into the network for support routes.',
 };
 
 const TOWER_LABELS: Record<TowerType, string> = {
@@ -97,6 +127,9 @@ export function getTowerPurchaseButton(
     hotkey: HOTKEYS[towerType],
     label: TOWER_LABELS[towerType],
     description: TOWER_DESCRIPTIONS[towerType],
+    role: TOWER_ROLES[towerType],
+    counterTags: [...TOWER_COUNTER_TAGS[towerType]],
+    tacticalHint: TOWER_TACTICAL_HINTS[towerType],
   };
 }
 

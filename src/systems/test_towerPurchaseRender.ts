@@ -50,6 +50,7 @@ function runTests(): void {
   testButtonClickDetection();
   testAffordability();
   testHotkeyMapping();
+  testArsenalReadability();
 
   console.log('All tests passed!');
 }
@@ -74,6 +75,9 @@ function testGetTowerPurchaseButton(): void {
   assertEqual(button.isSelected, false, 'isSelected');
   assertEqual(button.hotkey, '1', 'hotkey');
   assertEqual(button.label, 'Puffball', 'label');
+  assertEqual(button.role, 'Splash', 'role');
+  assert(button.counterTags.includes('Swarm'), 'counter tags include Swarm');
+  assert(button.tacticalHint.includes('clustered'), 'tactical hint explains use case');
 }
 
 function testGetTowerPurchaseButtons(): void {
@@ -302,6 +306,22 @@ function testHotkeyMapping(): void {
       `hotkey for ${towerTypes[i]}`
     );
   }
+}
+
+function testArsenalReadability(): void {
+  console.log('  testArsenalReadability');
+
+  const canAffordFn = (_tt: TowerType) => true;
+  const buttons = getTowerPurchaseButtons(canAffordFn, null);
+
+  for (const button of buttons) {
+    assert(button.role.length > 0, `${button.label} has role`);
+    assert(button.counterTags.length > 0, `${button.label} has counter tags`);
+    assert(button.tacticalHint.length > 0, `${button.label} has tactical hint`);
+  }
+
+  const oracle = buttons.find(b => b.towerType === TowerType.BioluminescentShroom);
+  assert(oracle?.counterTags.includes('Camo') === true, 'oracle advertises Camo counter');
 }
 
 runTests();

@@ -7,13 +7,19 @@ export interface TrailPoint {
   opacity: number;
 }
 
+export type ProjectileShape = 'cloud' | 'drop' | 'jaw' | 'bolt' | 'needle' | 'orb';
+export type ProjectileTrailStyle = 'spore' | 'ribbon' | 'snap' | 'spark' | 'toxin' | 'pulse';
+
 export interface ProjectileRenderData {
   id: number;
   position: Vec2;
   previousPosition: Vec2;
   color: string;
   glowColor: string;
+  accentColor: string;
   size: number;
+  shape: ProjectileShape;
+  trailStyle: ProjectileTrailStyle;
   opacity: number;
   towerType: TowerType;
   hasTrail: boolean;
@@ -26,13 +32,62 @@ export interface ProjectileRenderCollection {
   trails: Map<number, TrailPoint[]>;
 }
 
-const TOWER_COLORS: Record<TowerType, { primary: string; glow: string; size: number }> = {
-  [TowerType.PuffballFungus]: { primary: '#9B59B6', glow: '#E8DAEF', size: 8 },
-  [TowerType.OrchidTrap]: { primary: '#3498DB', glow: '#D4E6F1', size: 7 },
-  [TowerType.VenusFlytower]: { primary: '#E74C3C', glow: '#FADBD8', size: 12 },
-  [TowerType.BioluminescentShroom]: { primary: '#1ABC9C', glow: '#D1F2EB', size: 6 },
-  [TowerType.StinkhornLine]: { primary: '#27AE60', glow: '#D5F5E3', size: 7 },
-  [TowerType.MyceliumNetwork]: { primary: '#8E44AD', glow: '#D7BDE2', size: 10 },
+const TOWER_COLORS: Record<TowerType, {
+  primary: string;
+  glow: string;
+  accent: string;
+  size: number;
+  shape: ProjectileShape;
+  trailStyle: ProjectileTrailStyle;
+}> = {
+  [TowerType.PuffballFungus]: {
+    primary: '#9B59B6',
+    glow: '#E8DAEF',
+    accent: '#F7DC6F',
+    size: 8,
+    shape: 'cloud',
+    trailStyle: 'spore',
+  },
+  [TowerType.OrchidTrap]: {
+    primary: '#3498DB',
+    glow: '#D4E6F1',
+    accent: '#FF69B4',
+    size: 7,
+    shape: 'drop',
+    trailStyle: 'ribbon',
+  },
+  [TowerType.VenusFlytower]: {
+    primary: '#E74C3C',
+    glow: '#FADBD8',
+    accent: '#32CD32',
+    size: 12,
+    shape: 'jaw',
+    trailStyle: 'snap',
+  },
+  [TowerType.BioluminescentShroom]: {
+    primary: '#1ABC9C',
+    glow: '#D1F2EB',
+    accent: '#A3E4D7',
+    size: 6,
+    shape: 'bolt',
+    trailStyle: 'spark',
+  },
+  [TowerType.StinkhornLine]: {
+    primary: '#27AE60',
+    glow: '#D5F5E3',
+    accent: '#FF8C42',
+    size: 7,
+    shape: 'needle',
+    trailStyle: 'toxin',
+  },
+  [TowerType.MyceliumNetwork]: {
+    primary: '#8E44AD',
+    glow: '#D7BDE2',
+    accent: '#FF00FF',
+    size: 10,
+    shape: 'orb',
+    trailStyle: 'pulse',
+  },
 };
 
 const MAX_TRAIL_POINTS = 20;
@@ -52,7 +107,10 @@ export function getProjectileRenderData(
     previousPosition: previousPosition ? { ...previousPosition } : { ...projectile.position },
     color: colors.primary,
     glowColor: colors.glow,
+    accentColor: colors.accent,
     size: colors.size,
+    shape: colors.shape,
+    trailStyle: colors.trailStyle,
     opacity: 1.0,
     towerType: projectile.towerType,
     hasTrail: true,

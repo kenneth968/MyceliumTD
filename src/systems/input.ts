@@ -43,6 +43,21 @@ export interface TowerPlacerConfig {
   minDistanceFromTower?: number;
 }
 
+const PATH_SAMPLE_STEP = 8;
+
+const TOWER_FOOTPRINT_RADIUS: Record<TowerType, number> = {
+  [TowerType.PuffballFungus]: 18,
+  [TowerType.OrchidTrap]: 18,
+  [TowerType.VenusFlytower]: 20,
+  [TowerType.BioluminescentShroom]: 16,
+  [TowerType.StinkhornLine]: 18,
+  [TowerType.MyceliumNetwork]: 20,
+};
+
+export function getTowerPathClearance(towerType: TowerType): number {
+  return TOWER_FOOTPRINT_RADIUS[towerType] + 4;
+}
+
 export class TowerPlacer {
   private mode: PlacementMode;
   private selectedTowerType: TowerType | null;
@@ -58,7 +73,7 @@ export class TowerPlacer {
     this.mode = PlacementMode.None;
     this.selectedTowerType = null;
     this.placementPosition = null;
-    this.minDistanceFromPath = config.minDistanceFromPath ?? 30;
+    this.minDistanceFromPath = config.minDistanceFromPath ?? 20;
     this.minDistanceFromTower = config.minDistanceFromTower ?? 40;
     this.selectedTargetingMode = TargetingMode.First;
     this.selectedTowerId = null;
@@ -133,8 +148,7 @@ export class TowerPlacer {
       return { canPlace: false, reason: 'Too close to another tower' };
     }
 
-    const range = TOWER_STATS[towerType].range;
-    if (this.blocksPath(x, y, range)) {
+    if (this.blocksPath(x, y, towerType)) {
       return { canPlace: false, reason: 'Tower would block the path' };
     }
 
@@ -142,10 +156,9 @@ export class TowerPlacer {
   }
 
   private isTooCloseToPath(x: number, y: number, towerType: TowerType): boolean {
-    const range = TOWER_STATS[towerType].range;
-    const checkDistance = Math.max(range * 0.3, this.minDistanceFromPath);
+    const checkDistance = Math.max(getTowerPathClearance(towerType), this.minDistanceFromPath);
 
-    for (let d = 0; d <= this.config.path.getTotalLength(); d += 10) {
+    for (let d = 0; d <= this.config.path.getTotalLength(); d += PATH_SAMPLE_STEP) {
       const point = this.config.path.getPointAtDistance(d);
       const dist = vec2Distance({ x, y }, point.position);
       if (dist < checkDistance) {
@@ -165,13 +178,14 @@ export class TowerPlacer {
     return false;
   }
 
-  private blocksPath(x: number, y: number, range: number): boolean {
+  private blocksPath(x: number, y: number, towerType: TowerType): boolean {
+    const checkDistance = getTowerPathClearance(towerType);
     const pathPoints = this.config.path.getPoints();
     for (let i = 0; i < pathPoints.length - 1; i++) {
       const p1 = pathPoints[i];
       const p2 = pathPoints[i + 1];
       const dist = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-      if (dist < range * 0.5) {
+      if (dist < checkDistance) {
         return true;
       }
     }

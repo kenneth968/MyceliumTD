@@ -13,7 +13,10 @@ export interface TowerStatDisplay {
 export interface TowerUpgradeDisplay {
   path: UpgradePath;
   label: string;
+  shortLabel: string;
   icon: string;
+  description: string;
+  isNetworkPath: boolean;
   currentTier: number;
   maxTier: number;
   canUpgrade: boolean;
@@ -72,11 +75,185 @@ const TOWER_ICONS: Record<TowerType, string> = {
   [TowerType.MyceliumNetwork]: '🔮',
 };
 
-const UPGRADE_PATH_INFO: Record<UpgradePath, { label: string; icon: string; shortLabel: string }> = {
-  [UpgradePath.Damage]: { label: 'Damage', icon: '⚔️', shortLabel: 'DMG' },
-  [UpgradePath.Range]: { label: 'Range', icon: '🎯', shortLabel: 'RNG' },
-  [UpgradePath.FireRate]: { label: 'Fire Rate', icon: '⚡', shortLabel: 'SPD' },
-  [UpgradePath.Special]: { label: 'Special', icon: '✨', shortLabel: 'SPC' },
+interface UpgradePathInfo {
+  label: string;
+  icon: string;
+  shortLabel: string;
+  description: string;
+}
+
+const UPGRADE_PATH_INFO: Record<UpgradePath, UpgradePathInfo> = {
+  [UpgradePath.Damage]: {
+    label: 'Damage',
+    icon: '⚔️',
+    shortLabel: 'DMG',
+    description: 'Raises direct damage.',
+  },
+  [UpgradePath.Range]: {
+    label: 'Range',
+    icon: '🎯',
+    shortLabel: 'RNG',
+    description: 'Extends lane coverage.',
+  },
+  [UpgradePath.FireRate]: {
+    label: 'Fire Rate',
+    icon: '⚡',
+    shortLabel: 'SPD',
+    description: 'Fires more often.',
+  },
+  [UpgradePath.Special]: {
+    label: 'Special',
+    icon: '✨',
+    shortLabel: 'SPC',
+    description: 'Improves the tower role effect.',
+  },
+};
+
+const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradePath, UpgradePathInfo>>>> = {
+  [TowerType.PuffballFungus]: {
+    [UpgradePath.Damage]: {
+      label: 'Spore Density',
+      icon: '⚔️',
+      shortLabel: 'DENSE',
+      description: 'Adds harder-hitting spores for layered and metal pressure.',
+    },
+    [UpgradePath.Range]: {
+      label: 'Cloud Reach',
+      icon: '🎯',
+      shortLabel: 'REACH',
+      description: 'Throws spore clouds across more bends.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Burst Cycle',
+      icon: '⚡',
+      shortLabel: 'BURST',
+      description: 'Puffs more often to keep swarms under control.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Lingering Field',
+      icon: '✨',
+      shortLabel: 'FIELD',
+      description: 'Network path: leaves a wider fungal field after impact.',
+    },
+  },
+  [TowerType.OrchidTrap]: {
+    [UpgradePath.Damage]: {
+      label: 'Pollen Bite',
+      icon: '⚔️',
+      shortLabel: 'BITE',
+      description: 'Adds sting damage while enemies are slowed.',
+    },
+    [UpgradePath.Range]: {
+      label: 'Bloom Radius',
+      icon: '🎯',
+      shortLabel: 'BLOOM',
+      description: 'Covers more of the road with control pollen.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Rapid Bloom',
+      icon: '⚡',
+      shortLabel: 'RAPID',
+      description: 'Refreshes slow clouds more frequently.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Trait Disrupt',
+      icon: '✨',
+      shortLabel: 'DISRUPT',
+      description: 'Network path: weakens dangerous enemy traits after slow hits.',
+    },
+  },
+  [TowerType.VenusFlytower]: {
+    [UpgradePath.Damage]: {
+      label: 'Bigger Snap',
+      icon: '⚔️',
+      shortLabel: 'SNAP',
+      description: 'Raises the execute threshold for wounded elites.',
+    },
+    [UpgradePath.Range]: {
+      label: 'Lunge Vines',
+      icon: '🎯',
+      shortLabel: 'LUNGE',
+      description: 'Reaches deeper into choke points.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Jaw Reset',
+      icon: '⚡',
+      shortLabel: 'RESET',
+      description: 'Recovers faster after each snap.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Marked Snap',
+      icon: '✨',
+      shortLabel: 'MARK',
+      description: 'Network path: prioritizes marked or weakened prey.',
+    },
+  },
+  [TowerType.BioluminescentShroom]: {
+    [UpgradePath.Damage]: {
+      label: 'Lumen Bolt',
+      icon: '⚔️',
+      shortLabel: 'LUMEN',
+      description: 'Adds direct light damage to revealed enemies.',
+    },
+    [UpgradePath.Range]: {
+      label: 'Beacon Reach',
+      icon: '🎯',
+      shortLabel: 'BEACON',
+      description: 'Reveals camo threats across more path segments.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Pulse Rhythm',
+      icon: '⚡',
+      shortLabel: 'PULSE',
+      description: 'Refreshes reveal pulses more often.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Network Reveal',
+      icon: '✨',
+      shortLabel: 'REVEAL',
+      description: 'Network path: shares reveal windows with nearby towers.',
+    },
+  },
+  [TowerType.StinkhornLine]: {
+    [UpgradePath.Damage]: {
+      label: 'Toxin Dose',
+      icon: '⚔️',
+      shortLabel: 'TOXIN',
+      description: 'Adds stronger upfront poison payloads.',
+    },
+    [UpgradePath.Range]: {
+      label: 'Stench Drift',
+      icon: '🎯',
+      shortLabel: 'DRIFT',
+      description: 'Lets fumes reach more of the lane.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Spore Vent',
+      icon: '⚡',
+      shortLabel: 'VENT',
+      description: 'Applies poison stacks more frequently.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Rot Bloom',
+      icon: '✨',
+      shortLabel: 'ROT',
+      description: 'Network path: extends poison uptime on durable enemies.',
+    },
+  },
+  [TowerType.MyceliumNetwork]: {
+    [UpgradePath.Range]: {
+      label: 'Hyphae Reach',
+      icon: '🎯',
+      shortLabel: 'HYPHAE',
+      description: 'Extends connection range for nearby towers.',
+    },
+    [UpgradePath.Special]: {
+      label: 'Symbiosis Boost',
+      icon: '✨',
+      shortLabel: 'BOOST',
+      description: 'Network path: amplifies connected tower effects.',
+    },
+  },
 };
 
 const SPECIAL_EFFECT_DESCRIPTIONS: Record<string, string> = {
@@ -101,8 +278,8 @@ const PANEL_COLORS = {
 };
 
 const PANEL_SIZE = {
-  width: 200,
-  height: 320,
+  width: 300,
+  height: 350,
 };
 
 const PANEL_OFFSET = {
@@ -171,7 +348,7 @@ export function getTowerInfoPanelRenderData(
 
   const upgrades: TowerUpgradeDisplay[] = upgradePaths.map(path => {
     const info = getUpgradeInfo(tower, path);
-    const pathInfo = UPGRADE_PATH_INFO[path];
+    const pathInfo = getUpgradePathInfo(path, tower.towerType);
     const nextTier = info.currentTier + 1;
     const canUpgrade = nextTier <= 3 && canAffordUpgrade(path, nextTier);
 
@@ -189,7 +366,10 @@ export function getTowerInfoPanelRenderData(
     return {
       path,
       label: pathInfo.label,
+      shortLabel: pathInfo.shortLabel,
       icon: pathInfo.icon,
+      description: pathInfo.description,
+      isNetworkPath: path === UpgradePath.Special,
       currentTier: info.currentTier,
       maxTier: 3,
       canUpgrade,
@@ -355,10 +535,14 @@ export function getTowerIcon(towerType: TowerType): string {
   return TOWER_ICONS[towerType] || '?';
 }
 
-export function getUpgradePathIcon(path: UpgradePath): string {
-  return UPGRADE_PATH_INFO[path]?.icon || '?';
+function getUpgradePathInfo(path: UpgradePath, towerType?: TowerType): UpgradePathInfo {
+  return (towerType ? TOWER_UPGRADE_PATH_INFO[towerType]?.[path] : undefined) ?? UPGRADE_PATH_INFO[path];
 }
 
-export function getUpgradePathLabel(path: UpgradePath): string {
-  return UPGRADE_PATH_INFO[path]?.label || path;
+export function getUpgradePathIcon(path: UpgradePath, towerType?: TowerType): string {
+  return getUpgradePathInfo(path, towerType).icon || '?';
+}
+
+export function getUpgradePathLabel(path: UpgradePath, towerType?: TowerType): string {
+  return getUpgradePathInfo(path, towerType).label || path;
 }
