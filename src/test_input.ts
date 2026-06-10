@@ -97,6 +97,16 @@ test('validatePlacement rejects position too close to path', () => {
   return result.canPlace === false && result.reason === 'Too close to path';
 });
 
+test('validatePlacement allows long-range towers close to road edge without using attack range as collision radius', () => {
+  const result = placer.validatePlacement(160, 335, TowerType.BioluminescentShroom);
+  return result.canPlace === true;
+});
+
+test('validatePlacement still rejects towers on the road shoulder', () => {
+  const result = placer.validatePlacement(160, 315, TowerType.BioluminescentShroom);
+  return result.canPlace === false && result.reason === 'Too close to path';
+});
+
 test('validatePlacement rejects position too close to another tower', () => {
   const result = placer.validatePlacement(110, 200, TowerType.PuffballFungus);
   return result.canPlace === false && result.reason === 'Too close to another tower';
@@ -217,7 +227,7 @@ test('getPathPreview returns correct segment count', () => {
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
-  return preview !== null && preview.segments.length === 7;
+  return preview !== null && preview.segments.length > 7;
 });
 
 test('getPathPreview returns segments with correct structure', () => {

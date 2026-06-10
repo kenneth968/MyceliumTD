@@ -1488,9 +1488,9 @@ class Game {
             
             this.ctx.save();
 
-            // Draw trail BEFORE local transform — trail points are in world coordinates
+            // Trail points are in world coordinates.
             if (p.hasTrail && p.trailPoints && p.trailPoints.length > 0) {
-                this.drawProjectileTrail(p.trailPoints, color, glowColor, size);
+                this.drawProjectileTrail(p.trailPoints, color, glowColor, size, p.trailStyle || 'ribbon');
             }
 
             const animationState = p.animationState || { scale: 1, rotation: 0, pulsePhase: 0 };
@@ -1505,10 +1505,7 @@ class Game {
                 this.ctx.shadowBlur = size * 2;
             }
             
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, size, 0, Math.PI * 2);
-            this.ctx.fillStyle = color;
-            this.ctx.fill();
+            this.drawProjectileShape(p.shape || 'orb', size, color, p.accentColor || glowColor);
             
             if (p.specialEffect === 'area_damage') {
                 this.ctx.beginPath();
@@ -1542,21 +1539,116 @@ class Game {
         }
     }
 
-    private drawProjectileTrail(trailPoints: any[], color: string, glowColor: string, size: number): void {
+    private drawProjectileShape(shape: string, size: number, color: string, accentColor: string): void {
+        this.ctx.fillStyle = color;
+        this.ctx.strokeStyle = accentColor;
+        this.ctx.lineWidth = Math.max(2, size * 0.22);
+
+        if (shape === 'cloud') {
+            for (const puff of [
+                { x: -size * 0.45, y: 0, r: size * 0.62 },
+                { x: size * 0.25, y: -size * 0.2, r: size * 0.7 },
+                { x: size * 0.42, y: size * 0.28, r: size * 0.5 },
+            ]) {
+                this.ctx.beginPath();
+                this.ctx.arc(puff.x, puff.y, puff.r, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            this.ctx.stroke();
+            return;
+        }
+
+        if (shape === 'drop') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, -size * 1.15);
+            this.ctx.bezierCurveTo(size, -size * 0.25, size * 0.55, size, 0, size);
+            this.ctx.bezierCurveTo(-size * 0.55, size, -size, -size * 0.25, 0, -size * 1.15);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+            return;
+        }
+
+        if (shape === 'jaw') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(-size, -size * 0.7);
+            this.ctx.lineTo(size * 0.15, 0);
+            this.ctx.lineTo(-size, size * 0.7);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.moveTo(size, -size * 0.7);
+            this.ctx.lineTo(-size * 0.15, 0);
+            this.ctx.lineTo(size, size * 0.7);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.moveTo(-size * 0.15, 0);
+            this.ctx.lineTo(size * 0.15, 0);
+            this.ctx.stroke();
+            return;
+        }
+
+        if (shape === 'bolt') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(-size * 0.35, -size * 1.1);
+            this.ctx.lineTo(size * 0.28, -size * 0.18);
+            this.ctx.lineTo(-size * 0.04, -size * 0.18);
+            this.ctx.lineTo(size * 0.42, size * 1.1);
+            this.ctx.lineTo(-size * 0.42, size * 0.08);
+            this.ctx.lineTo(-size * 0.08, size * 0.08);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+            return;
+        }
+
+        if (shape === 'needle') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, -size * 1.25);
+            this.ctx.lineTo(size * 0.36, size * 0.7);
+            this.ctx.lineTo(0, size * 1.05);
+            this.ctx.lineTo(-size * 0.36, size * 0.7);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+            return;
+        }
+
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, size, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+
+    private drawProjectileTrail(trailPoints: any[], color: string, glowColor: string, size: number, style: string): void {
         if (trailPoints.length < 2) return;
 
-        // Trail points are in world coordinates; the camera transform is already applied
         for (let i = 1; i < trailPoints.length; i++) {
             const prev = trailPoints[i - 1];
             const curr = trailPoints[i];
             const opacity = curr.opacity || 0.3;
 
+            if (style === 'spore' || style === 'toxin') {
+                this.ctx.beginPath();
+                this.ctx.arc(curr.position.x, curr.position.y, Math.max(1.5, size * opacity * 0.35), 0, Math.PI * 2);
+                this.ctx.fillStyle = style === 'toxin' ? color : glowColor;
+                this.ctx.globalAlpha = opacity * 0.65;
+                this.ctx.fill();
+                this.ctx.globalAlpha = 1;
+                continue;
+            }
+
             this.ctx.beginPath();
             this.ctx.moveTo(prev.position.x, prev.position.y);
+            if (style === 'spark') {
+                const midX = (prev.position.x + curr.position.x) / 2 + Math.sin(i * 2.3) * size * 0.35;
+                const midY = (prev.position.y + curr.position.y) / 2 + Math.cos(i * 1.7) * size * 0.35;
+                this.ctx.lineTo(midX, midY);
+            }
             this.ctx.lineTo(curr.position.x, curr.position.y);
-            this.ctx.strokeStyle = glowColor;
-            this.ctx.lineWidth = size * opacity * 0.5;
-            this.ctx.globalAlpha = opacity * 0.5;
+            this.ctx.strokeStyle = style === 'snap' ? color : glowColor;
+            this.ctx.lineWidth = Math.max(1, size * opacity * (style === 'pulse' ? 0.8 : 0.5));
+            this.ctx.globalAlpha = opacity * (style === 'pulse' ? 0.65 : 0.5);
             this.ctx.stroke();
             this.ctx.globalAlpha = 1;
         }
@@ -2004,7 +2096,7 @@ class Game {
     private drawTowerInfoPanel(panel: TowerInfoPanelRenderData | null): void {
         if (!panel || !panel.isVisible) return;
         
-        const width = 280;
+        const width = panel.size.width;
         const height = panel.size.height;
         const x = 20;
         const y = CANVAS_HEIGHT - height - 20;
@@ -2018,18 +2110,70 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.ctx.font = 'bold 18px sans-serif';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(panel.towerName, x + 15, y + 30);
+        this.ctx.textBaseline = 'top';
+        this.ctx.fillText(this.truncateText(panel.towerName, width - 30), x + 15, y + 14);
         
         this.ctx.font = '14px sans-serif';
         this.ctx.fillStyle = '#aaa';
-        this.ctx.fillText(`Type: ${panel.towerType}`, x + 15, y + 55);
+        this.ctx.fillText(`${panel.targetingMode.icon} Target: ${panel.targetingMode.label}`, x + 15, y + 40);
         
-        let statY = y + 85;
+        let statX = x + 15;
         for (const stat of panel.stats) {
             this.ctx.fillStyle = panel.textColor;
-            this.ctx.fillText(`${stat.label}: ${stat.value}`, x + 15, statY);
-            statY += 22;
+            this.ctx.font = '12px sans-serif';
+            this.ctx.fillText(stat.label, statX, y + 66);
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.font = 'bold 14px sans-serif';
+            this.ctx.fillText(stat.value, statX, y + 82);
+            statX += 86;
         }
+
+        if (panel.specialEffect) {
+            this.ctx.fillStyle = '#9EE6C8';
+            this.ctx.font = '12px sans-serif';
+            this.ctx.fillText(this.truncateText(panel.specialEffect.description, width - 30), x + 15, y + 108);
+        }
+
+        let upgradeY = y + 126;
+        for (const upgrade of panel.upgrades) {
+            const rowHeight = 43;
+            this.ctx.fillStyle = upgrade.canUpgrade ? 'rgba(17, 70, 45, 0.85)' : 'rgba(35, 35, 42, 0.88)';
+            this.ctx.fillRect(x + 10, upgradeY, width - 20, rowHeight);
+            this.ctx.strokeStyle = upgrade.isNetworkPath ? '#9B59B6' : (upgrade.canUpgrade ? '#4CAF50' : '#555');
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x + 10, upgradeY, width - 20, rowHeight);
+
+            this.ctx.fillStyle = upgrade.canUpgrade ? '#FFFFFF' : '#999';
+            this.ctx.font = 'bold 12px sans-serif';
+            this.ctx.fillText(upgrade.icon, x + 18, upgradeY + 6);
+            this.ctx.fillText(this.truncateText(upgrade.label, 116), x + 42, upgradeY + 5);
+
+            this.ctx.textAlign = 'right';
+            this.ctx.fillStyle = upgrade.canUpgrade ? '#FFD700' : '#777';
+            const costText = upgrade.currentTier >= upgrade.maxTier ? 'MAX' : `$${upgrade.nextCost}`;
+            this.ctx.fillText(costText, x + width - 18, upgradeY + 5);
+            this.ctx.fillStyle = '#C5E1A5';
+            this.ctx.fillText(`${upgrade.currentTier}/${upgrade.maxTier}`, x + width - 18, upgradeY + 22);
+            this.ctx.textAlign = 'left';
+
+            this.ctx.fillStyle = '#B8C7D9';
+            this.ctx.font = '11px sans-serif';
+            const statText = upgrade.statIncrease ? `${upgrade.shortLabel} ${upgrade.statIncrease} - ` : '';
+            this.ctx.fillText(this.truncateText(`${statText}${upgrade.description}`, width - 65), x + 42, upgradeY + 24);
+
+            upgradeY += rowHeight + 4;
+        }
+
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + 10, y + height - 34);
+        this.ctx.lineTo(x + width - 10, y + height - 34);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#F87171';
+        this.ctx.font = '12px sans-serif';
+        this.ctx.fillText(`Sell value: $${panel.sellValue}`, x + 15, y + height - 25);
     }
 
     private drawLivesMoney(lm: LivesMoneyDisplayRenderData): void {
@@ -2061,71 +2205,57 @@ class Game {
 
     private drawTowerPurchase(purchase: TowerPurchaseRenderData | null): void {
         if (!purchase || !purchase.isVisible) return;
-        
-        const BUTTON_WIDTH = 120;
-        const BUTTON_HEIGHT = 80;
-        const BUTTON_SPACING = 10;
-        const BUTTON_COUNT = 5;
-        
-        const totalWidth = BUTTON_COUNT * BUTTON_WIDTH + (BUTTON_COUNT - 1) * BUTTON_SPACING;
-        const startX = CANVAS_WIDTH / 2 - totalWidth / 2;
-        const startY = CANVAS_HEIGHT - BUTTON_HEIGHT - 20;
-        
-        const TOWER_TYPES = [
-            TowerType.PuffballFungus,
-            TowerType.OrchidTrap,
-            TowerType.VenusFlytower,
-            TowerType.BioluminescentShroom,
-            TowerType.StinkhornLine,
-        ];
-        
-        const LABELS: Record<TowerType, string> = {
-            [TowerType.PuffballFungus]: 'Puffball',
-            [TowerType.OrchidTrap]: 'Orchid',
-            [TowerType.VenusFlytower]: 'Venus',
-            [TowerType.BioluminescentShroom]: 'BioLumi',
-            [TowerType.StinkhornLine]: 'Stinkhorn',
-            [TowerType.MyceliumNetwork]: 'Mycelium',
-        };
-        
-        const HOTKEYS: Record<TowerType, string> = {
-            [TowerType.PuffballFungus]: '1',
-            [TowerType.OrchidTrap]: '2',
-            [TowerType.VenusFlytower]: '3',
-            [TowerType.BioluminescentShroom]: '4',
-            [TowerType.StinkhornLine]: '5',
-            [TowerType.MyceliumNetwork]: '6',
-        };
-        
-        for (let i = 0; i < BUTTON_COUNT; i++) {
-            const towerType = TOWER_TYPES[i];
-            const button = purchase.buttons.find(b => b.towerType === towerType);
-            if (!button) continue;
-            
-            const x = startX + i * (BUTTON_WIDTH + BUTTON_SPACING);
-            const y = startY;
+
+        for (const button of purchase.buttons) {
+            const x = button.position.x;
+            const y = button.position.y;
+            const width = button.size.width;
+            const height = button.size.height;
             
             this.ctx.fillStyle = button.canAfford ? 'rgba(0, 0, 0, 0.8)' : 'rgba(50, 50, 50, 0.8)';
-            this.ctx.fillRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT);
+            this.ctx.fillRect(x, y, width, height);
             
-            this.ctx.strokeStyle = button.canAfford ? '#4CAF50' : '#666';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT);
+            this.ctx.strokeStyle = button.isSelected ? '#FFD700' : (button.canAfford ? '#4CAF50' : '#666');
+            this.ctx.lineWidth = button.isSelected ? 3 : 2;
+            this.ctx.strokeRect(x, y, width, height);
             
             this.ctx.fillStyle = button.canAfford ? '#FFD700' : '#888';
             this.ctx.font = 'bold 12px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'top';
-            this.ctx.fillText(LABELS[towerType], x + BUTTON_WIDTH / 2, y + 5);
+            this.ctx.fillText(button.label, x + width / 2, y + 5);
+
+            this.ctx.fillStyle = button.canAfford ? '#9EE6C8' : '#777';
+            this.ctx.font = 'bold 11px sans-serif';
+            this.ctx.fillText(this.truncateText(button.role, width - 14), x + width / 2, y + 21);
             
             this.ctx.fillStyle = button.canAfford ? '#4CAF50' : '#F44336';
-            this.ctx.font = 'bold 14px sans-serif';
-            this.ctx.fillText(`$${button.cost}`, x + BUTTON_WIDTH / 2, y + 22);
+            this.ctx.font = 'bold 13px sans-serif';
+            this.ctx.fillText(`$${button.cost}`, x + width / 2, y + 36);
+
+            this.ctx.fillStyle = button.canAfford ? '#B8C7D9' : '#666';
+            this.ctx.font = '10px sans-serif';
+            this.ctx.fillText(this.truncateText(button.counterTags.join(' / '), width - 14), x + width / 2, y + 53);
             
             this.ctx.fillStyle = button.canAfford ? '#aaa' : '#666';
             this.ctx.font = '10px sans-serif';
-            this.ctx.fillText(`[${HOTKEYS[towerType]}]`, x + BUTTON_WIDTH / 2, y + BUTTON_HEIGHT - 15);
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`[${button.hotkey}]`, x + 7, y + height - 15);
+            this.ctx.textAlign = 'right';
+            this.ctx.fillText(this.truncateText(button.tacticalHint, width - 38), x + width - 7, y + height - 15);
         }
+    }
+
+    private truncateText(text: string, maxWidth: number): string {
+        if (this.ctx.measureText(text).width <= maxWidth) {
+            return text;
+        }
+
+        let clipped = text;
+        while (clipped.length > 0 && this.ctx.measureText(`${clipped}...`).width > maxWidth) {
+            clipped = clipped.slice(0, -1);
+        }
+        return `${clipped}...`;
     }
 }
 

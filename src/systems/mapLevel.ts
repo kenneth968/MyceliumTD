@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/vec2';
-import { Path, PathPoint } from './path';
+import { Path, PathPoint, createOrganicPathFromWaypoints } from './path';
 import { TowerType } from '../entities/tower';
 
 export enum MapDifficulty {
@@ -54,7 +54,7 @@ function createMapPath(pathPoints: number[]): Path {
   for (let i = 0; i < pathPoints.length; i += 2) {
     points.push({ x: pathPoints[i], y: pathPoints[i + 1] });
   }
-  return new Path(points);
+  return createOrganicPathFromWaypoints(points);
 }
 
 function createMapInfo(config: MapConfig): MapInfo {

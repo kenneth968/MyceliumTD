@@ -108,8 +108,8 @@ const networkRevealUpgrade = networkRevealGame.upgradeTower(oracle!.id, UpgradeP
 assertEqual(networkRevealUpgrade.success, true, 'Connected Bioluminescent should buy the bottom/special upgrade');
 
 const camoEnemy = createEnemy(900, EnemyType.WhiteMoth, networkRevealGame.getPath());
-camoEnemy.pathDistance = 1540;
-camoEnemy.pathProgress = 1540;
+camoEnemy.pathDistance = 1420;
+camoEnemy.pathProgress = 1420;
 camoEnemy.position = { ...networkRevealGame.getPath().getPointAtDistance(camoEnemy.pathDistance).position };
 camoEnemy.speed = 0;
 camoEnemy.baseSpeed = 0;
@@ -140,8 +140,8 @@ const fungalFieldUpgrade = fungalFieldGame.upgradeTower(fieldPuffball!.id, Upgra
 assertEqual(fungalFieldUpgrade.success, true, 'Connected Puffball should buy the bottom/special upgrade');
 
 const fieldTarget = createEnemy(901, EnemyType.BlueBeetle, fungalFieldGame.getPath());
-fieldTarget.pathDistance = 1540;
-fieldTarget.pathProgress = 1540;
+fieldTarget.pathDistance = 1420;
+fieldTarget.pathProgress = 1420;
 fieldTarget.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
 fieldTarget.speed = 0;
 fieldTarget.baseSpeed = 0;
@@ -156,8 +156,8 @@ assertEqual(activeFields[0].duration, 8000, 'Lingering fungal field should last 
 assertEqual(activeFields[0].slowStrength, 0.2, 'Lingering fungal field should apply a 20% slow');
 
 const fieldVisitor = createEnemy(902, EnemyType.GreenCaterpillar, fungalFieldGame.getPath());
-fieldVisitor.pathDistance = 1540;
-fieldVisitor.pathProgress = 1540;
+fieldVisitor.pathDistance = 1420;
+fieldVisitor.pathProgress = 1420;
 fieldVisitor.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldVisitor.pathDistance).position };
 fieldVisitor.speed = 0;
 fieldVisitor.baseSpeed = 0;
@@ -187,8 +187,8 @@ const seededUpgrade = seededPayloadGame.upgradeTower(seededStinkhorn!.id, Upgrad
 assertEqual(seededUpgrade.success, true, 'Connected Stinkhorn should buy the bottom/special upgrade');
 
 const seededTarget = createEnemy(903, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
-seededTarget.pathDistance = 1520;
-seededTarget.pathProgress = 1520;
+seededTarget.pathDistance = 1420;
+seededTarget.pathProgress = 1420;
 seededTarget.position = { ...seededPayloadGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
 seededTarget.speed = 0;
 seededTarget.baseSpeed = 0;
@@ -206,8 +206,8 @@ seededPayloadGame.getActiveProjectiles().length = 0;
 seededStinkhorn!.lastFireTime = 999999;
 
 const delayedVictim = createEnemy(904, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
-delayedVictim.pathDistance = 1520;
-delayedVictim.pathProgress = 1520;
+delayedVictim.pathDistance = 1420;
+delayedVictim.pathProgress = 1420;
 delayedVictim.position = { ...seededPayloadGame.getPath().getPointAtDistance(delayedVictim.pathDistance).position };
 delayedVictim.speed = 0;
 delayedVictim.baseSpeed = 0;

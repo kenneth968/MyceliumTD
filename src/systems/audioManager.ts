@@ -23,7 +23,7 @@ export interface AudioManagerConfig {
 const DEFAULT_CONFIG: AudioManagerConfig = {
   musicVolume: 0.4,
   crossfadeDuration: 2000,
-  basePath: 'assets/music',
+  basePath: '../assets/music',
 };
 
 const TRACK_FILES: Record<MusicTrack, string> = {

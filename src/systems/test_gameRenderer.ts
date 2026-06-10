@@ -112,8 +112,8 @@ const fieldTower = fieldGame.placeTower(TowerType.PuffballFungus, 720, 250, Targ
 if (fieldTower) {
   fieldGame.upgradeTower(fieldTower.id, UpgradePath.Special);
   const fieldTarget = createEnemy(910, EnemyType.BlueBeetle, fieldGame.getPath());
-  fieldTarget.pathDistance = 1540;
-  fieldTarget.pathProgress = 1540;
+  fieldTarget.pathDistance = 1420;
+  fieldTarget.pathProgress = 1420;
   fieldTarget.position = { ...fieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
   fieldTarget.speed = 0;
   fieldTarget.baseSpeed = 0;
@@ -138,8 +138,8 @@ const seededTower = seededGame.placeTower(TowerType.StinkhornLine, 720, 270, Tar
 if (seededTower) {
   seededGame.upgradeTower(seededTower.id, UpgradePath.Special);
   const seededTarget = createEnemy(911, EnemyType.ArmoredBeetle, seededGame.getPath());
-  seededTarget.pathDistance = 1520;
-  seededTarget.pathProgress = 1520;
+  seededTarget.pathDistance = 1420;
+  seededTarget.pathProgress = 1420;
   seededTarget.position = { ...seededGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
   seededTarget.speed = 0;
   seededTarget.baseSpeed = 0;

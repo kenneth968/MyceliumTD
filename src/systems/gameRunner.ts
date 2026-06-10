@@ -11,7 +11,7 @@ import { TowerWithUpgrades, UpgradePath, createTowerWithUpgrades, applyUpgrade, 
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { applyHitEffects, getHitEffectsForTowerType, calculateAreaDamage } from './collision';
 import { processEnemyStatusTick, isEnemyStunned, getSlowFactor } from './statusEffects';
-import { PlacementMode, TowerPlacer, createTowerPlacer, RangePreview, PathPreview } from './input';
+import { PlacementMode, TowerPlacer, createTowerPlacer, RangePreview, PathPreview, getTowerPathClearance } from './input';
 import { 
   PlacementPreviewRenderData,
   PlacementPreviewWithTargetingRenderData,
@@ -341,7 +341,7 @@ export class GameRunner {
     this.towerPlacer = createTowerPlacer({
       path: this.path,
       placedTowers: this.placedTowers,
-      minDistanceFromPath: 30,
+      minDistanceFromPath: 20,
       minDistanceFromTower: 40,
     });
     this.hero = null;
@@ -379,7 +379,7 @@ export class GameRunner {
     this.towerPlacer = createTowerPlacer({
       path: this.path,
       placedTowers: this.placedTowers,
-      minDistanceFromPath: 30,
+      minDistanceFromPath: 20,
       minDistanceFromTower: 40,
     });
     return true;
@@ -549,7 +549,7 @@ export class GameRunner {
     this.towerPlacer = createTowerPlacer({
       path: this.path,
       placedTowers: this.placedTowers,
-      minDistanceFromPath: 30,
+      minDistanceFromPath: 20,
       minDistanceFromTower: 40,
     });
     this.hero = null;
@@ -1479,8 +1479,7 @@ export class GameRunner {
       return { canPlace: false, reason: 'Too close to another tower' };
     }
 
-    const range = TOWER_STATS[towerType].range;
-    if (this.blocksPath(x, y, range)) {
+    if (this.blocksPath(x, y, towerType)) {
       return { canPlace: false, reason: 'Tower would block the path' };
     }
 
@@ -1488,10 +1487,9 @@ export class GameRunner {
   }
 
   private isTooCloseToPath(x: number, y: number, towerType: TowerType): boolean {
-    const range = TOWER_STATS[towerType].range;
-    const checkDistance = Math.max(range * 0.3, 30);
+    const checkDistance = Math.max(getTowerPathClearance(towerType), 20);
 
-    for (let d = 0; d <= this.path.getTotalLength(); d += 10) {
+    for (let d = 0; d <= this.path.getTotalLength(); d += 8) {
       const point = this.path.getPointAtDistance(d);
       const dist = vec2Distance({ x, y }, point.position);
       if (dist < checkDistance) {
@@ -1511,13 +1509,14 @@ export class GameRunner {
     return false;
   }
 
-  private blocksPath(x: number, y: number, range: number): boolean {
+  private blocksPath(x: number, y: number, towerType: TowerType): boolean {
+    const checkDistance = getTowerPathClearance(towerType);
     const pathPoints = this.path.getPoints();
     for (let i = 0; i < pathPoints.length - 1; i++) {
       const p1 = pathPoints[i];
       const p2 = pathPoints[i + 1];
       const dist = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-      if (dist < range * 0.5) {
+      if (dist < checkDistance) {
         return true;
       }
     }
