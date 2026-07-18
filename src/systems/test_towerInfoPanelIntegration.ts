@@ -130,7 +130,7 @@ console.log('\n--- info panel special effect ---');
   
   const renderData = game.getTowerInfoPanelRenderData();
   expectTrue(renderData.specialEffect !== null, 'has special effect');
-  expectEqual(renderData.specialEffect!.type, 'reveal_camo', 'has reveal_camo effect');
+  expectEqual(renderData.specialEffect!.type, 'detection', 'base Oracle advertises detection');
 }
 
 console.log('\n--- info panel animation ---');
@@ -173,7 +173,7 @@ console.log('\n--- info panel all tower types ---');
     { type: TowerType.Puffball, name: 'Puffball', effect: 'area_damage' },
     { type: TowerType.Slimefungus, name: 'Slimefungus', effect: 'slow' },
     { type: TowerType.ThornSniper, name: 'Thorn Sniper', effect: 'precision' },
-    { type: TowerType.LumenOracle, name: 'Lumen Oracle', effect: 'reveal_camo' },
+    { type: TowerType.LumenOracle, name: 'Lumen Oracle', effect: 'detection' },
     { type: TowerType.BulbShooter, name: 'Bulb Shooter', effect: 'area_damage' },
     { type: TowerType.Sporecap, name: 'Sporecap', effect: undefined },
   ];

@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { DamageOptions, DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
+import { DamageOptions, DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock, hasActiveShield } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, RoundBonusBreakdown, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -172,6 +172,7 @@ export interface LingeringField {
   duration: number;
   remaining: number;
   slowStrength: number;
+  damagePerSecond: number;
   sourceTowerId: number;
 }
 
@@ -184,6 +185,14 @@ export interface SeededPayload {
   delay: number;
   remaining: number;
   sourceTowerId: number;
+  targetEnemyId: number;
+}
+
+interface ActiveSeed {
+  targetEnemyId: number;
+  sourceTowerId: number;
+  connectedHitCount: number;
+  damage: number;
 }
 
 export interface GameConfig {
@@ -204,11 +213,13 @@ const KERNEL_NETWORK_RADIUS = 180;
 const NETWORK_LINK_RADIUS = 160;
 const NETWORK_REVEAL_DURATION_MULTIPLIER = 1.5;
 const NETWORK_REVEAL_SLOW_STRENGTH = 0.1;
-const PUFFBALL_FIELD_DURATION = 8000;
-const PUFFBALL_FIELD_SLOW_STRENGTH = 0.2;
+const CHORUS_STRENGTH_BONUS = 0.2;
+const EXECUTE_HEALTH_THRESHOLD = 0.25;
+const PUFFBALL_FIELD_DURATION = 6000;
+const PUFFBALL_FIELD_SLOW_STRENGTH = 0.25;
 const PUFFBALL_FIELD_STATUS_DURATION = 300;
 const PUFFBALL_FIELD_RADIUS = 40;
-const SEEDED_PAYLOAD_COUNT = 3;
+const SEEDED_PAYLOAD_TRIGGER_HITS = 3;
 const SEEDED_PAYLOAD_DELAY = 1000;
 const SEEDED_PAYLOAD_RADIUS = 35;
 
@@ -223,6 +234,7 @@ export class GameRunner {
   private activeProjectiles: Projectile[];
   private activeLingeringFields: LingeringField[];
   private activeSeededPayloads: SeededPayload[];
+  private activeSeeds: Map<number, ActiveSeed>;
   private config: GameConfig;
   private currentTime: number;
   private simulationTime: number;
@@ -281,6 +293,7 @@ export class GameRunner {
     this.activeProjectiles = [];
     this.activeLingeringFields = [];
     this.activeSeededPayloads = [];
+    this.activeSeeds = new Map();
     this.state = GameState.Idle;
     this.currentTime = 0;
     this.simulationTime = 0;
@@ -576,6 +589,7 @@ export class GameRunner {
     this.activeProjectiles = [];
     this.activeLingeringFields = [];
     this.activeSeededPayloads = [];
+    this.activeSeeds = new Map();
     this.currentTime = 0;
     this.simulationTime = 0;
     this.lastUpdateTime = 0;
@@ -695,6 +709,17 @@ export class GameRunner {
     if (towerIndex !== -1) {
       this.towers.splice(towerIndex, 1);
     }
+    this.activeLingeringFields = this.activeLingeringFields.filter(
+      field => field.sourceTowerId !== towerId
+    );
+    this.activeSeededPayloads = this.activeSeededPayloads.filter(
+      payload => payload.sourceTowerId !== towerId
+    );
+    for (const [enemyId, seed] of this.activeSeeds) {
+      if (seed.sourceTowerId === towerId) {
+        this.activeSeeds.delete(enemyId);
+      }
+    }
     
     return sellValue;
   }
@@ -779,6 +804,7 @@ export class GameRunner {
       }
 
       if (enemy.hasReachedEnd) {
+        this.activeSeeds.delete(enemy.id);
         this.leaksThisWave++;
         this.eventQueue.push({
           type: 'enemy_leaked',
@@ -794,6 +820,7 @@ export class GameRunner {
       }
 
       if (!enemy.alive) {
+        this.activeSeeds.delete(enemy.id);
         this.eventQueue.push({
           type: 'death',
           position: { ...enemy.position },
@@ -871,7 +898,7 @@ export class GameRunner {
   }
 
   private canProjectileMarkEnemies(projectile: Projectile): boolean {
-    if (projectile.towerType !== TowerType.Puffball || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.Sporecap || projectile.sourceTowerId === undefined) {
       return false;
     }
 
@@ -895,9 +922,18 @@ export class GameRunner {
     }
 
     const placed = this.placedTowers.find(pt => pt.tower.id === projectile.sourceTowerId);
-    return !!placed &&
-      placed.tower.upgradeLevels[UpgradePath.Special] > 0 &&
-      this.isTowerConnectedToNetwork(placed.tower.id);
+    return !!placed && this.canTowerExecuteMarkedEnemy(placed.tower);
+  }
+
+  private canTowerExecuteMarkedEnemy(tower: TowerWithUpgrades): boolean {
+    return tower.towerType === TowerType.ThornSniper &&
+      tower.upgradeLevels[UpgradePath.Special] > 0 &&
+      this.isTowerConnectedToNetwork(tower.id);
+  }
+
+  private isProjectileFromConnectedTower(projectile: Projectile): boolean {
+    return projectile.sourceTowerId !== undefined &&
+      this.isTowerConnectedToNetwork(projectile.sourceTowerId);
   }
 
   private applyExecuteFromProjectile(projectile: Projectile, enemy: Enemy): boolean {
@@ -910,13 +946,23 @@ export class GameRunner {
       return true;
     }
 
-    this.applyEnemyDamageWithFreshTraits(enemy, Number.MAX_SAFE_INTEGER, { damageType: DamageType.Explosive });
+    if (enemy.maxHp <= 0 || enemy.hp / enemy.maxHp > EXECUTE_HEALTH_THRESHOLD) {
+      return false;
+    }
+
+    this.applyEnemyDamageWithFreshTraits(enemy, Number.MAX_SAFE_INTEGER, {
+      damageType: DamageType.Explosive,
+      applyMarkBonus: false,
+    });
     return true;
   }
 
   private updateLingeringFields(deltaTime: number): void {
     for (let i = this.activeLingeringFields.length - 1; i >= 0; i--) {
       const field = this.activeLingeringFields[i];
+      if (!this.isTowerConnectedToNetwork(field.sourceTowerId)) {
+        continue;
+      }
       field.remaining -= deltaTime;
 
       if (field.remaining <= 0) {
@@ -930,6 +976,11 @@ export class GameRunner {
         }
 
         if (vec2Distance(enemy.position, field.position) <= field.radius) {
+          this.applyEnemyDamageWithFreshTraits(
+            enemy,
+            field.damagePerSecond * (deltaTime / 1000),
+            { applyMarkBonus: this.isTowerConnectedToNetwork(field.sourceTowerId) }
+          );
           applyStatusEffect(enemy, StatusEffectType.Slow, PUFFBALL_FIELD_STATUS_DURATION, field.slowStrength);
         }
       }
@@ -939,6 +990,9 @@ export class GameRunner {
   private updateSeededPayloads(deltaTime: number): void {
     for (let i = this.activeSeededPayloads.length - 1; i >= 0; i--) {
       const payload = this.activeSeededPayloads[i];
+      if (!this.isTowerConnectedToNetwork(payload.sourceTowerId)) {
+        continue;
+      }
       payload.remaining -= deltaTime;
 
       if (payload.remaining > 0) {
@@ -964,7 +1018,10 @@ export class GameRunner {
       }
 
       if (vec2Distance(enemy.position, payload.position) <= payload.radius) {
-        this.applyEnemyDamageWithFreshTraits(enemy, payload.damage, { damageType: DamageType.Explosive });
+        this.applyEnemyDamageWithFreshTraits(enemy, payload.damage, {
+          damageType: DamageType.Explosive,
+          applyMarkBonus: this.isTowerConnectedToNetwork(payload.sourceTowerId),
+        });
       }
     }
   }
@@ -972,10 +1029,6 @@ export class GameRunner {
   private updateTowers(deltaTime: number): void {
     for (const placed of this.placedTowers) {
       const tower = placed.tower;
-
-      if (tower.towerType === TowerType.Sporecap) {
-        continue;
-      }
 
       if (!canFire(tower, this.currentTime)) {
         continue;
@@ -1000,7 +1053,16 @@ export class GameRunner {
         }
       }
 
-      const projectile = fireTowerWithProjectile(tower, this.activeEnemies, this.path, this.currentTime, finalEffectStrength, finalEffectDuration, finalAreaRadius);
+      const projectile = fireTowerWithProjectile(
+        tower,
+        this.activeEnemies,
+        this.path,
+        this.currentTime,
+        finalEffectStrength,
+        finalEffectDuration,
+        finalAreaRadius,
+        this.canTowerExecuteMarkedEnemy(tower)
+      );
       if (projectile) {
         if (tower.towerType === TowerType.LumenOracle &&
             tower.upgradeLevels[UpgradePath.Special] > 0 &&
@@ -1009,6 +1071,11 @@ export class GameRunner {
           projectile.effectDuration = revealDuration;
           projectile.extraHitEffects = [
             ...(projectile.extraHitEffects ?? []),
+            {
+              type: 'reveal_camo',
+              strength: 1,
+              duration: revealDuration,
+            },
             {
               type: 'slow',
               strength: NETWORK_REVEAL_SLOW_STRENGTH,
@@ -1028,6 +1095,7 @@ export class GameRunner {
       const result = updateProjectile(projectile, this.activeEnemies, deltaTime);
 
       if (result.hit && result.target) {
+        const enemy = result.target as Enemy;
         const effects = getHitEffectsForTowerType(
           projectile.towerType,
           projectile.damage,
@@ -1035,15 +1103,22 @@ export class GameRunner {
           projectile.effectDuration
         );
         effects.push(...(projectile.extraHitEffects ?? []));
-        const executeHandled = this.applyExecuteFromProjectile(projectile, result.target as Enemy);
+        const executeHandled = this.applyExecuteFromProjectile(projectile, enemy);
+        let directHitApplied = false;
+
         if (!executeHandled) {
-          const enemy = result.target as Enemy;
+          if (this.canProjectileDisruptTraits(projectile) && !hasActiveShield(enemy)) {
+            this.applyTraitDisruptionFromProjectile(projectile, enemy);
+          }
+
           const resolution = this.applyEnemyDamageWithFreshTraits(enemy, projectile.damage, {
             damageType: getTowerDamageType(projectile.towerType),
+            applyMarkBonus: this.isProjectileFromConnectedTower(projectile),
           });
           applyHitEffects(enemy, effects, deltaTime, resolution.shieldConsumed);
           if (!resolution.shieldConsumed) {
-            this.applyTraitDisruptionFromProjectile(projectile, enemy);
+            directHitApplied = true;
+            this.registerConnectedHitOnSeed(projectile, enemy);
             this.applyMarkFromProjectile(projectile, enemy);
           }
         }
@@ -1056,7 +1131,7 @@ export class GameRunner {
           effectType: TOWER_STATS[projectile.towerType].specialEffect,
         });
 
-        if (projectile.towerType === TowerType.Puffball) {
+        if (projectile.towerType === TowerType.Puffball || projectile.towerType === TowerType.BulbShooter) {
           const areaResult = calculateAreaDamage(
             projectile.position,
             this.activeEnemies,
@@ -1072,17 +1147,22 @@ export class GameRunner {
             radius: projectile.areaRadius ?? 40,
           });
 
-          for (const areaEnemy of areaResult.enemiesHit) {
-            if (areaEnemy.id !== result.target.id) {
-              this.applyEnemyDamageWithFreshTraits(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
+          for (const areaHit of areaResult.hits) {
+            if (areaHit.enemy.id !== result.target.id) {
+              this.applyEnemyDamageWithFreshTraits(areaHit.enemy, areaHit.damage, {
+                damageType: DamageType.Explosive,
+                applyMarkBonus: this.isProjectileFromConnectedTower(projectile),
+              });
             }
           }
+        }
 
+        if (projectile.towerType === TowerType.Puffball) {
           this.createPuffballLingeringField(projectile);
         }
 
-        if (projectile.towerType === TowerType.BulbShooter) {
-          this.createSeededPayloads(projectile);
+        if (projectile.towerType === TowerType.BulbShooter && directHitApplied) {
+          this.plantSeedFromProjectile(projectile, enemy);
         }
 
         this.activeProjectiles.splice(i, 1);
@@ -1095,7 +1175,7 @@ export class GameRunner {
     }
   }
 
-  private createSeededPayloads(projectile: Projectile): void {
+  private plantSeedFromProjectile(projectile: Projectile, enemy: Enemy): void {
     if (projectile.towerType !== TowerType.BulbShooter || projectile.sourceTowerId === undefined) {
       return;
     }
@@ -1107,28 +1187,46 @@ export class GameRunner {
       return;
     }
 
-    const offsets: Vec2[] = [
-      { x: 0, y: 0 },
-      { x: 18, y: -12 },
-      { x: -18, y: 12 },
-    ];
-
-    for (let i = 0; i < SEEDED_PAYLOAD_COUNT; i++) {
-      const offset = offsets[i] ?? { x: 0, y: 0 };
-      this.activeSeededPayloads.push({
-        id: this.nextSeededPayloadId++,
-        type: 'stinkhorn_seeded_payload',
-        position: {
-          x: projectile.position.x + offset.x,
-          y: projectile.position.y + offset.y,
-        },
-        radius: SEEDED_PAYLOAD_RADIUS,
-        damage: projectile.damage,
-        delay: SEEDED_PAYLOAD_DELAY,
-        remaining: SEEDED_PAYLOAD_DELAY,
-        sourceTowerId: placed.tower.id,
-      });
+    const hasPendingPayload = this.activeSeededPayloads.some(
+      payload => payload.targetEnemyId === enemy.id
+    );
+    if (!enemy.alive || this.activeSeeds.has(enemy.id) || hasPendingPayload) {
+      return;
     }
+
+    this.activeSeeds.set(enemy.id, {
+      targetEnemyId: enemy.id,
+      sourceTowerId: placed.tower.id,
+      connectedHitCount: 0,
+      damage: projectile.damage,
+    });
+  }
+
+  private registerConnectedHitOnSeed(projectile: Projectile, enemy: Enemy): void {
+    const seed = this.activeSeeds.get(enemy.id);
+    if (!seed ||
+        !this.isProjectileFromConnectedTower(projectile) ||
+        !this.isTowerConnectedToNetwork(seed.sourceTowerId)) {
+      return;
+    }
+
+    seed.connectedHitCount++;
+    if (seed.connectedHitCount < SEEDED_PAYLOAD_TRIGGER_HITS) {
+      return;
+    }
+
+    this.activeSeeds.delete(enemy.id);
+    this.activeSeededPayloads.push({
+      id: this.nextSeededPayloadId++,
+      type: 'stinkhorn_seeded_payload',
+      position: { ...enemy.position },
+      radius: SEEDED_PAYLOAD_RADIUS,
+      damage: seed.damage,
+      delay: SEEDED_PAYLOAD_DELAY,
+      remaining: SEEDED_PAYLOAD_DELAY,
+      sourceTowerId: seed.sourceTowerId,
+      targetEnemyId: seed.targetEnemyId,
+    });
   }
 
   private createPuffballLingeringField(projectile: Projectile): void {
@@ -1151,6 +1249,7 @@ export class GameRunner {
       duration: PUFFBALL_FIELD_DURATION,
       remaining: PUFFBALL_FIELD_DURATION,
       slowStrength: PUFFBALL_FIELD_SLOW_STRENGTH,
+      damagePerSecond: projectile.damage * (projectile.effectStrength ?? 0.5),
       sourceTowerId: placed.tower.id,
     });
   }
@@ -1809,12 +1908,6 @@ export class GameRunner {
     return null;
   }
 
-  private getMyceliumTowers(): TowerWithUpgrades[] {
-    return this.placedTowers
-      .filter(p => p.tower.towerType === TowerType.Sporecap)
-      .map(p => p.tower);
-  }
-
   private canAffordUpgradeForTower(tower: TowerWithUpgrades, path: UpgradePath, tier: number): boolean {
     if (path === UpgradePath.Special && !this.isTowerConnectedToNetwork(tower.id)) {
       return false;
@@ -1834,23 +1927,13 @@ export class GameRunner {
       { towerId: null, position: this.getKernelNetworkPosition(), range: KERNEL_NETWORK_RADIUS, sourceType: 'kernel' },
     ];
 
-    for (const mycelium of this.getMyceliumTowers()) {
-      connected.add(mycelium.id);
-      anchors.push({
-        towerId: mycelium.id,
-        position: mycelium.position,
-        range: mycelium.areaRadius ?? NETWORK_LINK_RADIUS,
-        sourceType: 'mycelium',
-      });
-    }
-
     let changed = true;
     while (changed) {
       changed = false;
 
       for (const placed of this.placedTowers) {
         const tower = placed.tower;
-        if (connected.has(tower.id) || tower.towerType === TowerType.Sporecap) {
+        if (connected.has(tower.id)) {
           continue;
         }
 
@@ -1891,39 +1974,38 @@ export class GameRunner {
     return this.buildNetworkGraph().connections;
   }
 
-  private getTowersInNetworkRange(mycelium: TowerWithUpgrades): TowerWithUpgrades[] {
-    if (mycelium.areaRadius === undefined) {
-      return [];
-    }
-    const buffed: TowerWithUpgrades[] = [];
-    for (const placed of this.placedTowers) {
-      if (placed.tower.towerType === TowerType.Sporecap) {
-        continue;
-      }
-      const dist = vec2Distance(mycelium.position, placed.tower.position);
-      if (dist <= mycelium.areaRadius) {
-        buffed.push(placed.tower);
-      }
-    }
-    return buffed;
+  private getChorusOracleTowers(): TowerWithUpgrades[] {
+    return this.placedTowers
+      .map(placed => placed.tower)
+      .filter(tower =>
+        tower.towerType === TowerType.LumenOracle &&
+        tower.upgradeLevels[UpgradePath.Special] > 0 &&
+        this.isTowerConnectedToNetwork(tower.id)
+      );
+  }
+
+  private getTowersInChorusRange(oracle: TowerWithUpgrades): TowerWithUpgrades[] {
+    return this.placedTowers
+      .map(placed => placed.tower)
+      .filter(tower =>
+        tower.id !== oracle.id &&
+        tower.upgradeLevels[UpgradePath.Special] > 0 &&
+        this.isTowerConnectedToNetwork(tower.id) &&
+        vec2Distance(oracle.position, tower.position) <= oracle.range
+      );
   }
 
   getNetworkBuffedTowers(): Array<{ tower: TowerWithUpgrades; buffStrength: number; sources: TowerWithUpgrades[] }> {
-    const myceliumTowers = this.getMyceliumTowers();
     const buffedMap = new Map<number, { tower: TowerWithUpgrades; buffStrength: number; sources: TowerWithUpgrades[] }>();
 
-    for (const mycelium of myceliumTowers) {
-      const inRange = this.getTowersInNetworkRange(mycelium);
+    for (const oracle of this.getChorusOracleTowers()) {
+      const inRange = this.getTowersInChorusRange(oracle);
       for (const tower of inRange) {
-        const existing = buffedMap.get(tower.id);
-        if (existing) {
-          existing.buffStrength += mycelium.effectStrength;
-          existing.sources.push(mycelium);
-        } else {
+        if (!buffedMap.has(tower.id)) {
           buffedMap.set(tower.id, {
             tower,
-            buffStrength: mycelium.effectStrength,
-            sources: [mycelium],
+            buffStrength: CHORUS_STRENGTH_BONUS,
+            sources: [oracle],
           });
         }
       }

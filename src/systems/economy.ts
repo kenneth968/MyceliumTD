@@ -136,8 +136,9 @@ export class GameEconomy {
     return interestEarned;
   }
 
-  addRoundBonus(leaks: number = 0): RoundBonusBreakdown {
-    const completion = this.config.roundBonusBase + this.roundsCompleted * this.config.roundBonusMultiplier;
+  addRoundBonus(leaks: number = 0, completionOverride?: number): RoundBonusBreakdown {
+    const completion = completionOverride ??
+      this.config.roundBonusBase + this.roundsCompleted * this.config.roundBonusMultiplier;
     const perfect = leaks === 0 ? Math.floor(completion * this.config.perfectWaveBonusPercent) : 0;
     const total = completion + perfect;
     this.money += total;

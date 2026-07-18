@@ -128,7 +128,7 @@ test('active lingering fungal field appears in frame render data', () =>
 );
 test('lingering fungal field render data is visible and timed', () =>
   renderedFields?.[0]?.radius === 50 &&
-  renderedFields?.[0]?.duration === 8000 &&
+  renderedFields?.[0]?.duration === 6000 &&
   renderedFields?.[0]?.color === 'rgba(136, 216, 90, 0.22)'
 );
 
@@ -144,13 +144,15 @@ if (seededTower) {
   seededTarget.speed = 0;
   seededTarget.baseSpeed = 0;
   seededGame.getActiveEnemies().push(seededTarget);
-  seededGame.update(1000);
-  seededGame.update(1300);
+  seededGame.update(1200);
+  seededGame.update(2400);
+  seededGame.update(3600);
+  seededGame.update(4800);
 }
 const seededRenderData = renderer.render(seededGame);
 const renderedPayloads = seededRenderData.seededPayloads;
 test('active seeded payloads appear in frame render data', () =>
-  Array.isArray(renderedPayloads) && renderedPayloads.length === 3
+  Array.isArray(renderedPayloads) && renderedPayloads.length === 1
 );
 test('seeded payload render data is visible and delayed', () =>
   renderedPayloads?.[0]?.radius === 35 &&

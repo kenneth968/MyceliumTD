@@ -73,8 +73,8 @@ export const SWARM_LINK_THRESHOLD = 2;
 export const SWARM_LINK_SPEED_MULTIPLIER = 1.2;
 export const METAL_DAMAGE_REDUCTION = 0.3;
 export const MARK_DURATION = 4000;
-export const MARK_DAMAGE_BONUS = 1;
-export const TRAIT_DISRUPTION_DURATION = 5000;
+export const MARK_DAMAGE_BONUS = 0.2;
+export const TRAIT_DISRUPTION_DURATION = 4000;
 
 type TraitCarrier = {
   enemyType?: EnemyType | string;
@@ -149,7 +149,8 @@ export function getTraitAdjustedDamage(
     return damage;
   }
 
-  return Math.max(1, Math.floor(damage * (1 - METAL_DAMAGE_REDUCTION)));
+  const reducedDamage = damage * (1 - METAL_DAMAGE_REDUCTION);
+  return damage < 1 ? reducedDamage : Math.max(1, Math.floor(reducedDamage));
 }
 
 export function getSwarmLinkedSpeedMultiplier(
@@ -207,7 +208,7 @@ export function getMarkedAdjustedDamage(
   damage: number,
   options: DamageOptions = {}
 ): number {
-  if (options.applyMarkBonus === false || !isMarked(enemy)) {
+  if (options.applyMarkBonus !== true || !isMarked(enemy)) {
     return damage;
   }
 
@@ -215,7 +216,7 @@ export function getMarkedAdjustedDamage(
     effect.type === StatusEffectType.Marked &&
     (effect.remaining ?? 0) > 0
   );
-  return damage + (mark?.strength ?? MARK_DAMAGE_BONUS);
+  return damage * (1 + (mark?.strength ?? MARK_DAMAGE_BONUS));
 }
 
 export function markEnemy(enemy: Enemy, duration: number = MARK_DURATION): void {

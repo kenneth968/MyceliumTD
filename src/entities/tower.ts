@@ -80,13 +80,18 @@ export function fireTower(
   currentTime: number,
   effectStrength?: number,
   effectDuration?: number,
-  areaRadius?: number
+  areaRadius?: number,
+  prioritizeMarked: boolean = false
 ): { projectile: Projectile | null; target: TargetingEnemy | null } {
   if (!canFire(tower, currentTime)) {
     return { projectile: null, target: null };
   }
 
-  const result = getTarget(tower, enemies, path);
+  const result = getTarget(
+    prioritizeMarked ? { ...tower, prioritizeMarked: true } : tower,
+    enemies,
+    path
+  );
   if (!result.target) {
     return { projectile: null, target: null };
   }
@@ -119,9 +124,19 @@ export function fireTowerWithProjectile(
   currentTime: number,
   effectStrength?: number,
   effectDuration?: number,
-  areaRadius?: number
+  areaRadius?: number,
+  prioritizeMarked: boolean = false
 ): Projectile | null {
-  const result = fireTower(tower, enemies, path, currentTime, effectStrength, effectDuration, areaRadius);
+  const result = fireTower(
+    tower,
+    enemies,
+    path,
+    currentTime,
+    effectStrength,
+    effectDuration,
+    areaRadius,
+    prioritizeMarked
+  );
   if (!result.projectile) {
     return null;
   }
@@ -182,6 +197,7 @@ export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions
 export function getTowerDamageType(towerType: TowerType): DamageType {
   switch (towerType) {
     case TowerType.Puffball:
+    case TowerType.BulbShooter:
       return DamageType.Explosive;
     default:
       return DamageType.Normal;

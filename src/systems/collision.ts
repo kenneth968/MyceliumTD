@@ -17,6 +17,7 @@ export interface HitEffect {
 
 export interface AreaDamageResult {
   enemiesHit: Enemy[];
+  hits: Array<{ enemy: Enemy; damage: number }>;
   totalDamage: number;
 }
 
@@ -196,6 +197,7 @@ export function calculateAreaDamage(
 ): AreaDamageResult {
   const effectiveRadius = radius ?? AREA_DAMAGE_RADIUS;
   const enemiesHit: Enemy[] = [];
+  const hits: Array<{ enemy: Enemy; damage: number }> = [];
   let totalDamage = 0;
 
   for (const enemy of enemies) {
@@ -210,11 +212,12 @@ export function calculateAreaDamage(
       const damage = Math.floor(baseDamage * falloff);
 
       enemiesHit.push(enemy);
+      hits.push({ enemy, damage });
       totalDamage += damage;
     }
   }
 
-  return { enemiesHit, totalDamage };
+  return { enemiesHit, hits, totalDamage };
 }
 
 export function processProjectileCollision(
@@ -236,7 +239,7 @@ export function processProjectileCollision(
   const collision = resolveHit(projectile, target, deltaTime);
 
   let areaDamage: AreaDamageResult | undefined;
-  if (projectile.towerType === TowerType.Puffball) {
+  if (projectile.towerType === TowerType.Puffball || projectile.towerType === TowerType.BulbShooter) {
     areaDamage = calculateAreaDamage(projectile.position, enemies, projectile.damage, projectile.areaRadius);
   }
 

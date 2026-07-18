@@ -143,8 +143,8 @@ metalCounterGame.update(1000);
 metalCounterGame.update(1400);
 assertEqual(
   metalTarget.hp,
-  metalTarget.maxHp - 2,
-  'Metal enemies should take floor(3 * 0.7) from ordinary Bulb Shooter hits'
+  metalTarget.maxHp - 3,
+  'Metal enemies should take full explosive damage from Bulb Shooter hits'
 );
 
 const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
@@ -395,9 +395,16 @@ assertEqual(
   'Projectile damage should refresh Swarm-linked state after movement, so enemies that left the pack take full damage'
 );
 
-const swarmSeededPayloadFreshnessGame = createGameRunner({ startingLives: 20 });
+const swarmSeededPayloadFreshnessGame = createGameRunner({ startingLives: 20, startingMoney: 5000 });
 swarmSeededPayloadFreshnessGame.start();
 swarmSeededPayloadFreshnessGame.update(0);
+const seededPayloadSource = swarmSeededPayloadFreshnessGame.placeTower(
+  TowerType.BulbShooter,
+  720,
+  270,
+  TargetingMode.First
+);
+assert(seededPayloadSource !== null, 'Should place a connected source tower for the injected seeded payload');
 const payloadPosition = { x: 0, y: 300 };
 const seededSwarmTargets = [911, 912, 913].map(id => {
   const enemy = createEnemy(id, EnemyType.SwarmWasp, swarmSeededPayloadFreshnessGame.getPath());
@@ -417,7 +424,8 @@ swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
   damage: 0.5,
   delay: 1000,
   remaining: 0,
-  sourceTowerId: 1,
+  sourceTowerId: seededPayloadSource!.id,
+  targetEnemyId: seededSwarmTargets[0].id,
 });
 swarmSeededPayloadFreshnessGame.update(1000);
 assertEqual(
@@ -428,10 +436,10 @@ assertEqual(
 
 const markApplicationGame = createGameRunner({ startingMoney: 5000 });
 markApplicationGame.start();
-const markingTower = markApplicationGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
-assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
+const markingTower = markApplicationGame.placeTower(TowerType.Sporecap, 720, 250, TargetingMode.First);
+assert(markingTower !== null, 'Should place Sporecap marking tower');
 const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
-assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
+assert(markingUpgrade.success === true, 'Connected Sporecap should buy Special mark upgrade');
 const markTarget = createEnemy(914, EnemyType.CrawlerCaterpillar, markApplicationGame.getPath());
 markTarget.pathDistance = 1420;
 markTarget.pathProgress = 1420;
@@ -443,7 +451,7 @@ markApplicationGame.update(1000);
 markApplicationGame.update(1400);
 assert(
   markTarget.statusEffects.some(effect => effect.type === StatusEffectType.Marked),
-  'Connected Special Puffball should mark its direct target'
+  'Connected Special Sporecap should mark its direct target'
 );
 assert(
   markTarget.hp === markTarget.maxHp - markingTower!.damage,
@@ -463,6 +471,7 @@ executeTarget.position = { ...executeMarkedGame.getPath().getPointAtDistance(exe
 executeTarget.speed = 0;
 executeTarget.baseSpeed = 0;
 markEnemy(executeTarget, 4000);
+executeTarget.hp = 3;
 executeMarkedGame.getActiveEnemies().push(executeTarget);
 executeMarkedGame.getActiveProjectiles().push({
   id: 992,
@@ -478,7 +487,7 @@ const moneyBeforeExecute = executeMarkedGame.getEconomy().getMoney();
 executeMarkedGame.update(0);
 assert(
   executeTarget.alive === false && executeTarget.hp === 0,
-  'Connected Special Venus should execute a marked Metal enemy without ordinary damage checks'
+  'Connected Special Thorn should execute a marked Metal enemy below the health threshold'
 );
 executeMarkedGame.update(16);
 assertEqual(

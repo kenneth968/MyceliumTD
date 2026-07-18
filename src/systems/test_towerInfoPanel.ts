@@ -189,7 +189,7 @@ console.log('\n--- getTowerInfoPanelRenderData special effects ---');
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
   
-  expectEqual(result.specialEffect?.type, 'reveal_camo', 'Lumen Oracle has reveal_camo effect');
+  expectEqual(result.specialEffect?.type, 'detection', 'Base Lumen Oracle advertises detection without sharing reveal');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData stats values ---');

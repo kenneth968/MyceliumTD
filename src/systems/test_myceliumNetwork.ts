@@ -17,7 +17,7 @@ function assertEqual(actual: any, expected: any, message: string) {
   }
 }
 
-console.log('Testing Sporecap...');
+console.log('Testing canonical mycelium network...');
 
 const game = createGameRunner({ startingMoney: 5000 });
 game.start();
@@ -28,37 +28,25 @@ assertEqual(mycelium!.towerType, TowerType.Sporecap, 'Tower type should be Spore
 assertEqual(mycelium!.damage, 1, 'Sporecap should have 1 damage');
 assertEqual(mycelium!.fireRate, 550, 'Sporecap should have a 550ms fire rate');
 assertEqual(mycelium!.specialEffect, 'none', 'Sporecap should have the canonical none effect');
+assertEqual(game.isTowerConnectedToNetwork(mycelium!.id), false, 'A far Sporecap should not become a network root');
 
 const puffball = game.placeTower(TowerType.Puffball, 200, 280, TargetingMode.First);
 assert(puffball !== null, 'Should place Puffball tower within range');
+assertEqual(game.getNetworkBuffedTowers().length, 0, 'Sporecaps should not provide the Chorus Light buff');
 
-const buffedTowers = game.getNetworkBuffedTowers();
-assertEqual(buffedTowers.length, 1, 'Should have 1 buffed tower');
-assertEqual(buffedTowers[0].tower.id, puffball!.id, 'Buffed tower should be Puffball');
-
-const isBuffed = game.isTowerNetworkBuffed(puffball!.id);
-assert(isBuffed === true, 'Puffball should be network buffed');
-
-const buffInfo = game.getTowerBuffInfo(puffball!.id);
-assert(buffInfo !== null, 'Buff info should not be null');
-assert(buffInfo!.buffStrength > 0, 'Buff strength should be positive');
-assertEqual(buffInfo!.sources, 1, 'Should have 1 mycelium source');
-
-const farPuffball = game.placeTower(TowerType.Puffball, 600, 600, TargetingMode.First);
-assert(farPuffball !== null, 'Should place Puffball far away');
-assertEqual(game.isTowerNetworkBuffed(farPuffball!.id), false, 'Far Puffball should not be buffed');
-
-const secondMycelium = game.placeTower(TowerType.Sporecap, 230, 280, TargetingMode.First);
-assert(secondMycelium !== null, 'Should place second Sporecap');
-
-const doubleBuffed = game.getNetworkBuffedTowers();
-const puffballBuff = doubleBuffed.find(b => b.tower.id === puffball!.id);
-assert(puffballBuff !== undefined, 'Puffball should still be buffed');
-assertEqual(puffballBuff!.sources.length, 2, 'Puffball should have 2 mycelium sources');
-
-const myceliumTowers = game.getNetworkBuffedTowers();
-const myceliumCount = myceliumTowers.filter(b => b.tower.towerType === TowerType.Sporecap);
-assertEqual(myceliumCount.length, 0, 'Mycelium towers should not buff each other');
+const chorusGame = createGameRunner({ startingMoney: 10000 });
+chorusGame.start();
+const oracleA = chorusGame.placeTower(TowerType.LumenOracle, 720, 230, TargetingMode.First);
+const oracleB = chorusGame.placeTower(TowerType.LumenOracle, 720, 370, TargetingMode.First);
+const chorusTarget = chorusGame.placeTower(TowerType.Puffball, 620, 300, TargetingMode.First);
+assert(oracleA !== null && oracleB !== null && chorusTarget !== null, 'Should place Chorus Light test towers');
+assert(chorusGame.upgradeTower(oracleA!.id, UpgradePath.Special).success, 'First connected Oracle should buy Chorus Light');
+assert(chorusGame.upgradeTower(oracleB!.id, UpgradePath.Special).success, 'Second connected Oracle should buy Chorus Light');
+assert(chorusGame.upgradeTower(chorusTarget!.id, UpgradePath.Special).success, 'Connected recipient should activate a network effect');
+const chorusBuff = chorusGame.getTowerBuffInfo(chorusTarget!.id);
+assert(chorusBuff !== null, 'Chorus Light should strengthen eligible connected effects in range');
+assertEqual(chorusBuff!.buffStrength, 0.2, 'Chorus Light should use the canonical 20% strength bonus');
+assertEqual(chorusBuff!.sources, 1, 'Multiple Chorus Light sources should not stack');
 
 const unconnectedGame = createGameRunner({ startingMoney: 5000 });
 unconnectedGame.start();
@@ -152,8 +140,8 @@ fungalFieldGame.update(1400);
 
 const activeFields = fungalFieldGame.getLingeringFields();
 assertEqual(activeFields.length, 1, 'Connected Puffball special hit should create one lingering fungal field');
-assertEqual(activeFields[0].duration, 8000, 'Lingering fungal field should last 8 seconds');
-assertEqual(activeFields[0].slowStrength, 0.2, 'Lingering fungal field should apply a 20% slow');
+assertEqual(activeFields[0].duration, 6000, 'Lingering fungal field should last 6 seconds');
+assertEqual(activeFields[0].slowStrength, 0.25, 'Lingering fungal field should apply a 25% slow');
 
 const fieldVisitor = createEnemy(902, EnemyType.ShellBeetle, fungalFieldGame.getPath());
 fieldVisitor.pathDistance = 1420;
@@ -168,23 +156,23 @@ fungalFieldGame.update(1500);
 assert(hasStatusEffect(fieldVisitor, StatusEffectType.Slow), 'Lingering fungal field should slow enemies that enter after impact');
 const fieldSlow = fieldVisitor.statusEffects.find(effect => effect.type === StatusEffectType.Slow);
 assert(fieldSlow !== undefined, 'Field slow effect should be present after entering the field');
-assertEqual(fieldSlow!.strength, 0.2, 'Field slow should use the lingering fungal field slow strength');
+assertEqual(fieldSlow!.strength, 0.25, 'Field slow should use the lingering fungal field slow strength');
 
 fungalFieldGame.getActiveEnemies().length = 0;
 fungalFieldGame.getActiveProjectiles().length = 0;
 fungalFieldGame.update(9500);
 const expiredFields = fungalFieldGame.getLingeringFields();
-assertEqual(expiredFields.length, 0, 'Lingering fungal field should expire after its 8 second duration');
+assertEqual(expiredFields.length, 0, 'Lingering fungal field should expire after its 6 second duration');
 
 const seededPayloadGame = createGameRunner({ startingMoney: 5000 });
 seededPayloadGame.start();
 
-const seededStinkhorn = seededPayloadGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
-assert(seededStinkhorn !== null, 'Should place a Stinkhorn tower near the kernel network');
-assertEqual(seededPayloadGame.isTowerConnectedToNetwork(seededStinkhorn!.id), true, 'Stinkhorn tower should be connected before buying the special upgrade');
+const seededBulb = seededPayloadGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
+assert(seededBulb !== null, 'Should place a Bulb Shooter near the kernel network');
+assertEqual(seededPayloadGame.isTowerConnectedToNetwork(seededBulb!.id), true, 'Bulb Shooter should be connected before buying the special upgrade');
 
-const seededUpgrade = seededPayloadGame.upgradeTower(seededStinkhorn!.id, UpgradePath.Special);
-assertEqual(seededUpgrade.success, true, 'Connected Stinkhorn should buy the bottom/special upgrade');
+const seededUpgrade = seededPayloadGame.upgradeTower(seededBulb!.id, UpgradePath.Special);
+assertEqual(seededUpgrade.success, true, 'Connected Bulb Shooter should buy the bottom/special upgrade');
 
 const seededTarget = createEnemy(903, EnemyType.BulwarkBeetle, seededPayloadGame.getPath());
 seededTarget.pathDistance = 1420;
@@ -194,16 +182,20 @@ seededTarget.speed = 0;
 seededTarget.baseSpeed = 0;
 seededPayloadGame.getActiveEnemies().push(seededTarget);
 
-seededPayloadGame.update(1000);
-seededPayloadGame.update(1300);
+seededPayloadGame.update(1200);
+assertEqual(seededPayloadGame.getSeededPayloads().length, 0, 'Planting hit should not immediately arm a payload');
+seededPayloadGame.update(2400);
+seededPayloadGame.update(3600);
+assertEqual(seededPayloadGame.getSeededPayloads().length, 0, 'Seed should wait for three follow-up connected hits');
+seededPayloadGame.update(4800);
 
 const seededPayloads = seededPayloadGame.getSeededPayloads();
-assertEqual(seededPayloads.length, 3, 'Connected Stinkhorn special hit should plant three delayed spore payloads');
-assertEqual(seededPayloads[0].delay, 1000, 'Seeded payloads should pop after a one-second delay');
-assertEqual(seededPayloads[0].radius, 35, 'Seeded payloads should have a readable pop radius');
+assertEqual(seededPayloads.length, 1, 'Third follow-up connected hit should arm one delayed payload');
+assertEqual(seededPayloads[0].delay, 1000, 'Seeded payload should pop after a one-second delay');
+assertEqual(seededPayloads[0].radius, 35, 'Seeded payload should have a readable pop radius');
 
 seededPayloadGame.getActiveProjectiles().length = 0;
-seededStinkhorn!.lastFireTime = 999999;
+seededBulb!.lastFireTime = 999999;
 
 const delayedVictim = createEnemy(904, EnemyType.BulwarkBeetle, seededPayloadGame.getPath());
 delayedVictim.pathDistance = 1420;
@@ -213,7 +205,7 @@ delayedVictim.speed = 0;
 delayedVictim.baseSpeed = 0;
 seededPayloadGame.getActiveEnemies().push(delayedVictim);
 
-seededPayloadGame.update(2300);
+seededPayloadGame.update(5800);
 
 assert(delayedVictim.hp < delayedVictim.maxHp, 'Seeded payload detonation should damage enemies still in the pop zone');
 const spentPayloads = seededPayloadGame.getSeededPayloads();

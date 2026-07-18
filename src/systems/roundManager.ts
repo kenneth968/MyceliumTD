@@ -210,7 +210,8 @@ export class RoundManager {
       return this.state;
     }
 
-    const bonus = this.economy.addRoundBonus(leaks);
+    const completionBonus = this.waveSpawner.getCurrentWave()?.completionBonus;
+    const bonus = this.economy.addRoundBonus(leaks, completionBonus);
     this.endRound(bonus);
 
     if (this.roundNumber >= this.config.maxRounds) {
