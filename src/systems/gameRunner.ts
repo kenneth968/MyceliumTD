@@ -110,7 +110,7 @@ import {
   showMapSelection,
   hideMapSelection,
 } from './mapSelectionRender';
-import { RELEASE_FEATURES, RELEASE_MAP_ID } from './releaseScope';
+import { RELEASE_FEATURES, RELEASE_MAP_ID, RELEASE_TOTAL_WAVES } from './releaseScope';
 
 export enum GameSpeed {
   Normal = 1,
@@ -1102,7 +1102,7 @@ export class GameRunner {
   }
 
   private checkVictory(): void {
-    const maxWaveIndex = this.config.maxWaves ? this.config.maxWaves - 1 : 9;
+    const maxWaveIndex = RELEASE_TOTAL_WAVES - 1;
     if (this.waveSpawner.getCurrentWaveIndex() >= maxWaveIndex &&
         !this.waveSpawner.isWaveActive() &&
         this.activeEnemies.length === 0) {
@@ -1188,7 +1188,7 @@ export class GameRunner {
       money: this.economy.getMoney(),
       lives: this.economy.getLives(),
       wave: this.waveSpawner.getCurrentWaveIndex() + 1,
-      totalWaves: this.config.maxWaves || 10,
+      totalWaves: RELEASE_TOTAL_WAVES,
       towers: this.placedTowers.length,
       enemies: this.activeEnemies.length,
       projectiles: this.activeProjectiles.length,

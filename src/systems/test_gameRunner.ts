@@ -453,6 +453,24 @@ const earlyGameStats = game3.getGameStats();
 assertEqual(earlyGameStats.wave, 0, 'Wave should start at 0 before any wave starts');
 assertEqual(earlyGameStats.totalWaves, 10, 'Should have 10 total waves');
 
+const tenWaveReleaseGame = createGameRunner({ maxWaves: 1, startingLives: 100 });
+assertEqual(
+  tenWaveReleaseGame.getGameStats().totalWaves,
+  10,
+  'release stats ignore legacy maxWaves overrides'
+);
+tenWaveReleaseGame.start();
+tenWaveReleaseGame.startWave(0);
+const tenWaveReleaseStartTime = Date.now();
+tenWaveReleaseGame.update(tenWaveReleaseStartTime);
+tenWaveReleaseGame.getActiveEnemies().length = 0;
+tenWaveReleaseGame.getWaveSpawner().update(tenWaveReleaseStartTime + 7000);
+tenWaveReleaseGame.update(tenWaveReleaseStartTime + 7016);
+assert(
+  tenWaveReleaseGame.getState() !== GameState.Victory,
+  'release cannot reach Victory after Wave 1 when maxWaves is overridden'
+);
+
 game3.start();
 game3.startWave(4);
 const wave5 = game3.getCurrentWave();

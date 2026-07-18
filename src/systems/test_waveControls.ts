@@ -122,13 +122,16 @@ console.log('  isWaveComplete tests passed');
 assert(waveControls.isGameEnded() === false, 'isGameEnded should be false initially');
 console.log('  isGameEnded tests passed');
 
-const victoryRunner = createGameRunner({ startingLives: 100, maxWaves: 1 });
-const victoryControls = createWaveControls(victoryRunner);
-victoryRunner.start();
-victoryRunner.startWave(0);
-victoryRunner.update(Date.now() + 100000);
-const victoryState = victoryControls.getWaveUIState();
-assert(victoryState.controlState === WaveControlState.Active || victoryState.controlState === WaveControlState.Complete || victoryState.controlState === WaveControlState.Victory, 'Should report active/complete/victory state');
-console.log('  victory state tests passed');
+const releaseRunner = createGameRunner({ startingLives: 100, maxWaves: 1 });
+const releaseControls = createWaveControls(releaseRunner);
+releaseRunner.start();
+releaseRunner.startWave(0);
+releaseRunner.update(Date.now() + 100000);
+const releaseState = releaseControls.getWaveUIState();
+assert(
+  releaseState.controlState === WaveControlState.Active || releaseState.controlState === WaveControlState.Complete,
+  'Wave 1 should remain active or complete under the ten-wave release lock'
+);
+console.log('  ten-wave release state tests passed');
 
 console.log('\nAll WaveControls tests passed!');

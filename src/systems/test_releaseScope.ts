@@ -9,6 +9,9 @@ assert(RELEASE_MAP_ID === 'garden_path', 'release map is Garden Path');
 assert(RELEASE_TOTAL_WAVES === 10, 'release contains ten waves');
 assert(RELEASE_FEATURES.mapSelection === false, 'map selection is hidden');
 assert(RELEASE_FEATURES.hero === false, 'hero is hidden');
+assert(RELEASE_FEATURES.progression === false, 'progression is disabled');
+assert(RELEASE_FEATURES.endlessMode === false, 'endless mode is disabled');
+assert(RELEASE_FEATURES.difficultySelection === false, 'difficulty selection is disabled');
 
 const map = getMapById(RELEASE_MAP_ID);
 assert(map !== undefined, 'release map exists');
