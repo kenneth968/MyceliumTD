@@ -195,7 +195,7 @@ export interface GameConfig {
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
-  startingMoney: 650,
+  startingMoney: DEFAULT_ECONOMY_CONFIG.startingMoney,
   startingLives: 20,
   maxWaves: 10,
 };
@@ -267,7 +267,7 @@ export class GameRunner {
     
     this.waveSpawner = new WaveSpawner(this.path, createDefaultWaves());
     
-    const baseStartingMoney = this.config.startingMoney !== undefined ? this.config.startingMoney : 650;
+    const baseStartingMoney = this.config.startingMoney ?? DEFAULT_ECONOMY_CONFIG.startingMoney;
     const baseStartingLives = this.config.startingLives !== undefined ? this.config.startingLives : 20;
     const startingMoney = Math.floor(baseStartingMoney * releaseMap.startingMoneyModifier);
     const startingLives = Math.floor(baseStartingLives * releaseMap.startingLivesModifier);
@@ -658,7 +658,7 @@ export class GameRunner {
   canPlaceTower(towerType: TowerType, x: number, y: number): { canPlace: boolean; reason?: string } {
     const cost = TOWER_STATS[towerType].cost;
     if (!this.economy.canAfford(cost)) {
-      return { canPlace: false, reason: 'Not enough money' };
+      return { canPlace: false, reason: 'Not enough Nutrients' };
     }
     return this.validateTowerPlacement(x, y, towerType);
   }

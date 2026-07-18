@@ -6,14 +6,25 @@ import { RELEASE_WAVES } from '../content/waveDefinitions';
 export { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
 export { ENEMY_DEFINITIONS as ENEMY_STATS } from '../content/enemyDefinitions';
 
-export interface SpawnGroup {
-  type?: EnemyType;
-  enemyType?: EnemyType;
+interface SpawnGroupBase {
   count: number;
   interval: number;
-  delay?: number;
   variant?: EnemyVariant;
 }
+
+export interface CanonicalSpawnGroup extends SpawnGroupBase {
+  type: EnemyType;
+  delay: number;
+  enemyType?: never;
+}
+
+export interface LegacySpawnGroup extends SpawnGroupBase {
+  enemyType: EnemyType;
+  type?: never;
+  delay?: number;
+}
+
+export type SpawnGroup = CanonicalSpawnGroup | LegacySpawnGroup;
 
 export interface Wave {
   id: number;

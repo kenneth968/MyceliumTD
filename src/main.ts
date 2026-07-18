@@ -15,7 +15,7 @@ import { PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
 import { GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
 import { TowerInfoPanelRenderData } from './systems/towerInfoPanel';
-import { LivesMoneyDisplayRenderData } from './systems/livesMoneyDisplayRender';
+import { LivesMoneyDisplayRenderData, formatNutrients } from './systems/livesMoneyDisplayRender';
 import { EnemyCountDisplayRenderData } from './systems/enemyCountDisplayRender';
 import { TowerPurchaseRenderData } from './systems/towerPurchaseRender';
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
@@ -1725,7 +1725,7 @@ class Game {
         this.ctx.font = 'bold 14px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`Sell $${button.sellValue}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
+        this.ctx.fillText(`Sell ${formatNutrients(button.sellValue)}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
     }
 
     private drawHUD(renderData: GameFrameRenderData): void {
@@ -1833,7 +1833,7 @@ class Game {
             this.ctx.font = '10px sans-serif';
             this.ctx.fillText(`Waves: ${card.maxWaves}`, x + w / 2, y + 70);
             this.ctx.fillText(`Towers: ${card.towerCount}`, x + w / 2, y + 84);
-            this.ctx.fillText(`$${card.startingMoneyLabel}`, x + w / 2, y + 98);
+            this.ctx.fillText(formatNutrients(card.startingMoneyLabel), x + w / 2, y + 98);
             this.ctx.fillText(`♥${card.startingLivesLabel}`, x + w / 2, y + 112);
 
             if (card.isLocked) {
@@ -2095,7 +2095,7 @@ class Game {
         this.ctx.fillText(`♥ ${lm.lives.currentLives}/${lm.lives.maxLives}`, 20, 30);
 
         this.ctx.fillStyle = '#FFD700';
-        this.ctx.fillText(`$ ${lm.money.currentMoney}`, 170, 30);
+        this.ctx.fillText(lm.money.moneyText, 170, 30);
     }
 
     private drawEnemyCount(ec: EnemyCountDisplayRenderData): void {
@@ -2163,7 +2163,7 @@ class Game {
             
             this.ctx.fillStyle = button.canAfford ? '#4CAF50' : '#F44336';
             this.ctx.font = 'bold 14px sans-serif';
-            this.ctx.fillText(`$${button.cost}`, x + BUTTON_WIDTH / 2, y + 22);
+            this.ctx.fillText(formatNutrients(button.cost), x + BUTTON_WIDTH / 2, y + 22);
             
             this.ctx.fillStyle = button.canAfford ? '#aaa' : '#666';
             this.ctx.font = '10px sans-serif';

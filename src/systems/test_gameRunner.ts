@@ -26,7 +26,7 @@ assert(game.getPlacedTowers().length === 0, 'Should start with no placed towers'
 assert(game.getActiveEnemies().length === 0, 'Should start with no active enemies');
 
 const stats = game.getGameStats();
-assertEqual(stats.money, 650, 'Should start with 650 money');
+assertEqual(stats.money, 500, 'Default release runner should start with exactly 500 Nutrients');
 assertEqual(stats.lives, 20, 'Should start with 20 lives');
 assertEqual(stats.state, GameState.Idle, 'Initial state should be Idle');
 assertEqual(stats.towers, 0, 'Should have 0 towers');
@@ -43,7 +43,7 @@ assert(tower !== null, 'Should be able to place tower');
 assertEqual(game.getPlacedTowers().length, 1, 'Should have 1 placed tower');
 
 const newStats = game.getGameStats();
-assertEqual(newStats.money, 470, 'Should have 470 money after placing Puffball (cost 180)');
+assertEqual(newStats.money, 320, 'Should have 320 Nutrients after placing Puffball (cost 180)');
 assertEqual(newStats.towers, 1, 'Should have 1 tower');
 
 const upgradeInfo = game.getTowerUpgradeInfo(tower!.id);
@@ -521,7 +521,7 @@ assert(game.getState() === GameState.Playing, 'Should be playing after resume');
 game.reset();
 assert(game.getState() === GameState.Idle, 'Should be Idle after reset');
 assertEqual(game.getPlacedTowers().length, 0, 'Should have no towers after reset');
-assertEqual(game.getGameStats().money, 650, 'Should have 650 money after reset');
+assertEqual(game.getGameStats().money, 500, 'Reset should restore exactly 500 Nutrients');
 
 const game2 = createGameRunner({ startingMoney: 1000, startingLives: 30 });
 assertEqual(game2.getGameStats().money, 1000, 'Should start with custom money');

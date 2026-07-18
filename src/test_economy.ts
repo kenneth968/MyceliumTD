@@ -17,6 +17,12 @@ console.log('Testing Economy System...\n');
 const startingMoney = DEFAULT_ECONOMY_CONFIG.startingMoney;
 const startingLives = DEFAULT_ECONOMY_CONFIG.startingLives;
 
+assert(DEFAULT_ECONOMY_CONFIG.startingMoney === 500, 'Release starts with exactly 500 Nutrients');
+assert(DEFAULT_ECONOMY_CONFIG.roundBonusBase === 75, 'Release completion base is exactly 75');
+assert(DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier === 25, 'Release completion multiplier is exactly 25');
+assert(DEFAULT_ECONOMY_CONFIG.perfectWaveBonusPercent === 0.1, 'Release perfect bonus is exactly 10%');
+assert(DEFAULT_ECONOMY_CONFIG.sellRefundPercent === 0.7, 'Release sell refund is exactly 70%');
+
 const economy = createEconomy();
 assert(economy.getMoney() === startingMoney, `Starting money should be ${startingMoney}`);
 assert(economy.getLives() === startingLives, `Starting lives should be ${startingLives}`);
@@ -101,6 +107,20 @@ assert(
 );
 assert(leakedWaveBonus.perfect === 0, 'A leaked wave should not receive a perfect bonus');
 assert(leakedWaveBonus.total === leakedWaveBonus.completion, 'A leaked wave total should equal completion only');
+const leakedWaveTransaction = leakedWaveEconomy.getTransactions()[0];
+assert(leakedWaveTransaction.type === TransactionType.RoundBonus, 'Leaked wave records a RoundBonus transaction');
+assert(leakedWaveTransaction.amount === 75, 'Leaked wave transaction records the exact 75 total');
+assert(leakedWaveTransaction.description === 'Wave 1 completed', 'Leaked wave transaction has the exact wave description');
+
+const perfectWaveEconomy = createEconomy();
+const perfectWaveBonus = perfectWaveEconomy.addRoundBonus(0);
+assert(perfectWaveBonus.completion === 75, 'Perfect wave records exact completion reward');
+assert(perfectWaveBonus.perfect === 7, 'Perfect wave floors the exact 10% reward');
+assert(perfectWaveBonus.total === 82, 'Perfect wave reports exact total reward');
+const perfectWaveTransaction = perfectWaveEconomy.getTransactions()[0];
+assert(perfectWaveTransaction.type === TransactionType.RoundBonus, 'Perfect wave records a RoundBonus transaction');
+assert(perfectWaveTransaction.amount === 82, 'Perfect wave transaction records the exact 82 total');
+assert(perfectWaveTransaction.description === 'Wave 1 completed', 'Perfect wave transaction has the exact wave description');
 console.log('  ✓ leaked wave receives completion but not perfect bonus');
 
 economy.reset();

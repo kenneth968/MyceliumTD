@@ -19,6 +19,7 @@ import {
   resetLivesMoneyDisplayAnimator,
   getLivesMoneyPosition,
   getLivesMoneySize,
+  formatNutrients,
 } from './livesMoneyDisplayRender';
 
 function assert(condition: boolean, message: string) {
@@ -154,7 +155,10 @@ function getMoneyDisplayRenderDataTests() {
   assertEqual(data.size.width, 90, 'width should be 90');
   assertEqual(data.size.height, 30, 'height should be 30');
   assertEqual(data.currentMoney, 650, 'currentMoney should be 650');
-  assertEqual(data.moneyText, '$650', 'moneyText should be "$650"');
+  assertEqual(data.moneyText, '650 Nutrients', 'moneyText should use the explicit Nutrients label');
+  assertEqual(formatNutrients(180), '180 Nutrients', 'purchase amounts should use Nutrients');
+  assertEqual(`Sell ${formatNutrients(126)}`, 'Sell 126 Nutrients', 'sell amounts should use Nutrients');
+  assertEqual(formatNutrients('Standard'), 'Standard Nutrients', 'map economy labels should use Nutrients');
   assertEqual(data.opacity, 1, 'opacity should be 1');
   assertEqual(data.fillColor, '#44BB44', 'fillColor should be #44BB44');
   assertEqual(data.backgroundColor, 'rgba(30, 80, 30, 0.9)', 'backgroundColor should be rgba(30, 80, 30, 0.9)');

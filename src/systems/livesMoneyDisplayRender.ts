@@ -166,13 +166,17 @@ export function getMoneyDisplayRenderData(
     position: { x: position.x + MONEY_OFFSET_X, y: position.y },
     size: { width: MONEY_WIDTH, height: MONEY_HEIGHT },
     currentMoney,
-    moneyText: `$${currentMoney}`,
+    moneyText: formatNutrients(currentMoney),
     opacity,
     fillColor: LIVES_MONEY_STYLES.moneyFillColor,
     backgroundColor: LIVES_MONEY_STYLES.moneyBackgroundColor,
     borderColor: LIVES_MONEY_STYLES.border,
     borderWidth: LIVES_MONEY_STYLES.borderWidth,
   };
+}
+
+export function formatNutrients(amount: number | string): string {
+  return `${amount} Nutrients`;
 }
 
 export function getLivesMoneyDisplayRenderData(
