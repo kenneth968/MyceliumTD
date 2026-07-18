@@ -98,7 +98,7 @@ console.log('--- getPlacementGhostRenderData ---');
   expect(result.position, position, 'returns correct position');
   expect(result.towerType, TowerType.Puffball, 'returns correct tower type');
   expect(result.isValid, true, 'isValid is true when passed true');
-  expect(result.range, 80, 'returns correct range from tower stats');
+  expect(result.range, 95, 'returns correct Puffball range from tower stats');
   expect(result.color, '#4CAF50', 'uses valid color');
   expect(result.glowColor, '#81C784', 'uses valid glow color');
   expect(result.size, 20, 'returns correct size for Puffball');
@@ -110,10 +110,10 @@ console.log('--- getPlacementGhostRenderData ---');
   expect(result.position, position, 'returns correct position for invalid');
   expect(result.towerType, TowerType.ThornSniper, 'returns correct tower type for invalid');
   expect(result.isValid, false, 'isValid is false when passed false');
-  expect(result.range, 50, 'returns correct range for Venus');
+  expect(result.range, 190, 'returns correct range for Thorn Sniper');
   expect(result.color, '#F44336', 'uses invalid color');
   expect(result.glowColor, '#EF5350', 'uses invalid glow color');
-  expect(result.size, 24, 'returns correct size for Venus');
+  expect(result.size, 24, 'returns correct size for Thorn Sniper');
 }
 
 {
@@ -124,10 +124,10 @@ console.log('--- getPlacementGhostRenderData ---');
   const bio = getPlacementGhostRenderData(position, TowerType.LumenOracle, true);
   const stinkhorn = getPlacementGhostRenderData(position, TowerType.BulbShooter, true);
   expect(puffball.size, 20, 'Puffball size');
-  expect(orchid.size, 18, 'Orchid size');
-  expect(venus.size, 24, 'Venus size');
-  expect(bio.size, 16, 'Bio size');
-  expect(stinkhorn.size, 22, 'Stinkhorn size');
+  expect(orchid.size, 18, 'Slimefungus size');
+  expect(venus.size, 24, 'Thorn Sniper size');
+  expect(bio.size, 16, 'Lumen Oracle size');
+  expect(stinkhorn.size, 22, 'Bulb Shooter size');
 }
 
 console.log('\n--- getRangeCircleRenderData ---');
@@ -302,10 +302,10 @@ console.log('\n--- getTowerPlacementIndicator ---');
   const stinkhorn = getTowerPlacementIndicator(TowerType.BulbShooter, time, true);
 
   expect(puffball.type, 'circle', 'Puffball type is circle');
-  expect(orchid.type, 'diamond', 'Orchid type is diamond');
-  expect(venus.type, 'square', 'Venus type is square');
-  expect(bio.type, 'circle', 'Bio type is circle');
-  expect(stinkhorn.type, 'diamond', 'Stinkhorn type is diamond');
+  expect(orchid.type, 'diamond', 'Slimefungus type is diamond');
+  expect(venus.type, 'square', 'Thorn Sniper type is square');
+  expect(bio.type, 'circle', 'Lumen Oracle type is circle');
+  expect(stinkhorn.type, 'diamond', 'Bulb Shooter type is diamond');
 }
 
 {
@@ -320,8 +320,8 @@ console.log('\n--- getTowerPlacementIndicator ---');
   const venus = getTowerPlacementIndicator(TowerType.ThornSniper, 1000, true);
   const bio = getTowerPlacementIndicator(TowerType.LumenOracle, 1000, true);
 
-  expect(venus.size, 24, 'Venus size');
-  expect(bio.size, 16, 'Bio size');
+  expect(venus.size, 24, 'Thorn Sniper size');
+  expect(bio.size, 16, 'Lumen Oracle size');
 }
 
 {

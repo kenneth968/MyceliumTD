@@ -142,7 +142,7 @@ class ParticleSystem {
         }
     }
 
-    /** Orchid slow hit - ice crystal shards */
+    /** Slimefungus slow hit - ice crystal shards */
     spawnSlowHit(x: number, y: number): void {
         const count = 6;
         for (let i = 0; i < count; i++) {
@@ -174,7 +174,7 @@ class ParticleSystem {
         });
     }
 
-    /** Stinkhorn poison hit - lingering toxic wisps */
+    /** Bulb Shooter poison hit - lingering toxic wisps */
     spawnPoisonHit(x: number, y: number): void {
         const count = 5;
         for (let i = 0; i < count; i++) {
@@ -196,7 +196,7 @@ class ParticleSystem {
         }
     }
 
-    /** Venus Flytower instakill - red snap/chomp flash */
+    /** Thorn Sniper instakill - red snap/chomp flash */
     spawnInstakillHit(x: number, y: number): void {
         // Bright chomp flash
         this.spawn({
@@ -239,7 +239,7 @@ class ParticleSystem {
         }
     }
 
-    /** Bioluminescent reveal - cyan expanding pulse */
+    /** Lumen Oracle reveal - cyan expanding pulse */
     spawnRevealHit(x: number, y: number): void {
         this.spawn({
             x, y,
@@ -1374,7 +1374,7 @@ class Game {
 
             const radius = enemy.bodyRadius;
 
-            // Camo enemies: semi-transparent unless revealed by Bioluminescent Shroom
+            // Camo enemies: semi-transparent unless revealed by Lumen Oracle
             let camoRevealed = false;
             if (enemy.isCamo) {
                 camoRevealed = this.isEnemyRevealed(enemy.position.x, enemy.position.y);

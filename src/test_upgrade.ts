@@ -80,12 +80,12 @@ assert(puffTower.areaRadius === 40, 'Puffball has base area radius 40');
 assert(puffTower.effectDuration === 0, 'Puffball has no duration');
 
 const orchidTower = createTowerWithUpgrades(11, 0, 0, TowerType.Slimefungus);
-assert(orchidTower.effectStrength === 0.5, 'Orchid has base effect strength 0.5');
-assert(orchidTower.effectDuration === 1000, 'Orchid has base duration 1000');
+assert(orchidTower.effectStrength === 0.5, 'Slimefungus has base effect strength 0.5');
+assert(orchidTower.effectDuration === 1000, 'Slimefungus has base duration 1000');
 
 const stinkhornTower = createTowerWithUpgrades(12, 0, 0, TowerType.BulbShooter);
-assert(stinkhornTower.effectStrength === 0.5, 'Stinkhorn has base effect strength 0.5');
-assert(stinkhornTower.effectDuration === 3000, 'Stinkhorn has base duration 3000');
+assert(stinkhornTower.effectStrength === 0.5, 'Bulb Shooter has base effect strength 0.5');
+assert(stinkhornTower.effectDuration === 3000, 'Bulb Shooter has base duration 3000');
 
 console.log('\nTest: canUpgrade checks tier limits');
 const canUpgrade1 = canUpgrade(tower, UpgradePath.Damage, 0);
@@ -187,45 +187,45 @@ assert(puffResult4.success === false, 'Cannot upgrade Puffball special past tier
 
 console.log('\nTest: Special upgrade applies to Slimefungus (slow)');
 const orchidSpecial = createTowerWithUpgrades(21, 0, 0, TowerType.Slimefungus);
-assert(orchidSpecial.effectStrength === 0.5, 'Orchid base slow strength is 0.5');
-assert(orchidSpecial.effectDuration === 1000, 'Orchid base slow duration is 1000');
+assert(orchidSpecial.effectStrength === 0.5, 'Slimefungus base slow strength is 0.5');
+assert(orchidSpecial.effectDuration === 1000, 'Slimefungus base slow duration is 1000');
 const orchidResult1 = applyUpgrade(orchidSpecial, UpgradePath.Special);
-assert(orchidResult1.success === true, 'Orchid special upgrade succeeds');
-assert(orchidResult1.effectUpgrade !== undefined, 'Orchid effect upgrade returned');
+assert(orchidResult1.success === true, 'Slimefungus special upgrade succeeds');
+assert(orchidResult1.effectUpgrade !== undefined, 'Slimefungus effect upgrade returned');
 assert(orchidResult1.effectUpgrade!.effectStrength === 0.1, 'Tier 1 slow strength bonus is 0.1');
 assert(orchidResult1.effectUpgrade!.effectDuration === 500, 'Tier 1 slow duration bonus is 500');
-assert(orchidSpecial.effectStrength === 0.6, 'Orchid cumulative slow strength is 0.6 after tier 1');
-assert(orchidSpecial.effectDuration === 1500, 'Orchid cumulative slow duration is 1500 after tier 1');
+assert(orchidSpecial.effectStrength === 0.6, 'Slimefungus cumulative slow strength is 0.6 after tier 1');
+assert(orchidSpecial.effectDuration === 1500, 'Slimefungus cumulative slow duration is 1500 after tier 1');
 
 console.log('\nTest: Special upgrade applies to BulbShooter (poison)');
 const stinkhornSpecial = createTowerWithUpgrades(22, 0, 0, TowerType.BulbShooter);
-assert(stinkhornSpecial.effectStrength === 0.5, 'Stinkhorn base poison strength is 0.5');
-assert(stinkhornSpecial.effectDuration === 3000, 'Stinkhorn base poison duration is 3000');
+assert(stinkhornSpecial.effectStrength === 0.5, 'Bulb Shooter base poison strength is 0.5');
+assert(stinkhornSpecial.effectDuration === 3000, 'Bulb Shooter base poison duration is 3000');
 const stinkhornResult1 = applyUpgrade(stinkhornSpecial, UpgradePath.Special);
-assert(stinkhornResult1.success === true, 'Stinkhorn special upgrade succeeds');
-assert(stinkhornResult1.effectUpgrade !== undefined, 'Stinkhorn effect upgrade returned');
+assert(stinkhornResult1.success === true, 'Bulb Shooter special upgrade succeeds');
+assert(stinkhornResult1.effectUpgrade !== undefined, 'Bulb Shooter effect upgrade returned');
 assert(stinkhornResult1.effectUpgrade!.effectStrength === 0.2, 'Tier 1 poison strength bonus is 0.2');
 assert(stinkhornResult1.effectUpgrade!.effectDuration === 1000, 'Tier 1 poison duration bonus is 1000');
-assert(stinkhornSpecial.effectStrength === 0.7, 'Stinkhorn cumulative poison strength is 0.7 after tier 1');
-assert(stinkhornSpecial.effectDuration === 4000, 'Stinkhorn cumulative poison duration is 4000 after tier 1');
+assert(stinkhornSpecial.effectStrength === 0.7, 'Bulb Shooter cumulative poison strength is 0.7 after tier 1');
+assert(stinkhornSpecial.effectDuration === 4000, 'Bulb Shooter cumulative poison duration is 4000 after tier 1');
 
 console.log('\nTest: Special upgrade applies to ThornSniper (instakill)');
 const venusSpecial = createTowerWithUpgrades(23, 0, 0, TowerType.ThornSniper);
-assert(venusSpecial.effectStrength === 1.0, 'Venus base instakill strength is 1.0');
+assert(venusSpecial.effectStrength === 1.0, 'Thorn Sniper base instakill strength is 1.0');
 const venusResult1 = applyUpgrade(venusSpecial, UpgradePath.Special);
-assert(venusResult1.success === true, 'Venus special upgrade succeeds');
-assert(venusResult1.effectUpgrade !== undefined, 'Venus effect upgrade returned');
+assert(venusResult1.success === true, 'Thorn Sniper special upgrade succeeds');
+assert(venusResult1.effectUpgrade !== undefined, 'Thorn Sniper effect upgrade returned');
 assert(venusResult1.effectUpgrade!.effectStrength === 0.1, 'Tier 1 instakill strength bonus is 0.1');
-assert(venusSpecial.effectStrength === 1.1, 'Venus cumulative instakill strength is 1.1 after tier 1');
+assert(venusSpecial.effectStrength === 1.1, 'Thorn Sniper cumulative instakill strength is 1.1 after tier 1');
 
 console.log('\nTest: Special upgrade applies to LumenOracle (reveal_camo)');
 const biolumSpecial = createTowerWithUpgrades(24, 0, 0, TowerType.LumenOracle);
-assert(biolumSpecial.effectDuration === 500, 'Biolum base reveal duration is 500');
+assert(biolumSpecial.effectDuration === 500, 'Lumen Oracle base reveal duration is 500');
 const biolumResult1 = applyUpgrade(biolumSpecial, UpgradePath.Special);
-assert(biolumResult1.success === true, 'Biolum special upgrade succeeds');
-assert(biolumResult1.effectUpgrade !== undefined, 'Biolum effect upgrade returned');
+assert(biolumResult1.success === true, 'Lumen Oracle special upgrade succeeds');
+assert(biolumResult1.effectUpgrade !== undefined, 'Lumen Oracle effect upgrade returned');
 assert(biolumResult1.effectUpgrade!.effectDuration === 500, 'Tier 1 reveal duration bonus is 500');
-assert(biolumSpecial.effectDuration === 1000, 'Biolum cumulative reveal duration is 1000 after tier 1');
+assert(biolumSpecial.effectDuration === 1000, 'Lumen Oracle cumulative reveal duration is 1000 after tier 1');
 
 console.log('\nTest: getSpecialEffectInfo returns correct info');
 const puffTower2 = createTowerWithUpgrades(25, 0, 0, TowerType.Puffball);
