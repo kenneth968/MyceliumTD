@@ -1,6 +1,7 @@
 import { GameRunner, GameState, GameSpeed, PlacementState, PlacedTower } from './gameRunner';
 import { TowerType, Tower } from '../entities/tower';
 import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType, getInitialShieldChargesForType } from '../entities/enemy';
+import { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
 import { TargetingMode } from './targeting';
 import { RoundState } from './roundManager';
 
@@ -18,6 +19,9 @@ export interface SerializedEnemy {
   position: { x: number; y: number };
   hp: number;
   maxHp: number;
+  layers?: Array<{ hp: number; maxHp: number }>;
+  currentLayerIndex?: number;
+  variant?: EnemyVariant;
   pathProgress: number;
   pathDistance: number;
   speed: number;
@@ -129,6 +133,9 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     position: { x: enemy.position.x, y: enemy.position.y },
     hp: enemy.hp,
     maxHp: enemy.maxHp,
+    layers: enemy.layers.map(layer => ({ ...layer })),
+    currentLayerIndex: enemy.currentLayerIndex,
+    variant: enemy.variant,
     pathProgress: enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     speed: enemy.speed,
@@ -284,10 +291,13 @@ function reconcileEnemyTraits(enemyType: string, traits?: string[]): EnemyTrait[
 export function deserializeEnemy(data: SerializedEnemy): Enemy {
   return {
     id: data.id,
-    enemyType: data.enemyType as any,
+    enemyType: data.enemyType as EnemyType,
     position: { x: data.position.x, y: data.position.y },
     hp: data.hp,
     maxHp: data.maxHp,
+    layers: (data.layers ?? [{ hp: data.hp, maxHp: data.maxHp }]).map(layer => ({ ...layer })),
+    currentLayerIndex: data.currentLayerIndex ?? 0,
+    variant: data.variant ?? EnemyVariant.Normal,
     pathProgress: data.pathProgress,
     pathDistance: data.pathDistance,
     speed: data.speed,

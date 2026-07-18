@@ -1,9 +1,9 @@
 import { Path, createDefaultPath } from '../systems/path';
 import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionState } from './mapLevel';
-import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower, Enemy as BaseEnemy } from '../systems/targeting';
+import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
-import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, applyDamage, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { Enemy, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
+import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
+import { DamageResolution, Enemy, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -133,10 +133,12 @@ export enum GameState {
 }
 
 export interface GameEvent {
-  type: 'hit' | 'death' | 'area_hit';
+  type: 'hit' | 'death' | 'area_hit' | 'layer_broken';
   position: Vec2;
   towerType?: TowerType;
+  enemyId?: number;
   enemyType?: string;
+  layersBroken?: number;
   enemyColor?: string;
   radius?: number;
   effectType?: string;
@@ -758,13 +760,24 @@ export class GameRunner {
     refreshSwarmLinkStates(this.activeEnemies);
   }
 
-  private applyTowerDamageWithFreshTraits(enemy: BaseEnemy, damage: number, options: { damageType?: DamageType | `${DamageType}` } = {}): boolean {
+  private applyTowerDamageWithFreshTraits(enemy: Enemy, damage: number, options: { damageType?: DamageType | `${DamageType}` } = {}): DamageResolution {
     this.refreshEnemyTraitStates();
-    const killed = applyDamage(enemy, damage, options);
-    if (killed) {
+    const resolution = resolveDamage(enemy, damage, options);
+
+    if (resolution.layersBroken > 0) {
+      this.eventQueue.push({
+        type: 'layer_broken',
+        position: { ...enemy.position },
+        enemyId: enemy.id,
+        enemyType: enemy.enemyType,
+        layersBroken: resolution.layersBroken,
+      });
+    }
+
+    if (resolution.killed) {
       this.refreshEnemyTraitStates();
     }
-    return killed;
+    return resolution;
   }
 
   private canProjectileDisruptTraits(projectile: Projectile): boolean {
@@ -825,9 +838,7 @@ export class GameRunner {
       return true;
     }
 
-    enemy.hp = 0;
-    enemy.alive = false;
-    this.refreshEnemyTraitStates();
+    this.applyTowerDamageWithFreshTraits(enemy, Number.MAX_SAFE_INTEGER, { damageType: DamageType.Explosive });
     return true;
   }
 
@@ -957,7 +968,7 @@ export class GameRunner {
         const executeHandled = this.applyExecuteFromProjectile(projectile, result.target as Enemy);
         if (!executeHandled) {
           applyHitEffects(result.target as any, effects, deltaTime);
-          this.applyTowerDamageWithFreshTraits(result.target, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
+          this.applyTowerDamageWithFreshTraits(result.target as Enemy, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
         }
 
         // Emit hit event for visual effects

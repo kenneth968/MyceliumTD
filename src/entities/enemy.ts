@@ -1,6 +1,8 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
-import { EnemyType, ENEMY_STATS } from '../systems/wave';
+import { ENEMY_DEFINITIONS, EnemyTrait, EnemyType, EnemyVariant } from '../content/enemyDefinitions';
+
+export { EnemyTrait } from '../content/enemyDefinitions';
 
 export interface StatusEffect {
   type: StatusEffectType;
@@ -19,13 +21,6 @@ export enum StatusEffectType {
   TraitDisrupted = 'trait_disrupted',
 }
 
-export enum EnemyTrait {
-  Metal = 'metal',
-  Camo = 'camo',
-  Shielded = 'shielded',
-  SwarmLinked = 'swarm_linked',
-}
-
 export enum DamageType {
   Normal = 'normal',
   Explosive = 'explosive',
@@ -36,12 +31,27 @@ export interface DamageOptions {
   applyMarkBonus?: boolean;
 }
 
+export interface EnemyLayerState {
+  hp: number;
+  maxHp: number;
+}
+
+export interface DamageResolution {
+  killed: boolean;
+  damageApplied: number;
+  layersBroken: number;
+  shieldConsumed: boolean;
+}
+
 export interface Enemy {
   id: number;
   enemyType: EnemyType;
   position: Vec2;
   hp: number;
   maxHp: number;
+  layers: EnemyLayerState[];
+  currentLayerIndex: number;
+  variant: EnemyVariant;
   pathProgress: number;
   pathDistance: number;
   speed: number;
@@ -75,20 +85,8 @@ type TraitCarrier = {
 };
 
 export function getEnemyTraitsForType(enemyType: EnemyType | string | undefined): EnemyTrait[] {
-  switch (enemyType) {
-    case EnemyType.ArmoredBeetle:
-    case EnemyType.ShelledSnail:
-      return [EnemyTrait.Metal];
-    case EnemyType.WhiteMoth:
-    case EnemyType.BlackWidow:
-      return [EnemyTrait.Camo];
-    case EnemyType.RainbowStag:
-      return [EnemyTrait.Shielded];
-    case EnemyType.PinkLadybug:
-      return [EnemyTrait.SwarmLinked];
-    default:
-      return [];
-  }
+  const definition = enemyType === undefined ? undefined : ENEMY_DEFINITIONS[enemyType as EnemyType];
+  return definition ? [...definition.traits] : [];
 }
 
 export function getInitialShieldChargesForType(enemyType: EnemyType | string | undefined): number {
@@ -284,21 +282,26 @@ export function createEnemy(
   enemyType: EnemyType,
   path: Path
 ): Enemy {
-  const stats = ENEMY_STATS[enemyType];
+  const definition = ENEMY_DEFINITIONS[enemyType];
   const startPoint = path.getPointAtDistance(0);
-  const traits = getEnemyTraitsForType(enemyType);
+  const traits = [...definition.traits];
+  const layers = definition.layers.map(maxHp => ({ hp: maxHp, maxHp }));
+  const maxHp = definition.layers.reduce((total, hp) => total + hp, 0);
 
   return {
     id,
     enemyType,
     position: { ...startPoint.position },
-    hp: stats.hp,
-    maxHp: stats.hp,
+    hp: maxHp,
+    maxHp,
+    layers,
+    currentLayerIndex: 0,
+    variant: EnemyVariant.Normal,
     pathProgress: 0,
     pathDistance: 0,
-    speed: stats.speed,
-    baseSpeed: stats.speed,
-    reward: stats.reward,
+    speed: definition.speed,
+    baseSpeed: definition.speed,
+    reward: definition.reward,
     alive: true,
     traits,
     shieldCharges: traits.includes(EnemyTrait.Shielded) ? 1 : 0,
@@ -381,19 +384,48 @@ export function processPoisonDamage(enemy: Enemy, deltaTime: number): number {
   return totalDamage;
 }
 
-export function applyDamageToEnemy(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
-  if (!enemy.alive || enemy.hp <= 0) return false;
-  if (consumeShieldBlock(enemy)) return false;
-  if (!canDamageEnemy(enemy, options)) return false;
+export function resolveDamage(enemy: Enemy, rawDamage: number, options: DamageOptions = {}): DamageResolution {
+  if (!enemy.alive || rawDamage <= 0) {
+    return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: false };
+  }
+  if (!canDamageEnemy(enemy, options)) {
+    return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: false };
+  }
+  if (consumeShieldBlock(enemy)) {
+    return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: true };
+  }
 
-  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
-  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
-  if (enemy.hp <= 0) {
+  const markedDamage = getMarkedAdjustedDamage(enemy, rawDamage, options);
+  let remaining = getTraitAdjustedDamage(enemy, markedDamage);
+  let damageApplied = 0;
+  let layersBroken = 0;
+
+  while (remaining > 0 && enemy.currentLayerIndex < enemy.layers.length) {
+    const layer = enemy.layers[enemy.currentLayerIndex];
+    const hit = Math.min(layer.hp, remaining);
+    layer.hp -= hit;
+    enemy.hp -= hit;
+    damageApplied += hit;
+    remaining -= hit;
+
+    if (layer.hp > 0) {
+      break;
+    }
+
+    layersBroken++;
+    enemy.currentLayerIndex++;
+  }
+
+  if (enemy.currentLayerIndex >= enemy.layers.length) {
     enemy.hp = 0;
     enemy.alive = false;
-    return true;
   }
-  return false;
+
+  return { killed: !enemy.alive, damageApplied, layersBroken, shieldConsumed: false };
+}
+
+export function applyDamageToEnemy(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
+  return resolveDamage(enemy, damage, options).killed;
 }
 
 export function getEnemyProgressRatio(enemy: Enemy, path: Path): number {
@@ -437,6 +469,8 @@ export function respawnEnemy(enemy: Enemy, path: Path): void {
   const startPoint = path.getPointAtDistance(0);
   enemy.position = { ...startPoint.position };
   enemy.hp = enemy.maxHp;
+  enemy.layers = enemy.layers.map(layer => ({ hp: layer.maxHp, maxHp: layer.maxHp }));
+  enemy.currentLayerIndex = 0;
   enemy.pathDistance = 0;
   enemy.pathProgress = 0;
   enemy.speed = enemy.baseSpeed;

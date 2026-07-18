@@ -1,7 +1,8 @@
 import { createTower, Tower, TowerType, TOWER_STATS, fireTower, canFire, getCooldownProgress, updateProjectile, applyDamage, getKillReward } from './entities/tower';
 import { createDefaultPath, Path } from './systems/path';
-import { TargetingMode, Enemy, createEnemy } from './systems/targeting';
-import { ENEMY_STATS, EnemyType } from './systems/wave';
+import { TargetingMode, Enemy, createEnemy as createTargetingEnemy } from './systems/targeting';
+import { createEnemy } from './entities/enemy';
+import { EnemyType } from './systems/wave';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -56,10 +57,17 @@ assert(tower3.specialEffect === 'area_damage', 'Bulb Shooter specialEffect shoul
 console.log('  ✓ createTower with BulbShooter');
 
 const enemies: Enemy[] = [
-  createEnemy(1, 0, ENEMY_STATS[EnemyType.RedMushroom].hp, ENEMY_STATS[EnemyType.RedMushroom].speed, path),
-  createEnemy(2, 100, ENEMY_STATS[EnemyType.BlueBeetle].hp, ENEMY_STATS[EnemyType.BlueBeetle].speed, path),
-  createEnemy(3, 200, ENEMY_STATS[EnemyType.GreenCaterpillar].hp, ENEMY_STATS[EnemyType.GreenCaterpillar].speed, path),
+  createEnemy(1, EnemyType.ScoutBeetle, path),
+  createEnemy(2, EnemyType.DartWasp, path),
+  createEnemy(3, EnemyType.ShellBeetle, path),
 ];
+
+enemies[0].pathProgress = 0;
+enemies[0].pathDistance = 0;
+enemies[1].pathProgress = 100;
+enemies[1].pathDistance = 100;
+enemies[2].pathProgress = 200;
+enemies[2].pathDistance = 200;
 
 enemies[0].position = { x: 120, y: 100 };
 enemies[1].position = { x: 140, y: 100 };
@@ -126,7 +134,7 @@ assert(updateResult.hit === false, 'Projectile should not hit yet');
 assert(updateResult.damage === 0, 'No damage yet');
 console.log('  ✓ updateProjectile moves toward target');
 
-const farEnemy = createEnemy(100, 0, 10, 50, path);
+const farEnemy = createEnemy(100, EnemyType.BulwarkBeetle, path);
 farEnemy.position = { x: 1000, y: 1000 };
 const farEnemies = [...enemies, farEnemy];
 const farProj = fireTower(farTower(farEnemies), farEnemies, path, currentTime + 1000);
@@ -137,7 +145,7 @@ if (farProj.projectile) {
 }
 console.log('  ✓ updateProjectile handles missing target');
 
-const deadEnemy = createEnemy(200, 0, 10, 50, path);
+const deadEnemy = createEnemy(200, EnemyType.BulwarkBeetle, path);
 deadEnemy.alive = false;
 const projDeadTarget = fireTower(tower1, [...enemies, deadEnemy], path, currentTime);
 if (projDeadTarget.projectile) {
@@ -150,7 +158,7 @@ console.log('  ✓ updateProjectile handles dead target');
 
 const instantTower = createTower(13, 200, 200, TowerType.ThornSniper, TargetingMode.First);
 instantTower.projectileSpeed = 0;
-const instantEnemy = createEnemy(201, 0, 10, 50, path);
+const instantEnemy = createEnemy(201, EnemyType.BulwarkBeetle, path);
 instantEnemy.position = { x: 230, y: 200 };
 const instantFire = fireTower(instantTower, [instantEnemy], path, currentTime + instantTower.fireRate);
 assert(instantFire.projectile !== null, 'Zero-speed Thorn Sniper should fire an instant projectile');
@@ -162,7 +170,7 @@ assertEqual(instantFire.projectile!.position.x, instantEnemy.position.x, 'Instan
 assertEqual(instantFire.projectile!.position.y, instantEnemy.position.y, 'Instant projectile should snap to target y');
 console.log('  ✓ updateProjectile resolves zero-speed instant shots');
 
-const enemyWithHp = createEnemy(300, 0, ENEMY_STATS[EnemyType.BlueBeetle].hp, ENEMY_STATS[EnemyType.BlueBeetle].speed, path);
+const enemyWithHp = createEnemy(300, EnemyType.DartWasp, path);
 const initialHp = enemyWithHp.hp;
 const killed = applyDamage(enemyWithHp, 2);
 assert(killed === true, '2 damage should kill Blue Beetle (HP = 2)');
@@ -170,14 +178,14 @@ assert(enemyWithHp.hp === 0, 'HP should be 0 after lethal damage');
 assert(enemyWithHp.alive === false, 'Enemy should be marked dead');
 console.log('  ✓ applyDamage kills enemy');
 
-const armoredEnemy = createEnemy(400, 0, ENEMY_STATS[EnemyType.ArmoredBeetle].hp, ENEMY_STATS[EnemyType.ArmoredBeetle].speed, path);
-const notKilled = applyDamage(armoredEnemy, 10);
-assert(notKilled === false, 'Partial damage should not kill, HP reduced to 15');
-assert(armoredEnemy.hp === 15, 'HP should be reduced to 15');
+const armoredEnemy = createEnemy(400, EnemyType.BulwarkBeetle, path);
+const notKilled = applyDamage(armoredEnemy, 10, { damageType: 'explosive' });
+assert(notKilled === false, 'Partial explosive damage should not kill, HP reduced to 5');
+assert(armoredEnemy.hp === 5, 'HP should be reduced to 5');
 assert(armoredEnemy.alive === true, 'Enemy should still be alive');
 console.log('  ✓ applyDamage partial damage');
 
-const killedByOverkill = applyDamage(armoredEnemy, 100);
+const killedByOverkill = applyDamage(armoredEnemy, 100, { damageType: 'explosive' });
 assert(killedByOverkill === true, 'Overkill damage should kill enemy');
 assert(armoredEnemy.hp === 0, 'HP should be 0 after lethal damage');
 assert(armoredEnemy.alive === false, 'Enemy should be marked dead');
@@ -188,10 +196,10 @@ assert(secondKill === false, 'Should not kill already dead enemy');
 console.log('  ✓ applyDamage ignores dead enemy');
 
 const reward = getKillReward(armoredEnemy);
-assert(reward === 15, `Armored Beetle reward should be 15, got ${reward}`);
+assert(reward === 45, `Bulwark Beetle reward should be 45, got ${reward}`);
 console.log('  ✓ getKillReward returns correct reward');
 
-const noRewardEnemy = createEnemy(500, 0, 999, 50);
+const noRewardEnemy = createTargetingEnemy(500, 0, 999, 50);
 const noReward = getKillReward(noRewardEnemy);
 assert(noReward === 0, 'Unknown enemy type should return 0 reward');
 console.log('  ✓ getKillReward returns 0 for unknown enemy');

@@ -10,7 +10,7 @@ const path = createDefaultPath();
 console.log('=== Status Effect System Integration Tests ===\n');
 
 function createTestEnemy(): Enemy {
-  return createEnemy(1, EnemyType.RedMushroom, path);
+  return createEnemy(1, EnemyType.ScoutBeetle, path);
 }
 
 let passed = 0;

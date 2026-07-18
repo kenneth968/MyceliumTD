@@ -41,7 +41,7 @@ console.log('Testing Collision System...');
 
 function createMockEnemy(id: number, x: number, y: number, hp: number = 100): Enemy {
   const path = createDefaultPath();
-  const enemy = createEnemy(id, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(id, EnemyType.ScoutBeetle, path);
   enemy.position = { x, y };
   enemy.hp = hp;
   enemy.maxHp = hp;
@@ -206,11 +206,11 @@ test('ordinary towers ignore unrevealed camo enemies', () => {
     towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
-  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  const camoEnemy = createEnemy(1, EnemyType.VeilWasp, path);
   camoEnemy.position = { x: 60, y: 300 };
   camoEnemy.pathDistance = 200;
   camoEnemy.pathProgress = 200;
-  const visibleEnemy = createEnemy(2, EnemyType.RedMushroom, path);
+  const visibleEnemy = createEnemy(2, EnemyType.ScoutBeetle, path);
   visibleEnemy.position = { x: 70, y: 300 };
   visibleEnemy.pathDistance = 100;
   visibleEnemy.pathProgress = 100;
@@ -230,7 +230,7 @@ test('Bioluminescent towers natively target camo enemies', () => {
     towerType: TowerType.LumenOracle,
     specialEffect: 'reveal_camo',
   };
-  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  const camoEnemy = createEnemy(1, EnemyType.VeilWasp, path);
   camoEnemy.position = { x: 60, y: 300 };
   camoEnemy.pathDistance = 200;
   camoEnemy.pathProgress = 200;
@@ -250,7 +250,7 @@ test('reveal_camo hit effect makes camo enemies targetable until it expires', ()
     towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
-  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  const camoEnemy = createEnemy(1, EnemyType.VeilWasp, path);
   camoEnemy.position = { x: 60, y: 300 };
   camoEnemy.pathDistance = 200;
   camoEnemy.pathProgress = 200;
@@ -279,7 +279,7 @@ test('trait disruption makes camo enemies targetable until it expires', () => {
     towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
-  const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
+  const camoEnemy = createEnemy(1, EnemyType.VeilWasp, path);
   camoEnemy.position = { x: 60, y: 300 };
   camoEnemy.pathDistance = 200;
   camoEnemy.pathProgress = 200;
@@ -306,11 +306,11 @@ test('execute towers prioritize visible marked enemies', () => {
     towerType: TowerType.ThornSniper,
     specialEffect: 'instakill',
   };
-  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  const unmarkedAhead = createEnemy(1, EnemyType.ScoutBeetle, path);
   unmarkedAhead.position = { x: 80, y: 300 };
   unmarkedAhead.pathDistance = 220;
   unmarkedAhead.pathProgress = 220;
-  const markedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  const markedBehind = createEnemy(2, EnemyType.DartWasp, path);
   markedBehind.position = { x: 70, y: 300 };
   markedBehind.pathDistance = 120;
   markedBehind.pathProgress = 120;
@@ -331,11 +331,11 @@ test('execute towers ignore expired mark effects while targeting', () => {
     towerType: TowerType.ThornSniper,
     specialEffect: 'instakill',
   };
-  const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
+  const unmarkedAhead = createEnemy(1, EnemyType.ScoutBeetle, path);
   unmarkedAhead.position = { x: 80, y: 300 };
   unmarkedAhead.pathDistance = 220;
   unmarkedAhead.pathProgress = 220;
-  const expiredMarkedBehind = createEnemy(2, EnemyType.BlueBeetle, path);
+  const expiredMarkedBehind = createEnemy(2, EnemyType.DartWasp, path);
   expiredMarkedBehind.position = { x: 70, y: 300 };
   expiredMarkedBehind.pathDistance = 120;
   expiredMarkedBehind.pathProgress = 120;

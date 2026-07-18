@@ -107,7 +107,7 @@ assertEqual(networkRevealGame.isTowerConnectedToNetwork(oracle!.id), true, 'Biol
 const networkRevealUpgrade = networkRevealGame.upgradeTower(oracle!.id, UpgradePath.Special);
 assertEqual(networkRevealUpgrade.success, true, 'Connected Bioluminescent should buy the bottom/special upgrade');
 
-const camoEnemy = createEnemy(900, EnemyType.WhiteMoth, networkRevealGame.getPath());
+const camoEnemy = createEnemy(900, EnemyType.VeilWasp, networkRevealGame.getPath());
 camoEnemy.pathDistance = 1540;
 camoEnemy.pathProgress = 1540;
 camoEnemy.position = { ...networkRevealGame.getPath().getPointAtDistance(camoEnemy.pathDistance).position };
@@ -139,7 +139,7 @@ assertEqual(fungalFieldGame.isTowerConnectedToNetwork(fieldPuffball!.id), true, 
 const fungalFieldUpgrade = fungalFieldGame.upgradeTower(fieldPuffball!.id, UpgradePath.Special);
 assertEqual(fungalFieldUpgrade.success, true, 'Connected Puffball should buy the bottom/special upgrade');
 
-const fieldTarget = createEnemy(901, EnemyType.BlueBeetle, fungalFieldGame.getPath());
+const fieldTarget = createEnemy(901, EnemyType.DartWasp, fungalFieldGame.getPath());
 fieldTarget.pathDistance = 1540;
 fieldTarget.pathProgress = 1540;
 fieldTarget.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
@@ -155,7 +155,7 @@ assertEqual(activeFields.length, 1, 'Connected Puffball special hit should creat
 assertEqual(activeFields[0].duration, 8000, 'Lingering fungal field should last 8 seconds');
 assertEqual(activeFields[0].slowStrength, 0.2, 'Lingering fungal field should apply a 20% slow');
 
-const fieldVisitor = createEnemy(902, EnemyType.GreenCaterpillar, fungalFieldGame.getPath());
+const fieldVisitor = createEnemy(902, EnemyType.ShellBeetle, fungalFieldGame.getPath());
 fieldVisitor.pathDistance = 1540;
 fieldVisitor.pathProgress = 1540;
 fieldVisitor.position = { ...fungalFieldGame.getPath().getPointAtDistance(fieldVisitor.pathDistance).position };
@@ -186,7 +186,7 @@ assertEqual(seededPayloadGame.isTowerConnectedToNetwork(seededStinkhorn!.id), tr
 const seededUpgrade = seededPayloadGame.upgradeTower(seededStinkhorn!.id, UpgradePath.Special);
 assertEqual(seededUpgrade.success, true, 'Connected Stinkhorn should buy the bottom/special upgrade');
 
-const seededTarget = createEnemy(903, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
+const seededTarget = createEnemy(903, EnemyType.BulwarkBeetle, seededPayloadGame.getPath());
 seededTarget.pathDistance = 1520;
 seededTarget.pathProgress = 1520;
 seededTarget.position = { ...seededPayloadGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
@@ -205,7 +205,7 @@ assertEqual(seededPayloads[0].radius, 35, 'Seeded payloads should have a readabl
 seededPayloadGame.getActiveProjectiles().length = 0;
 seededStinkhorn!.lastFireTime = 999999;
 
-const delayedVictim = createEnemy(904, EnemyType.ArmoredBeetle, seededPayloadGame.getPath());
+const delayedVictim = createEnemy(904, EnemyType.BulwarkBeetle, seededPayloadGame.getPath());
 delayedVictim.pathDistance = 1520;
 delayedVictim.pathProgress = 1520;
 delayedVictim.position = { ...seededPayloadGame.getPath().getPointAtDistance(delayedVictim.pathDistance).position };

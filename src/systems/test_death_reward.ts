@@ -30,7 +30,7 @@ game.start();
 const initialMoney = game.getEconomy().getMoney();
 assertEqual(initialMoney, 650, 'Should start with 650 money');
 
-const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
 const reward1 = getReward(enemy1);
 assert(reward1 > 0, 'Enemy should have a reward');
 
@@ -41,19 +41,19 @@ game.getEconomy().addKillReward(getReward(enemy1), `Test kill: ${enemy1.enemyTyp
 const moneyAfterKill = game.getEconomy().getMoney();
 assertEqual(moneyAfterKill, initialMoney + reward1, `Money should increase by ${reward1} after kill`);
 
-const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
 const reward2 = getReward(enemy2);
 assert(reward2 > reward1, 'BlueBeetle should have higher reward than RedMushroom');
 
 game.getEconomy().addKillReward(getReward(enemy2), `Test kill: ${enemy2.enemyType}`);
 assertEqual(game.getEconomy().getMoney(), moneyAfterKill + reward2, `Money should increase by ${reward2} after second kill`);
 
-const enemy3 = createEnemy(3, EnemyType.GreenCaterpillar, path);
-const enemy4 = createEnemy(4, EnemyType.YellowWasp, path);
+const enemy3 = createEnemy(3, EnemyType.ShellBeetle, path);
+const enemy4 = createEnemy(4, EnemyType.CrawlerCaterpillar, path);
 game.getEconomy().addKillReward(getReward(enemy3), `Test kill: ${enemy3.enemyType}`);
 game.getEconomy().addKillReward(getReward(enemy4), `Test kill: ${enemy4.enemyType}`);
 
-const enemy5 = createEnemy(5, EnemyType.BlackWidow, path);
+const enemy5 = createEnemy(5, EnemyType.IronCaterpillar, path);
 assert(enemy5.reward > 0, 'BlackWidow should have reward');
 game.getEconomy().addKillReward(getReward(enemy5), `Test kill: ${enemy5.enemyType}`);
 
@@ -67,8 +67,8 @@ for (const enemy of [enemy1, enemy2, enemy3, enemy4, enemy5]) {
 }
 assertEqual(game.getEconomy().getTotalEarned(), totalReward, 'Total earned should equal sum of rewards');
 
-const enemy6 = createEnemy(6, EnemyType.WhiteMoth, path);
-const enemy7 = createEnemy(7, EnemyType.RedMushroom, path);
+const enemy6 = createEnemy(6, EnemyType.VeilWasp, path);
+const enemy7 = createEnemy(7, EnemyType.ScoutBeetle, path);
 applyDamageToEnemy(enemy6, 1000);
 applyDamageToEnemy(enemy7, 1000);
 assert(enemy6.alive === false, 'Enemy6 should be dead after massive damage');
@@ -85,7 +85,7 @@ const economyInitial = economy.getMoney();
 economy.addKillReward(50, 'Test reward');
 assertEqual(economy.getMoney(), economyInitial + 50, 'Economy addKillReward should work');
 
-const partialDamage = createEnemy(100, EnemyType.GreenCaterpillar, path);
+const partialDamage = createEnemy(100, EnemyType.ShellBeetle, path);
 const initialHp = partialDamage.hp;
 const killedPartial = applyDamageToEnemy(partialDamage, initialHp - 1);
 assert(killedPartial === false, 'Should not be killed with partial damage');
@@ -100,7 +100,7 @@ assert(partialDamage.alive === false, 'Enemy should be dead');
 economy.addKillReward(getReward(partialDamage), 'Killed partial damage enemy');
 assertEqual(economy.getMoney(), 150 + getReward(partialDamage), 'Kill reward should be granted after delayed death');
 
-const enemyLeak = createEnemy(200, EnemyType.YellowWasp, path);
+const enemyLeak = createEnemy(200, EnemyType.CrawlerCaterpillar, path);
 assert(enemyLeak.alive === true, 'Fresh enemy should be alive');
 assert(enemyLeak.hasReachedEnd === false, 'Fresh enemy should not have reached end');
 applyDamageToEnemy(enemyLeak, enemyLeak.hp);
@@ -109,7 +109,7 @@ assert(enemyLeak.alive === false, 'Dead enemy should not be alive');
 economy.loseLife(1);
 assertEqual(economy.getLives(), 19, 'Should lose 1 life');
 
-const enemyReachEnd = createEnemy(300, EnemyType.BlueBeetle, path);
+const enemyReachEnd = createEnemy(300, EnemyType.DartWasp, path);
 enemyReachEnd.pathDistance = path.getTotalLength() + 1;
 enemyReachEnd.hasReachedEnd = true;
 assert(enemyReachEnd.alive === true, 'Enemy that reached end is still technically alive until processed');

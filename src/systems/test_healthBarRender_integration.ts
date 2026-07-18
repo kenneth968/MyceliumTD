@@ -37,7 +37,7 @@ function createMockPath(): Path {
 
 function createMockEnemy(overrides?: Partial<Enemy>): Enemy {
   const path = createMockPath();
-  const baseEnemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const baseEnemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   return { ...baseEnemy, ...overrides };
 }
 

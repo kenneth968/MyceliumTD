@@ -42,7 +42,7 @@ function assertApprox(actual: number, expected: number, tolerance: number, messa
 console.log('--- Basic Collision Detection Tests ---');
 
 test('detectCollision should find enemy within range', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   
   const projectile: Projectile = {
@@ -61,7 +61,7 @@ test('detectCollision should find enemy within range', () => {
 });
 
 test('detectCollision should not find enemy out of range', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   
   const projectile: Projectile = {
@@ -79,7 +79,7 @@ test('detectCollision should not find enemy out of range', () => {
 });
 
 test('detectCollision should skip dead enemies', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   enemy.alive = false;
   
@@ -100,7 +100,7 @@ test('detectCollision should skip dead enemies', () => {
 console.log('\n--- Hit Resolution Tests ---');
 
 test('resolveHit should return damage and effects for Orchid slow', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   const projectile: Projectile = {
@@ -123,8 +123,8 @@ test('resolveHit should return damage and effects for Orchid slow', () => {
   assert(result.effects.some(e => e.type === 'damage'), 'Should have damage effect');
 });
 
-test('resolveHit should return damage and effects for Stinkhorn poison', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+test('resolveHit should return area damage effects for Bulb Shooter', () => {
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const projectile: Projectile = {
     id: 1,
@@ -141,11 +141,11 @@ test('resolveHit should return damage and effects for Stinkhorn poison', () => {
   const result = resolveHit(projectile, enemy, 16);
   
   assert(result.hit === true, 'Should register as hit');
-  assert(result.effects.some(e => e.type === 'poison'), 'Should have poison effect');
+  assert(result.effects.some(e => e.type === 'area_damage'), 'Should have area damage effect');
 });
 
 test('resolveHit should stack poison damage for Stinkhorn', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   const projectile: Projectile = {
@@ -167,7 +167,7 @@ test('resolveHit should stack poison damage for Stinkhorn', () => {
   assert(result.damage > projectile.damage, 'Stinkhorn hit on poisoned enemy should return stacked damage');
 });
 
-test('resolveHit should return instakill effect for Venus', () => {
+test('resolveHit should return direct damage for Thorn Sniper', () => {
   const projectile: Projectile = {
     id: 1,
     position: { x: 100, y: 100 },
@@ -178,11 +178,11 @@ test('resolveHit should return instakill effect for Venus', () => {
     alive: true,
   };
   
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const result = resolveHit(projectile, enemy, 16);
   
-  assert(result.effects.some(e => e.type === 'instakill'), 'Should have instakill effect');
+  assert(result.effects.some(e => e.type === 'damage'), 'Should have damage effect');
 });
 
 test('resolveHit should return reveal_camo effect for Bioluminescent', () => {
@@ -198,7 +198,7 @@ test('resolveHit should return reveal_camo effect for Bioluminescent', () => {
     effectDuration: 5000,
   };
   
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const result = resolveHit(projectile, enemy, 16);
   
@@ -208,13 +208,13 @@ test('resolveHit should return reveal_camo effect for Bioluminescent', () => {
 console.log('\n--- Area Damage Tests ---');
 
 test('calculateAreaDamage should hit enemies within radius', () => {
-  const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy1.position = { x: 100, y: 100 };
   
-  const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+  const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
   enemy2.position = { x: 110, y: 110 };
   
-  const enemy3 = createEnemy(3, EnemyType.GreenCaterpillar, path);
+  const enemy3 = createEnemy(3, EnemyType.ShellBeetle, path);
   enemy3.position = { x: 200, y: 200 };
   
   const result = calculateAreaDamage({ x: 100, y: 100 }, [enemy1, enemy2, enemy3], 50, 40);
@@ -224,10 +224,10 @@ test('calculateAreaDamage should hit enemies within radius', () => {
 });
 
 test('calculateAreaDamage should apply falloff to distant enemies', () => {
-  const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy1.position = { x: 100, y: 100 };
   
-  const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+  const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
   enemy2.position = { x: 130, y: 130 };
   
   const result1 = calculateAreaDamage({ x: 100, y: 100 }, [enemy1], 50, 40);
@@ -237,11 +237,11 @@ test('calculateAreaDamage should apply falloff to distant enemies', () => {
 });
 
 test('calculateAreaDamage should skip dead enemies', () => {
-  const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy1.position = { x: 100, y: 100 };
   enemy1.alive = false;
   
-  const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+  const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
   enemy2.position = { x: 110, y: 110 };
   
   const result = calculateAreaDamage({ x: 100, y: 100 }, [enemy1, enemy2], 50, 40);
@@ -252,7 +252,7 @@ test('calculateAreaDamage should skip dead enemies', () => {
 console.log('\n--- Hit Effects Application Tests ---');
 
 test('applyHitEffects should apply slow effect to enemy', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const effects: HitEffect[] = [
     { type: 'damage', strength: 5 },
@@ -265,7 +265,7 @@ test('applyHitEffects should apply slow effect to enemy', () => {
 });
 
 test('applyHitEffects should apply poison effect to enemy', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   const effects: HitEffect[] = [
@@ -279,7 +279,7 @@ test('applyHitEffects should apply poison effect to enemy', () => {
 });
 
 test('applyHitEffects should apply stun effect to enemy', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const effects: HitEffect[] = [
     { type: 'stun', strength: 1.0, duration: 500 },
@@ -291,7 +291,7 @@ test('applyHitEffects should apply stun effect to enemy', () => {
 });
 
 test('applyHitEffects should handle area_damage effect', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const effects: HitEffect[] = [
     { type: 'area_damage', strength: 20 },
@@ -305,7 +305,7 @@ test('applyHitEffects should handle area_damage effect', () => {
 console.log('\n--- Projectile Update Tests ---');
 
 test('updateProjectile should hit target when close enough', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   
   const projectile: Projectile = {
@@ -326,7 +326,7 @@ test('updateProjectile should hit target when close enough', () => {
 });
 
 test('updateProjectile should move toward target', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 200, y: 200 };
   
   const projectile: Projectile = {
@@ -349,7 +349,7 @@ test('updateProjectile should move toward target', () => {
 });
 
 test('updateProjectile should die if target is dead', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.alive = false;
   
   const projectile: Projectile = {
@@ -369,7 +369,7 @@ test('updateProjectile should die if target is dead', () => {
 });
 
 test('updateProjectile should reach and hit stationary target', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 150, y: 150 };
   
   const projectile: Projectile = {
@@ -398,7 +398,7 @@ test('updateProjectile should reach and hit stationary target', () => {
 console.log('\n--- Process Projectile Collision Tests ---');
 
 test('processProjectileCollision should detect collision and resolve hit', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   
   const projectile: Projectile = {
@@ -418,10 +418,10 @@ test('processProjectileCollision should detect collision and resolve hit', () =>
 });
 
 test('processProjectileCollision should calculate area damage for Puffball', () => {
-  const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy1.position = { x: 100, y: 100 };
   
-  const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+  const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
   enemy2.position = { x: 110, y: 110 };
   
   const projectile: Projectile = {
@@ -443,7 +443,7 @@ test('processProjectileCollision should calculate area damage for Puffball', () 
 });
 
 test('processProjectileCollision should return no hit when no collision', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 200, y: 200 };
   
   const projectile: Projectile = {
@@ -526,6 +526,32 @@ test('getProjectilesNeedingCleanup should return dead projectiles', () => {
 
 console.log('\n--- GameRunner + Projectile Collision Integration ---');
 
+test('GameRunner should emit one semantic layer_broken event per resolved hit', () => {
+  const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
+  game.start();
+
+  const target = createEnemy(1000, EnemyType.ShellBeetle, game.getPath());
+  game.getActiveEnemies().push(target);
+  game.getActiveProjectiles().push({
+    id: 1000,
+    position: { ...target.position },
+    targetId: target.id,
+    speed: 0,
+    damage: 3,
+    towerType: TowerType.ThornSniper,
+    alive: true,
+  });
+
+  game.update(16);
+
+  const layerEvents = game.drainEvents().filter(event => event.type === 'layer_broken');
+  assert(layerEvents.length === 1, 'One resolved hit should emit one layer_broken event');
+  assert(layerEvents[0].enemyId === target.id, 'Layer event should identify the enemy');
+  assert(layerEvents[0].enemyType === target.enemyType, 'Layer event should include the enemy type');
+  assert(layerEvents[0].position.x === target.position.x && layerEvents[0].position.y === target.position.y, 'Layer event should use the enemy position');
+  assert(layerEvents[0].layersBroken === 1, 'Layer event should carry the number of layers broken by the hit');
+});
+
 test('GameRunner should spawn projectiles from towers', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
@@ -536,8 +562,9 @@ test('GameRunner should spawn projectiles from towers', () => {
   game.startWave(0);
   
   let foundProjectile = false;
-  for (let i = 0; i < 200; i++) {
-    game.update(Date.now() + 16);
+  const startTime = Date.now();
+  for (let i = 0; i < 400; i++) {
+    game.update(startTime + i * 16);
     
     const projectiles = game.getActiveProjectiles();
     if (projectiles.length > 0) {
@@ -561,8 +588,9 @@ test('GameRunner projectiles should hit enemies and apply effects', () => {
   game.startWave(0);
   
   let enemyWithSlow: Enemy | null = null;
+  const startTime = Date.now();
   for (let i = 0; i < 300; i++) {
-    game.update(Date.now() + 16);
+    game.update(startTime + i * 16);
     
     const enemies = game.getActiveEnemies();
     for (const enemy of enemies) {
@@ -583,7 +611,7 @@ test('GameRunner Puffball projectiles should deal area damage', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.Puffball, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 200, 210, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const initialMoney = game.getEconomy().getMoney();
@@ -591,8 +619,9 @@ test('GameRunner Puffball projectiles should deal area damage', () => {
   game.startWave(0);
   
   let kills = 0;
-  for (let i = 0; i < 200; i++) {
-    game.update(Date.now() + 16);
+  const startTime = Date.now();
+  for (let i = 0; i < 400; i++) {
+    game.update(startTime + i * 16);
     
     const stats = game.getGameStats();
     if (stats.money > initialMoney) {
@@ -605,32 +634,29 @@ test('GameRunner Puffball projectiles should deal area damage', () => {
   assert(kills > 0, 'Should have killed enemies with area damage');
 });
 
-test('GameRunner Stinkhorn projectiles should poison enemies', () => {
+test('GameRunner Bulb Shooter projectiles should damage enemies', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
   const tower = game.placeTower(TowerType.BulbShooter, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
+  const initialMoney = game.getEconomy().getMoney();
   game.startWave(0);
   
-  let enemyWithPoison: Enemy | null = null;
+  let dealtDamage = false;
+  const startTime = Date.now();
   for (let i = 0; i < 300; i++) {
-    game.update(Date.now() + 16);
+    game.update(startTime + i * 16);
     
     const enemies = game.getActiveEnemies();
-    for (const enemy of enemies) {
-      if (hasStatusEffect(enemy, StatusEffectType.Poison)) {
-        enemyWithPoison = enemy;
-        break;
-      }
-    }
+    dealtDamage = game.getEconomy().getMoney() > initialMoney || enemies.some(enemy => enemy.hp < enemy.maxHp);
     
-    if (enemyWithPoison) break;
+    if (dealtDamage) break;
     if (game.getGameStats().enemies === 0 && i > 50) break;
   }
   
-  assert(enemyWithPoison !== null, 'Should have poisoned enemy');
+  assert(dealtDamage, 'Should have damaged an enemy');
 });
 
 console.log('\n--- Tower Special Effects with Upgraded Values ---');
@@ -650,7 +676,7 @@ test('Upgraded Orchid should apply stronger slow', () => {
   assert(slowEffect!.strength > 0.5, 'Upgraded slow should be stronger than default 0.5');
 });
 
-test('Upgraded Stinkhorn should apply stronger poison', () => {
+test('Upgraded Bulb Shooter should retain area damage', () => {
   const tower = createTowerWithUpgrades(1, 100, 100, TowerType.BulbShooter, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
@@ -659,9 +685,9 @@ test('Upgraded Stinkhorn should apply stronger poison', () => {
   assert(info !== null, 'Should have special effect info');
   
   const effects = getHitEffectsForTowerType(TowerType.BulbShooter, 3, info.effectStrength, info.effectDuration);
-  const poisonEffect = effects.find(e => e.type === 'poison');
+  const areaEffect = effects.find(e => e.type === 'area_damage');
   
-  assert(poisonEffect !== undefined, 'Should have poison effect');
+  assert(areaEffect !== undefined, 'Should have area damage effect');
 });
 
 test('Upgraded Puffball should have larger area radius', () => {
@@ -675,7 +701,7 @@ test('Upgraded Puffball should have larger area radius', () => {
   assert(info.areaRadius! > 40, 'Upgraded area radius should be larger than default 40');
 });
 
-test('Upgraded Venus should have stronger instakill', () => {
+test('Upgraded Thorn Sniper should retain direct damage', () => {
   const tower = createTowerWithUpgrades(1, 100, 100, TowerType.ThornSniper, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
@@ -684,9 +710,9 @@ test('Upgraded Venus should have stronger instakill', () => {
   assert(info !== null, 'Should have special effect info');
   
   const effects = getHitEffectsForTowerType(TowerType.ThornSniper, 100, info.effectStrength);
-  const instakillEffect = effects.find(e => e.type === 'instakill');
+  const damageEffect = effects.find(e => e.type === 'damage');
   
-  assert(instakillEffect !== undefined, 'Should have instakill effect');
+  assert(damageEffect !== undefined, 'Should have damage effect');
 });
 
 test('Upgraded Bioluminescent should have longer reveal duration', () => {
@@ -707,7 +733,7 @@ test('Upgraded Bioluminescent should have longer reveal duration', () => {
 console.log('\n--- Projectile Collision Edge Cases ---');
 
 test('Dead projectile should not collide', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 100, y: 100 };
   
   const projectile: Projectile = {
@@ -725,7 +751,7 @@ test('Dead projectile should not collide', () => {
 });
 
 test('Projectile with zero speed should still hit close target', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 102, y: 100 };
   
   const projectile: Projectile = {
@@ -744,10 +770,10 @@ test('Projectile with zero speed should still hit close target', () => {
 });
 
 test('Multiple enemies - projectile should only hit its target', () => {
-  const enemy1 = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy1 = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy1.position = { x: 100, y: 100 };
   
-  const enemy2 = createEnemy(2, EnemyType.BlueBeetle, path);
+  const enemy2 = createEnemy(2, EnemyType.DartWasp, path);
   enemy2.position = { x: 110, y: 110 };
   
   const projectile: Projectile = {
@@ -764,7 +790,7 @@ test('Multiple enemies - projectile should only hit its target', () => {
   for (let i = 0; i < 20; i++) {
     const result = updateProjectile(projectile, [enemy1, enemy2], 16);
     if (result.hit && result.target) {
-      hitTargetId = (result.target as any).id;
+      hitTargetId = result.target.id;
       break;
     }
   }
@@ -774,7 +800,7 @@ test('Multiple enemies - projectile should only hit its target', () => {
 });
 
 test('Enemy moving away from projectile should still be hit', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   enemy.position = { x: 200, y: 200 };
   enemy.baseSpeed = 500;
   enemy.speed = 500;

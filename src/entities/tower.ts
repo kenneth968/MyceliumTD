@@ -207,6 +207,8 @@ export function getTowerDamageType(towerType: TowerType): DamageType {
 }
 
 export function getKillReward(enemy: Enemy): number {
-  const entry = Object.entries(ENEMY_STATS).find(([, stats]) => stats.hp === enemy.maxHp);
-  return entry ? entry[1].reward : 0;
+  if (!enemy.enemyType) {
+    return 0;
+  }
+  return ENEMY_STATS[enemy.enemyType as EnemyType]?.reward ?? 0;
 }

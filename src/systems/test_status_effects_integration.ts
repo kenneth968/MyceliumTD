@@ -133,7 +133,7 @@ test('Poison damage should accumulate over time in GameRunner', () => {
 });
 
 test('Status effects should not persist after enemy death', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 5000, 0.5);
   applyStatusEffect(enemy, StatusEffectType.Poison, 3000, 10);
   
@@ -261,7 +261,7 @@ test('Tower should still target enemies affected by status effects', () => {
   
   const enemies: Enemy[] = [];
   for (let i = 0; i < 3; i++) {
-    const enemy = createEnemy(i + 1, EnemyType.RedMushroom, path);
+    const enemy = createEnemy(i + 1, EnemyType.ScoutBeetle, path);
     if (i === 1) {
       applyStatusEffect(enemy, StatusEffectType.Slow, 5000, 0.5);
     }
@@ -273,7 +273,7 @@ test('Tower should still target enemies affected by status effects', () => {
 });
 
 test('Slowed enemy should still be targetable', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 5000, 0.8);
   
   assert(hasStatusEffect(enemy, StatusEffectType.Slow), 'Enemy should have slow effect');
@@ -281,7 +281,7 @@ test('Slowed enemy should still be targetable', () => {
 });
 
 test('Stunned enemy should still be targetable until death', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Stun, 5000, 1.0);
   
   assert(isEnemyStunned(enemy), 'Enemy should be stunned');
@@ -291,7 +291,7 @@ test('Stunned enemy should still be targetable until death', () => {
 console.log('\n--- Projectile + Status Effects Integration ---');
 
 test('Projectile hit should apply status effects to enemy', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   const effects: HitEffect[] = [
@@ -306,7 +306,7 @@ test('Projectile hit should apply status effects to enemy', () => {
 });
 
 test('Multiple projectiles hitting same enemy should refresh slow duration', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const effects1: HitEffect[] = [
     { type: 'slow', strength: 0.5, duration: 2000 }
@@ -322,7 +322,7 @@ test('Multiple projectiles hitting same enemy should refresh slow duration', () 
 });
 
 test('Poison from multiple hits should stack in damage', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   const poisonEffects: HitEffect[] = [
@@ -363,11 +363,11 @@ test('Wave spawner should spawn enemies that can receive status effects', () => 
 
 test('Different enemy types should accept status effects', () => {
   const enemyTypes = [
-    EnemyType.RedMushroom,
-    EnemyType.BlueBeetle,
-    EnemyType.GreenCaterpillar,
-    EnemyType.YellowWasp,
-    EnemyType.PinkLadybug
+    EnemyType.ScoutBeetle,
+    EnemyType.DartWasp,
+    EnemyType.ShellBeetle,
+    EnemyType.CrawlerCaterpillar,
+    EnemyType.SwarmWasp
   ];
   
   for (const enemyType of enemyTypes) {
@@ -380,7 +380,7 @@ test('Different enemy types should accept status effects', () => {
 console.log('\n--- Status Effect Duration and Expiry ---');
 
 test('Slow effect should expire after duration', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 1000, 0.5);
   
   assert(hasStatusEffect(enemy, StatusEffectType.Slow), 'Should have slow effect');
@@ -393,7 +393,7 @@ test('Slow effect should expire after duration', () => {
 });
 
 test('Poison effect should continue dealing damage until expired', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const initialHp = enemy.hp;
   
   applyStatusEffect(enemy, StatusEffectType.Poison, 2000, 10);
@@ -408,7 +408,7 @@ test('Poison effect should continue dealing damage until expired', () => {
 });
 
 test('Stun effect should prevent movement during duration', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const startPos = { ...enemy.position };
   
   applyStatusEffect(enemy, StatusEffectType.Stun, 1000, 1.0);
@@ -420,7 +420,7 @@ test('Stun effect should prevent movement during duration', () => {
 });
 
 test('Multiple status effects should coexist', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   applyStatusEffect(enemy, StatusEffectType.Slow, 5000, 0.5);
   applyStatusEffect(enemy, StatusEffectType.Poison, 3000, 10);
@@ -434,7 +434,7 @@ test('Multiple status effects should coexist', () => {
 console.log('\n--- Edge Cases ---');
 
 test('Status effect with zero strength should be handled', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 1000, 0);
   
   const factor = getSlowFactor(enemy);
@@ -442,7 +442,7 @@ test('Status effect with zero strength should be handled', () => {
 });
 
 test('Status effect with strength 1.0 should stop all movement', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 1000, 1.0);
   
   const factor = getSlowFactor(enemy);
@@ -450,7 +450,7 @@ test('Status effect with strength 1.0 should stop all movement', () => {
 });
 
 test('Expired status effects should be removed', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Poison, 500, 10);
   
   updateStatusEffects(enemy, 500);
@@ -458,7 +458,7 @@ test('Expired status effects should be removed', () => {
 });
 
 test('Clear status effects should remove all effects', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 5000, 0.5);
   applyStatusEffect(enemy, StatusEffectType.Poison, 3000, 10);
   applyStatusEffect(enemy, StatusEffectType.Stun, 500, 1.0);
@@ -469,7 +469,7 @@ test('Clear status effects should remove all effects', () => {
 });
 
 test('Enemy with no status effects should return valid values', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   assert(!isEnemyStunned(enemy), 'Should not be stunned');
   assert(getSlowFactor(enemy) === 1.0, 'Slow factor should be 1.0');
@@ -531,7 +531,7 @@ test('Game should end when lives reach zero with status effects active', () => {
 console.log('\n--- Effect Duration Tracking ---');
 
 test('Effect remaining time should decrease after update', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Slow, 2000, 0.5);
   
   const initialRemaining = enemy.statusEffects[0].remaining;
@@ -542,7 +542,7 @@ test('Effect remaining time should decrease after update', () => {
 });
 
 test('Stun effect should block movement via updateEnemyWithStatusEffects', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Stun, 1000, 1.0);
   
   const result = updateEnemyWithStatusEffects(enemy, 100);
@@ -551,7 +551,7 @@ test('Stun effect should block movement via updateEnemyWithStatusEffects', () =>
 });
 
 test('Poison should accumulate damage via updateEnemyWithStatusEffects', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   applyStatusEffect(enemy, StatusEffectType.Poison, 3000, 10);
   
   const result = updateEnemyWithStatusEffects(enemy, 1000);

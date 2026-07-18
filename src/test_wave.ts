@@ -81,14 +81,15 @@ console.log(`All enemies at path start: ${allSpawned.every(e => e.pathDistance =
 
 console.log('\n--- Testing enemy stats lookup ---');
 Object.entries(ENEMY_STATS).forEach(([type, stats]) => {
-  console.log(`  ${type}: ${stats.hp} HP, speed ${stats.speed}, reward ${stats.reward}`);
+  const hp = stats.layers.reduce((total, layerHp) => total + layerHp, 0);
+  console.log(`  ${type}: ${hp} HP, speed ${stats.speed}, reward ${stats.reward}`);
 });
 
 console.log('\n--- Testing custom wave creation ---');
 const customGroups: SpawnGroup[] = [
-  { enemyType: EnemyType.RedMushroom, count: 5, interval: 100 },
-  { enemyType: EnemyType.BlueBeetle, count: 3, interval: 200 },
-  { enemyType: EnemyType.GreenCaterpillar, count: 2, interval: 300 },
+  { enemyType: EnemyType.ScoutBeetle, count: 5, interval: 100 },
+  { enemyType: EnemyType.DartWasp, count: 3, interval: 200 },
+  { enemyType: EnemyType.ShellBeetle, count: 2, interval: 300 },
 ];
 const customWave = createWave(99, "Custom Test Wave", customGroups, 500);
 console.log(`Custom wave: ${customWave.name}, ${customWave.groups.length} groups, ${customWave.totalDuration}ms duration`);

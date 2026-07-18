@@ -93,7 +93,7 @@ fastTowerGame.start();
 fastTowerGame.setGameSpeed(GameSpeed.Faster);
 const fastTower = fastTowerGame.placeTower(TowerType.Puffball, 40, 300, TargetingMode.First);
 assert(fastTower !== null, 'Should place fast-forward cooldown test tower');
-const armoredEnemy = createEnemy(999, EnemyType.ArmoredBeetle, fastTowerGame.getPath());
+const armoredEnemy = createEnemy(999, EnemyType.BulwarkBeetle, fastTowerGame.getPath());
 fastTowerGame.getActiveEnemies().push(armoredEnemy);
 const fastTowerStartTime = Date.now();
 fastTowerGame.update(fastTowerStartTime);

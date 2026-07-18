@@ -116,7 +116,7 @@ test('canUseAbility returns false on cooldown', () => {
 // Test useAbility MushroomSpores
 test('useAbility returns used true', () => {
   const hero = createHero(100, 100);
-  const enemies = [createEnemy(1, 'red_mushroom' as any, path)];
+  const enemies = [createEnemy(1, 'scout_beetle' as any, path)];
   enemies[0].position = { x: 100, y: 100 };
   
   const result = useAbility(hero, 0, hero.position, enemies);
@@ -149,7 +149,7 @@ test('updateHeroAbilities reduces cooldowns', () => {
 test('heroAttackEnemy damages enemy in range', () => {
   const hero = createHero(100, 100);
   hero.position = { x: 100, y: 100 };
-  const enemy = createEnemy(1, 'red_mushroom' as any, path);
+  const enemy = createEnemy(1, 'scout_beetle' as any, path);
   enemy.position = { x: 150, y: 100 };
   
   heroAttackEnemy(hero, enemy);
@@ -159,7 +159,7 @@ test('heroAttackEnemy damages enemy in range', () => {
 test('heroAttackEnemy returns false when out of range', () => {
   const hero = createHero(100, 100);
   hero.position = { x: 100, y: 100 };
-  const enemy = createEnemy(1, 'red_mushroom' as any, path);
+  const enemy = createEnemy(1, 'scout_beetle' as any, path);
   enemy.position = { x: 300, y: 100 };
   
   const result = heroAttackEnemy(hero, enemy);

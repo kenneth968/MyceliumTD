@@ -1,38 +1,9 @@
 import { Path } from './path';
 import { Enemy, createEnemy } from '../entities/enemy';
+import { EnemyType } from '../content/enemyDefinitions';
 
-export enum EnemyType {
-  RedMushroom = 'red_mushroom',
-  BlueBeetle = 'blue_beetle',
-  GreenCaterpillar = 'green_caterpillar',
-  YellowWasp = 'yellow_wasp',
-  PinkLadybug = 'pink_ladybug',
-  BlackWidow = 'black_widow',
-  WhiteMoth = 'white_moth',
-  ArmoredBeetle = 'armored_beetle',
-  RainbowStag = 'rainbow_stag',
-  ShelledSnail = 'shelled_snail',
-}
-
-export interface EnemyStats {
-  type: EnemyType;
-  hp: number;
-  speed: number;
-  reward: number;
-}
-
-export const ENEMY_STATS: Record<EnemyType, EnemyStats> = {
-  [EnemyType.RedMushroom]: { type: EnemyType.RedMushroom, hp: 1, speed: 50, reward: 1 },
-  [EnemyType.BlueBeetle]: { type: EnemyType.BlueBeetle, hp: 2, speed: 40, reward: 2 },
-  [EnemyType.GreenCaterpillar]: { type: EnemyType.GreenCaterpillar, hp: 3, speed: 30, reward: 3 },
-  [EnemyType.YellowWasp]: { type: EnemyType.YellowWasp, hp: 4, speed: 60, reward: 4 },
-  [EnemyType.PinkLadybug]: { type: EnemyType.PinkLadybug, hp: 5, speed: 70, reward: 5 },
-  [EnemyType.BlackWidow]: { type: EnemyType.BlackWidow, hp: 10, speed: 35, reward: 10 },
-  [EnemyType.WhiteMoth]: { type: EnemyType.WhiteMoth, hp: 2, speed: 80, reward: 6 },
-  [EnemyType.ArmoredBeetle]: { type: EnemyType.ArmoredBeetle, hp: 25, speed: 20, reward: 15 },
-  [EnemyType.RainbowStag]: { type: EnemyType.RainbowStag, hp: 15, speed: 45, reward: 20 },
-  [EnemyType.ShelledSnail]: { type: EnemyType.ShelledSnail, hp: 50, speed: 15, reward: 25 },
-};
+export { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
+export { ENEMY_DEFINITIONS as ENEMY_STATS } from '../content/enemyDefinitions';
 
 export interface SpawnGroup {
   enemyType: EnemyType;
@@ -275,43 +246,43 @@ export class WaveSpawner {
 export function createDefaultWaves(): Wave[] {
   return [
     createWave(1, "Red Dawn", [
-      { enemyType: EnemyType.RedMushroom, count: 10, interval: 500 },
+      { enemyType: EnemyType.ScoutBeetle, count: 10, interval: 500 },
     ]),
     createWave(2, "Beetle Surge", [
-      { enemyType: EnemyType.RedMushroom, count: 10, interval: 400 },
-      { enemyType: EnemyType.BlueBeetle, count: 5, interval: 600 },
+      { enemyType: EnemyType.ScoutBeetle, count: 10, interval: 400 },
+      { enemyType: EnemyType.DartWasp, count: 5, interval: 600 },
     ]),
     createWave(3, "Caterpillar Crawl", [
-      { enemyType: EnemyType.BlueBeetle, count: 8, interval: 500 },
-      { enemyType: EnemyType.GreenCaterpillar, count: 5, interval: 800 },
+      { enemyType: EnemyType.DartWasp, count: 8, interval: 500 },
+      { enemyType: EnemyType.ShellBeetle, count: 5, interval: 800 },
     ]),
     createWave(4, "Wasp Wave", [
-      { enemyType: EnemyType.GreenCaterpillar, count: 10, interval: 600 },
-      { enemyType: EnemyType.YellowWasp, count: 8, interval: 400 },
+      { enemyType: EnemyType.ShellBeetle, count: 10, interval: 600 },
+      { enemyType: EnemyType.CrawlerCaterpillar, count: 8, interval: 400 },
     ]),
     createWave(5, "Ladybug Legion", [
-      { enemyType: EnemyType.YellowWasp, count: 15, interval: 300 },
-      { enemyType: EnemyType.PinkLadybug, count: 5, interval: 500 },
+      { enemyType: EnemyType.CrawlerCaterpillar, count: 15, interval: 300 },
+      { enemyType: EnemyType.SwarmWasp, count: 5, interval: 500 },
     ]),
     createWave(6, "Widow's Web", [
-      { enemyType: EnemyType.PinkLadybug, count: 10, interval: 400 },
-      { enemyType: EnemyType.BlackWidow, count: 3, interval: 1000 },
+      { enemyType: EnemyType.SwarmWasp, count: 10, interval: 400 },
+      { enemyType: EnemyType.IronCaterpillar, count: 3, interval: 1000 },
     ]),
     createWave(7, "Moth Flight", [
-      { enemyType: EnemyType.WhiteMoth, count: 20, interval: 200 },
+      { enemyType: EnemyType.VeilWasp, count: 20, interval: 200 },
     ]),
     createWave(8, "Armored Assault", [
-      { enemyType: EnemyType.ArmoredBeetle, count: 5, interval: 1500 },
-      { enemyType: EnemyType.GreenCaterpillar, count: 15, interval: 400 },
+      { enemyType: EnemyType.BulwarkBeetle, count: 5, interval: 1500 },
+      { enemyType: EnemyType.ShellBeetle, count: 15, interval: 400 },
     ]),
     createWave(9, "Rainbow Rush", [
-      { enemyType: EnemyType.RainbowStag, count: 5, interval: 800 },
-      { enemyType: EnemyType.BlueBeetle, count: 10, interval: 300 },
-      { enemyType: EnemyType.YellowWasp, count: 10, interval: 300 },
+      { enemyType: EnemyType.WardMoth, count: 5, interval: 800 },
+      { enemyType: EnemyType.DartWasp, count: 10, interval: 300 },
+      { enemyType: EnemyType.CrawlerCaterpillar, count: 10, interval: 300 },
     ]),
     createWave(10, "Snail Siege", [
-      { enemyType: EnemyType.ShelledSnail, count: 3, interval: 2000 },
-      { enemyType: EnemyType.PinkLadybug, count: 20, interval: 200 },
+      { enemyType: EnemyType.PaleMoth, count: 3, interval: 2000 },
+      { enemyType: EnemyType.SwarmWasp, count: 20, interval: 200 },
     ]),
   ];
 }

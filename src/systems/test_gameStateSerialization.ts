@@ -66,14 +66,14 @@ console.log('serializeEnemy:');
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
   const { StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const serialized = serializeEnemy(enemy);
   assertEqual(serialized.id, 1, 'id is 1');
-  assertEqual(serialized.enemyType, 'red_mushroom', 'enemyType is red_mushroom');
+  assertEqual(serialized.enemyType, 'scout_beetle', 'enemyType is scout_beetle');
   assertEqual(serialized.hp, 1, 'hp is 1');
   assertEqual(serialized.maxHp, 1, 'maxHp is 1');
-  assertEqual(serialized.speed, 50, 'speed is 50');
+  assertEqual(serialized.speed, 45, 'speed is 45');
   assertEqual(serialized.alive, true, 'alive is true');
 }
 
@@ -81,7 +81,7 @@ console.log('\nserializeEnemy with traits:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(2, EnemyType.ArmoredBeetle, path);
+  const enemy = createEnemy(2, EnemyType.BulwarkBeetle, path);
 
   const serialized = serializeEnemy(enemy);
   assertTruthy(Array.isArray(serialized.traits), 'traits are serialized');
@@ -92,7 +92,7 @@ console.log('\nserializeEnemy with shield state:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(3, EnemyType.RainbowStag, path);
+  const enemy = createEnemy(3, EnemyType.WardMoth, path);
 
   const serialized = serializeEnemy(enemy);
   assertTruthy(serialized.traits.includes('shielded'), 'Shielded trait is serialized');
@@ -103,7 +103,7 @@ console.log('\nserializeEnemy with swarm-link state:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(4, EnemyType.PinkLadybug, path);
+  const enemy = createEnemy(4, EnemyType.SwarmWasp, path);
   enemy.swarmLinkedActive = true;
   enemy.swarmLinkCount = 3;
 
@@ -117,7 +117,7 @@ console.log('\ndeserializeEnemy reconciles older swarm saves:');
 {
   const deserialized = deserializeEnemy({
     id: 44,
-    enemyType: 'pink_ladybug',
+    enemyType: 'swarm_wasp',
     position: { x: 120, y: 300 },
     hp: 5,
     maxHp: 5,
@@ -142,7 +142,7 @@ console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();
   const { createEnemy, StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.BlueBeetle, path);
+  const enemy = createEnemy(1, EnemyType.DartWasp, path);
   enemy.statusEffects.push({
     type: StatusEffectType.Slow,
     duration: 1000,
@@ -160,7 +160,7 @@ console.log('\nserializeEnemy with trait disruption status:');
 {
   const path = createDefaultPath();
   const { createEnemy, disruptEnemyTrait, EnemyTrait, StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.ArmoredBeetle, path);
+  const enemy = createEnemy(1, EnemyType.BulwarkBeetle, path);
   const disruptedTrait = disruptEnemyTrait(enemy, 1234);
 
   const serialized = serializeEnemy(enemy);

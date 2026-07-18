@@ -6,6 +6,7 @@ import {
   applyStatusEffect,
   updateStatusEffects,
   applyDamageToEnemy,
+  resolveDamage,
   processPoisonDamage,
   getEnemyProgressRatio,
   isEnemyInRange,
@@ -35,10 +36,10 @@ function assertTest(condition: boolean, message: string): void {
 console.log('=== Enemy Entity Tests ===\n');
 
 console.log('Test 1: Create enemy');
-const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
 console.log('  Created enemy:', enemy.id, enemy.enemyType, 'HP:', enemy.hp, 'Speed:', enemy.speed);
 console.assert(enemy.id === 1, 'Enemy ID should be 1');
-console.assert(enemy.enemyType === EnemyType.RedMushroom, 'Enemy type should be RedMushroom');
+console.assert(enemy.enemyType === EnemyType.ScoutBeetle, 'Enemy type should be ScoutBeetle');
 console.assert(enemy.hp === 1, 'HP should be 1');
 console.assert(enemy.alive === true, 'Enemy should be alive');
 console.assert(enemy.hasReachedEnd === false, 'Enemy should not have reached end');
@@ -68,8 +69,7 @@ console.assert(effectRemainingAfter === effectRemainingBefore - 2000, 'Remaining
 console.log('  PASS\n');
 
 console.log('Test 5: Poison damage');
-const enemy2 = createEnemy(2, EnemyType.GreenCaterpillar, path);
-enemy2.hp = 10;
+const enemy2 = createEnemy(2, EnemyType.ShellBeetle, path);
 applyStatusEffect(enemy2, StatusEffectType.Poison, 5000, 2);
 const poisonDmg = processPoisonDamage(enemy2, 1000);
 console.log('  Poison damage over 1s:', poisonDmg);
@@ -84,21 +84,21 @@ console.assert(enemy2.alive === false, 'Enemy should be dead');
 console.log('  PASS\n');
 
 console.log('Test 7: Non-lethal damage');
-const enemy3 = createEnemy(3, EnemyType.BlueBeetle, path);
+const enemy3 = createEnemy(3, EnemyType.ShellBeetle, path);
 const notKilled = applyDamageToEnemy(enemy3, 1);
 console.log('  Applied 1 damage, killed:', notKilled, 'HP:', enemy3.hp);
 console.assert(notKilled === false, 'Should not be killed');
-console.assert(enemy3.hp === 1, 'HP should be 1');
+console.assert(enemy3.hp === 3, 'HP should be 3');
 console.log('  PASS\n');
 
 console.log('Test 8: Reward calculation');
-console.log('  Enemy3 reward:', getReward(enemy3), '(BlueBeetle has reward 2)');
-console.assert(getReward(enemy3) === 2, 'BlueBeetle reward should be 2');
+console.log('  Enemy3 reward:', getReward(enemy3), '(ShellBeetle has reward 18)');
+console.assert(getReward(enemy3) === 18, 'ShellBeetle reward should be 18');
 console.log('  PASS\n');
 
 console.log('Test 9: Health percent');
-console.log('  Enemy3 health%:', getHealthPercent(enemy3), '(HP 1/2)');
-console.assert(getHealthPercent(enemy3) === 0.5, 'Health percent should be 0.5');
+console.log('  Enemy3 health%:', getHealthPercent(enemy3), '(HP 3/4)');
+console.assert(getHealthPercent(enemy3) === 0.75, 'Health percent should be 0.75');
 console.log('  PASS\n');
 
 console.log('Test 10: Range check');
@@ -110,7 +110,7 @@ console.assert(outOfRange === false, 'Should be out of range');
 console.log('  PASS\n');
 
 console.log('Test 11: Enemy reaches end of path');
-const enemy4 = createEnemy(4, EnemyType.ShelledSnail, path);
+const enemy4 = createEnemy(4, EnemyType.PaleMoth, path);
 enemy4.pathDistance = path.getTotalLength();
 updateEnemyPosition(enemy4, path, 100);
 console.log('  Enemy4 at end:', enemy4.hasReachedEnd, 'Alive:', enemy4.alive);
@@ -128,7 +128,7 @@ console.assert(enemy.statusEffects.length === 0, 'Status effects should be clear
 console.log('  PASS\n');
 
 console.log('Test 13: Respawn enemy');
-const enemy5 = createEnemy(5, EnemyType.PinkLadybug, path);
+const enemy5 = createEnemy(5, EnemyType.SwarmWasp, path);
 enemy5.hp = 0;
 enemy5.pathDistance = 500;
 respawnEnemy(enemy5, path);
@@ -139,38 +139,38 @@ console.assert(enemy5.pathDistance === 0, 'pathDistance should be 0');
 console.log('  PASS\n');
 
 console.log('Test 14: Camo detection');
-const camoEnemy = createEnemy(6, EnemyType.WhiteMoth, path);
-const nonCamoEnemy = createEnemy(7, EnemyType.RedMushroom, path);
-console.log('  WhiteMoth is camo:', isCamo(camoEnemy), 'RedMushroom is camo:', isCamo(nonCamoEnemy));
-console.assert(isCamo(camoEnemy) === true, 'WhiteMoth should be camo');
-console.assert(isCamo(nonCamoEnemy) === false, 'RedMushroom should not be camo');
+const camoEnemy = createEnemy(6, EnemyType.VeilWasp, path);
+const nonCamoEnemy = createEnemy(7, EnemyType.ScoutBeetle, path);
+console.log('  VeilWasp is camo:', isCamo(camoEnemy), 'ScoutBeetle is camo:', isCamo(nonCamoEnemy));
+console.assert(isCamo(camoEnemy) === true, 'VeilWasp should be camo');
+console.assert(isCamo(nonCamoEnemy) === false, 'ScoutBeetle should not be camo');
 console.log('  PASS\n');
 
 console.log('Test 15: Metal trait blocks non-explosive damage');
-const metalEnemy = createEnemy(8, EnemyType.ArmoredBeetle, path);
+const metalEnemy = createEnemy(8, EnemyType.BulwarkBeetle, path);
 const metalStartingHp = metalEnemy.hp;
-console.assert(Array.isArray((metalEnemy as any).traits), 'Metal enemy should expose traits');
-console.assert((metalEnemy as any).traits.includes('metal'), 'ArmoredBeetle should have Metal trait');
+console.assert(Array.isArray(metalEnemy.traits), 'Metal enemy should expose traits');
+console.assert(metalEnemy.traits.includes(EnemyTrait.Metal), 'BulwarkBeetle should have Metal trait');
 const blockedByMetal = applyDamageToEnemy(metalEnemy, 5);
 console.log('  Non-explosive damage blocked:', blockedByMetal === false, 'HP:', metalEnemy.hp);
 console.assert(blockedByMetal === false, 'Non-explosive damage should not damage Metal enemies');
 console.assert(metalEnemy.hp === metalStartingHp, 'Metal enemy HP should stay unchanged after non-explosive damage');
-const explosivePartial = (applyDamageToEnemy as any)(metalEnemy, 5, { damageType: 'explosive' });
+const explosivePartial = applyDamageToEnemy(metalEnemy, 5, { damageType: 'explosive' });
 console.log('  Explosive damage applied:', explosivePartial === false, 'HP:', metalEnemy.hp);
 console.assert(explosivePartial === false, 'Partial explosive damage should not kill Metal enemy');
 console.assert(metalEnemy.hp === metalStartingHp - 5, 'Explosive damage should reduce Metal enemy HP');
 console.log('  PASS\n');
 
 console.log('Test 16: Shielded trait blocks the first hit');
-const shieldedEnemy = createEnemy(9, EnemyType.RainbowStag, path);
+const shieldedEnemy = createEnemy(9, EnemyType.WardMoth, path);
 const shieldedStartingHp = shieldedEnemy.hp;
-assertTest((shieldedEnemy as any).traits.includes('shielded'), 'RainbowStag should have Shielded trait');
-assertTest((shieldedEnemy as any).shieldCharges === 1, 'Shielded enemy should start with one shield charge');
+assertTest(shieldedEnemy.traits.includes(EnemyTrait.Shielded), 'WardMoth should have Shielded trait');
+assertTest(shieldedEnemy.shieldCharges === 1, 'Shielded enemy should start with one shield charge');
 const blockedByShield = applyDamageToEnemy(shieldedEnemy, 5);
-console.log('  First hit blocked:', blockedByShield === false, 'HP:', shieldedEnemy.hp, 'Shield:', (shieldedEnemy as any).shieldCharges);
+console.log('  First hit blocked:', blockedByShield === false, 'HP:', shieldedEnemy.hp, 'Shield:', shieldedEnemy.shieldCharges);
 assertTest(blockedByShield === false, 'First hit should break shield without killing Shielded enemy');
 assertTest(shieldedEnemy.hp === shieldedStartingHp, 'Shielded enemy HP should stay unchanged after shield block');
-assertTest((shieldedEnemy as any).shieldCharges === 0, 'Shielded enemy shield should break after first hit');
+assertTest(shieldedEnemy.shieldCharges === 0, 'Shielded enemy shield should break after first hit');
 const shieldedPartial = applyDamageToEnemy(shieldedEnemy, 5);
 console.log('  Second hit applied:', shieldedPartial === false, 'HP:', shieldedEnemy.hp);
 assertTest(shieldedPartial === false, 'Second partial hit should not kill Shielded enemy');
@@ -178,17 +178,15 @@ assertTest(shieldedEnemy.hp === shieldedStartingHp - 5, 'Second hit should damag
 console.log('  PASS\n');
 
 console.log('Test 17: Swarm-linked trait activates pack resistance');
-const swarmEnemy = createEnemy(10, EnemyType.PinkLadybug, path);
-swarmEnemy.hp = 20;
-swarmEnemy.maxHp = 20;
+const swarmEnemy = createEnemy(10, EnemyType.SwarmWasp, path);
 const swarmStartingHp = swarmEnemy.hp;
-assertTest((swarmEnemy as any).traits.includes('swarm_linked'), 'PinkLadybug should have Swarm-linked trait');
-(swarmEnemy as any).swarmLinkedActive = true;
-(swarmEnemy as any).swarmLinkCount = 3;
-const swarmPartial = applyDamageToEnemy(swarmEnemy, 10);
+assertTest(swarmEnemy.traits.includes(EnemyTrait.SwarmLinked), 'SwarmWasp should have Swarm-linked trait');
+swarmEnemy.swarmLinkedActive = true;
+swarmEnemy.swarmLinkCount = 3;
+const swarmPartial = applyDamageToEnemy(swarmEnemy, 0.5);
 console.log('  Swarm-linked damage reduced:', swarmPartial === false, 'HP:', swarmEnemy.hp);
 assertTest(swarmPartial === false, 'Partial swarm-resistant hit should not kill Swarm-linked enemy');
-assertTest(swarmEnemy.hp === swarmStartingHp - 9, 'Active Swarm-linked enemy should take 10% less incoming damage');
+assertTest(swarmEnemy.hp === swarmStartingHp - 0.45, 'Active Swarm-linked enemy should take 10% less incoming damage');
 console.log('  PASS\n');
 
 console.log('Test 18: Enemy type mapping for all types');
@@ -203,7 +201,7 @@ for (const type of Object.values(EnemyType)) {
 console.log('  PASS\n');
 
 console.log('Test 19: Trait disruption temporarily opens Metal enemies to ordinary damage');
-const disruptedMetal = createEnemy(11, EnemyType.ArmoredBeetle, path);
+const disruptedMetal = createEnemy(11, EnemyType.BulwarkBeetle, path);
 const disruptedMetalStartingHp = disruptedMetal.hp;
 const disruptedMetalTrait = disruptEnemyTrait(disruptedMetal, 5000);
 assertTest(disruptedMetalTrait === EnemyTrait.Metal, 'Disruption should strip Metal from ArmoredBeetle');
@@ -229,7 +227,7 @@ assertTest(disruptedMetal.hp === restoredMetalHp, 'Restored Metal enemy HP shoul
 console.log('  PASS\n');
 
 console.log('Test 20: Trait disruption breaks active shields');
-const disruptedShield = createEnemy(12, EnemyType.RainbowStag, path);
+const disruptedShield = createEnemy(12, EnemyType.WardMoth, path);
 const disruptedShieldStartingHp = disruptedShield.hp;
 const disruptedShieldTrait = disruptEnemyTrait(disruptedShield, 5000);
 assertTest(disruptedShieldTrait === EnemyTrait.Shielded, 'Disruption should strip Shielded first when shield is active');
@@ -241,10 +239,8 @@ console.log('  PASS\n');
 
 console.log('Test 21: Trait disruption removes Swarm-linked enemies from pack bonuses');
 const disruptedSwarmPack = [13, 14, 15].map(id => {
-  const e = createEnemy(id, EnemyType.PinkLadybug, path);
+  const e = createEnemy(id, EnemyType.SwarmWasp, path);
   e.position = { x: 100, y: 100 };
-  e.hp = 20;
-  e.maxHp = 20;
   return e;
 });
 const disruptedSwarmTrait = disruptEnemyTrait(disruptedSwarmPack[0], 5000);
@@ -256,14 +252,12 @@ assertTest(disruptedSwarmPack[2].swarmLinkedActive === false, 'All packmates sho
 console.log('  PASS\n');
 
 console.log('Test 22: Mark adds one damage per hit and refreshes without stacking');
-const markedEnemy = createEnemy(16, EnemyType.BlueBeetle, path);
-markedEnemy.hp = 10;
-markedEnemy.maxHp = 10;
+const markedEnemy = createEnemy(16, EnemyType.CrawlerCaterpillar, path);
 markEnemy(markedEnemy, 4000);
 assertTest(hasStatusEffect(markedEnemy, StatusEffectType.Marked), 'Marked enemy should receive Marked status');
 const markedHit = applyDamageToEnemy(markedEnemy, 2);
 assertTest(markedHit === false, 'Partial hit should not kill marked enemy');
-assertTest(markedEnemy.hp === 7, 'Marked enemy should take +1 damage from a hit');
+assertTest(markedEnemy.hp === 3, 'Marked enemy should take +1 damage from a hit');
 updateStatusEffects(markedEnemy, 3000);
 markEnemy(markedEnemy, 4000);
 const markEffects = markedEnemy.statusEffects.filter(effect => effect.type === StatusEffectType.Marked);
@@ -274,5 +268,17 @@ const unmarkedHp = markedEnemy.hp;
 applyDamageToEnemy(markedEnemy, 2);
 assertTest(markedEnemy.hp === unmarkedHp - 2, 'Expired mark should no longer add bonus damage');
 console.log('  PASS\n');
+
+const layered = createEnemy(1000, EnemyType.ShellBeetle, path);
+assertTest(layered.layers.length === 2, 'Shell Beetle has two layers');
+
+const first = resolveDamage(layered, layered.layers[0].maxHp + 1);
+assertTest(first.layersBroken === 1, 'first layer breaks');
+assertTest(layered.currentLayerIndex === 1, 'damage advances to second layer');
+assertTest(layered.layers[1].hp === layered.layers[1].maxHp - 1, 'overflow reaches next layer');
+
+const lethal = resolveDamage(layered, 999);
+assertTest(lethal.killed, 'large hit can break remaining layers');
+assertTest(lethal.layersBroken === 1, 'remaining layer break is counted');
 
 console.log('=== All Tests Passed ===');

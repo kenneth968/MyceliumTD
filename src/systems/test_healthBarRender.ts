@@ -53,7 +53,7 @@ function createMockPath(): Path {
 
 function createMockEnemy(overrides?: Partial<Enemy>): Enemy {
   const path = createMockPath();
-  const baseEnemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const baseEnemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   return { ...baseEnemy, ...overrides };
 }
 
@@ -85,11 +85,11 @@ function getHealthBarWidthTests() {
   console.log('Testing getHealthBarWidth...');
   
   assertEqual(getHealthBarWidth(), 30, 'default width');
-  assertEqual(getHealthBarWidth(EnemyType.RedMushroom), 30, 'red mushroom width');
-  assertEqual(getHealthBarWidth(EnemyType.ShelledSnail), 40, 'shelled snail width');
-  assertEqual(getHealthBarWidth(EnemyType.ArmoredBeetle), 38, 'armored beetle width');
-  assertEqual(getHealthBarWidth(EnemyType.RainbowStag), 35, 'rainbow stag width');
-  assertEqual(getHealthBarWidth(EnemyType.BlackWidow), 32, 'black widow width');
+  assertEqual(getHealthBarWidth(EnemyType.ScoutBeetle), 30, 'red mushroom width');
+  assertEqual(getHealthBarWidth(EnemyType.PaleMoth), 40, 'shelled snail width');
+  assertEqual(getHealthBarWidth(EnemyType.BulwarkBeetle), 38, 'armored beetle width');
+  assertEqual(getHealthBarWidth(EnemyType.WardMoth), 35, 'rainbow stag width');
+  assertEqual(getHealthBarWidth(EnemyType.IronCaterpillar), 32, 'black widow width');
   
   passed++;
 }
@@ -98,10 +98,10 @@ function getHealthBarHeightTests() {
   console.log('Testing getHealthBarHeight...');
   
   assertEqual(getHealthBarHeight(), 4, 'default height');
-  assertEqual(getHealthBarHeight(EnemyType.RedMushroom), 4, 'red mushroom height');
-  assertEqual(getHealthBarHeight(EnemyType.ShelledSnail), 6, 'shelled snail height');
-  assertEqual(getHealthBarHeight(EnemyType.ArmoredBeetle), 6, 'armored beetle height');
-  assertEqual(getHealthBarHeight(EnemyType.RainbowStag), 5, 'rainbow stag height');
+  assertEqual(getHealthBarHeight(EnemyType.ScoutBeetle), 4, 'red mushroom height');
+  assertEqual(getHealthBarHeight(EnemyType.PaleMoth), 6, 'shelled snail height');
+  assertEqual(getHealthBarHeight(EnemyType.BulwarkBeetle), 6, 'armored beetle height');
+  assertEqual(getHealthBarHeight(EnemyType.WardMoth), 5, 'rainbow stag height');
   
   passed++;
 }
@@ -110,10 +110,10 @@ function getHealthBarOffsetYTests() {
   console.log('Testing getHealthBarOffsetY...');
   
   assertEqual(getHealthBarOffsetY(), -15, 'default offset');
-  assertEqual(getHealthBarOffsetY(EnemyType.RedMushroom), -15, 'red mushroom offset');
-  assertEqual(getHealthBarOffsetY(EnemyType.ShelledSnail), -20, 'shelled snail offset');
-  assertEqual(getHealthBarOffsetY(EnemyType.ArmoredBeetle), -18, 'armored beetle offset');
-  assertEqual(getHealthBarOffsetY(EnemyType.RainbowStag), -16, 'rainbow stag offset');
+  assertEqual(getHealthBarOffsetY(EnemyType.ScoutBeetle), -15, 'red mushroom offset');
+  assertEqual(getHealthBarOffsetY(EnemyType.PaleMoth), -20, 'shelled snail offset');
+  assertEqual(getHealthBarOffsetY(EnemyType.BulwarkBeetle), -18, 'armored beetle offset');
+  assertEqual(getHealthBarOffsetY(EnemyType.WardMoth), -16, 'rainbow stag offset');
   
   passed++;
 }

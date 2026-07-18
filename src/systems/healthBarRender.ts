@@ -83,28 +83,28 @@ const CRITICAL_THRESHOLD = 0.25;
 
 export function getHealthBarWidth(enemyType?: EnemyType): number {
   const baseWidths: Partial<Record<EnemyType, number>> = {
-    [EnemyType.ShelledSnail]: 40,
-    [EnemyType.ArmoredBeetle]: 38,
-    [EnemyType.RainbowStag]: 35,
-    [EnemyType.BlackWidow]: 32,
+    [EnemyType.PaleMoth]: 40,
+    [EnemyType.BulwarkBeetle]: 38,
+    [EnemyType.WardMoth]: 35,
+    [EnemyType.IronCaterpillar]: 32,
   };
   return baseWidths[enemyType as EnemyType] || DEFAULT_HEALTH_BAR_WIDTH;
 }
 
 export function getHealthBarHeight(enemyType?: EnemyType): number {
   const baseHeights: Partial<Record<EnemyType, number>> = {
-    [EnemyType.ShelledSnail]: 6,
-    [EnemyType.ArmoredBeetle]: 6,
-    [EnemyType.RainbowStag]: 5,
+    [EnemyType.PaleMoth]: 6,
+    [EnemyType.BulwarkBeetle]: 6,
+    [EnemyType.WardMoth]: 5,
   };
   return baseHeights[enemyType as EnemyType] || DEFAULT_HEALTH_BAR_HEIGHT;
 }
 
 export function getHealthBarOffsetY(enemyType?: EnemyType): number {
   const baseOffsets: Partial<Record<EnemyType, number>> = {
-    [EnemyType.ShelledSnail]: -20,
-    [EnemyType.ArmoredBeetle]: -18,
-    [EnemyType.RainbowStag]: -16,
+    [EnemyType.PaleMoth]: -20,
+    [EnemyType.BulwarkBeetle]: -18,
+    [EnemyType.WardMoth]: -16,
   };
   return baseOffsets[enemyType as EnemyType] || DEFAULT_OFFSET_Y;
 }

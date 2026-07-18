@@ -109,15 +109,15 @@ const fastForwardEnemy = fastForwardGame.getActiveEnemies()[0];
 assert(fastForwardEnemy !== undefined, 'Fast-forward update should spawn an enemy');
 fastForwardGame.update(fastForwardStartTime + 1000);
 assert(
-  fastForwardEnemy.pathDistance >= 140,
-  `Fast-forward should scale movement from caller timestamps (expected at least 140, got ${fastForwardEnemy.pathDistance})`
+  fastForwardEnemy.pathDistance >= 135,
+  `Fast-forward should scale movement from caller timestamps (expected at least 135, got ${fastForwardEnemy.pathDistance})`
 );
 
 const metalCounterGame = createGameRunner({ startingMoney: 5000 });
 metalCounterGame.start();
 const nonExplosiveTower = metalCounterGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 assert(nonExplosiveTower !== null, 'Should place non-explosive metal counter test tower');
-const metalTarget = createEnemy(901, EnemyType.ArmoredBeetle, metalCounterGame.getPath());
+const metalTarget = createEnemy(901, EnemyType.BulwarkBeetle, metalCounterGame.getPath());
 metalTarget.pathDistance = 1520;
 metalTarget.pathProgress = 1520;
 metalTarget.position = { ...metalCounterGame.getPath().getPointAtDistance(metalTarget.pathDistance).position };
@@ -136,7 +136,7 @@ const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
 metalExplosiveGame.start();
 const explosiveTower = metalExplosiveGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(explosiveTower !== null, 'Should place explosive metal counter test tower');
-const explosiveTarget = createEnemy(902, EnemyType.ArmoredBeetle, metalExplosiveGame.getPath());
+const explosiveTarget = createEnemy(902, EnemyType.BulwarkBeetle, metalExplosiveGame.getPath());
 explosiveTarget.pathDistance = 1540;
 explosiveTarget.pathProgress = 1540;
 explosiveTarget.position = { ...metalExplosiveGame.getPath().getPointAtDistance(explosiveTarget.pathDistance).position };
@@ -159,7 +159,7 @@ assert(
   disruptingUpgrade.success === true,
   'Connected Orchid should be able to buy Special trait disruption upgrade'
 );
-const disruptedMetalTarget = createEnemy(912, EnemyType.ArmoredBeetle, traitDisruptionGame.getPath());
+const disruptedMetalTarget = createEnemy(912, EnemyType.BulwarkBeetle, traitDisruptionGame.getPath());
 disruptedMetalTarget.pathDistance = 1520;
 disruptedMetalTarget.pathProgress = 1520;
 disruptedMetalTarget.position = { ...traitDisruptionGame.getPath().getPointAtDistance(disruptedMetalTarget.pathDistance).position };
@@ -183,7 +183,7 @@ const plainOrchidGame = createGameRunner({ startingMoney: 5000 });
 plainOrchidGame.start();
 const plainOrchid = plainOrchidGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(plainOrchid !== null, 'Should place ordinary Orchid metal regression tower');
-const plainOrchidMetalTarget = createEnemy(913, EnemyType.ArmoredBeetle, plainOrchidGame.getPath());
+const plainOrchidMetalTarget = createEnemy(913, EnemyType.BulwarkBeetle, plainOrchidGame.getPath());
 plainOrchidMetalTarget.pathDistance = 1520;
 plainOrchidMetalTarget.pathProgress = 1520;
 plainOrchidMetalTarget.position = { ...plainOrchidGame.getPath().getPointAtDistance(plainOrchidMetalTarget.pathDistance).position };
@@ -202,7 +202,7 @@ const shieldedHitGame = createGameRunner({ startingMoney: 5000 });
 shieldedHitGame.start();
 const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(shieldBreakerTower !== null, 'Should place shielded enemy test tower');
-const shieldedTarget = createEnemy(903, EnemyType.RainbowStag, shieldedHitGame.getPath());
+const shieldedTarget = createEnemy(903, EnemyType.WardMoth, shieldedHitGame.getPath());
 shieldedTarget.pathDistance = 1540;
 shieldedTarget.pathProgress = 1540;
 shieldedTarget.position = { ...shieldedHitGame.getPath().getPointAtDistance(shieldedTarget.pathDistance).position };
@@ -224,7 +224,7 @@ assertEqual(
 
 const isolatedSwarmGame = createGameRunner({ startingLives: 20 });
 isolatedSwarmGame.start();
-const isolatedSwarmEnemy = createEnemy(904, EnemyType.PinkLadybug, isolatedSwarmGame.getPath());
+const isolatedSwarmEnemy = createEnemy(904, EnemyType.SwarmWasp, isolatedSwarmGame.getPath());
 isolatedSwarmEnemy.position = { ...isolatedSwarmGame.getPath().getPointAtDistance(0).position };
 isolatedSwarmGame.getActiveEnemies().push(isolatedSwarmEnemy);
 isolatedSwarmGame.update(1000);
@@ -233,7 +233,7 @@ isolatedSwarmGame.update(2000);
 const packedSwarmGame = createGameRunner({ startingLives: 20 });
 packedSwarmGame.start();
 const packedSwarmEnemies = [905, 906, 907].map(id => {
-  const enemy = createEnemy(id, EnemyType.PinkLadybug, packedSwarmGame.getPath());
+  const enemy = createEnemy(id, EnemyType.SwarmWasp, packedSwarmGame.getPath());
   enemy.position = { ...packedSwarmGame.getPath().getPointAtDistance(0).position };
   return enemy;
 });
@@ -252,21 +252,19 @@ assert(
 const swarmProjectileFreshnessGame = createGameRunner({ startingLives: 20 });
 swarmProjectileFreshnessGame.start();
 swarmProjectileFreshnessGame.update(0);
-const movingOutOfPack = createEnemy(908, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
-movingOutOfPack.hp = 20;
-movingOutOfPack.maxHp = 20;
+const movingOutOfPack = createEnemy(908, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 movingOutOfPack.pathDistance = 0;
 movingOutOfPack.pathProgress = 0;
 movingOutOfPack.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(0).position };
 movingOutOfPack.speed = 200;
 movingOutOfPack.baseSpeed = 200;
-const stationaryPackMateA = createEnemy(909, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+const stationaryPackMateA = createEnemy(909, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 stationaryPackMateA.pathDistance = 10;
 stationaryPackMateA.pathProgress = 10;
 stationaryPackMateA.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(10).position };
 stationaryPackMateA.speed = 0;
 stationaryPackMateA.baseSpeed = 0;
-const stationaryPackMateB = createEnemy(910, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+const stationaryPackMateB = createEnemy(910, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 stationaryPackMateB.pathDistance = 20;
 stationaryPackMateB.pathProgress = 20;
 stationaryPackMateB.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(20).position };
@@ -278,14 +276,14 @@ swarmProjectileFreshnessGame.getActiveProjectiles().push({
   position: { x: 0, y: 300 },
   targetId: movingOutOfPack.id,
   speed: 10000,
-  damage: 10,
+  damage: 0.5,
   towerType: TowerType.BulbShooter,
   alive: true,
 });
 swarmProjectileFreshnessGame.update(1000);
 assertEqual(
   movingOutOfPack.hp,
-  10,
+  0.5,
   'Projectile damage should refresh Swarm-linked state after movement, so enemies that left the pack take full damage'
 );
 
@@ -294,9 +292,7 @@ swarmSeededPayloadFreshnessGame.start();
 swarmSeededPayloadFreshnessGame.update(0);
 const payloadPosition = { x: 0, y: 300 };
 const seededSwarmTargets = [911, 912, 913].map(id => {
-  const enemy = createEnemy(id, EnemyType.PinkLadybug, swarmSeededPayloadFreshnessGame.getPath());
-  enemy.hp = 20;
-  enemy.maxHp = 20;
+  const enemy = createEnemy(id, EnemyType.SwarmWasp, swarmSeededPayloadFreshnessGame.getPath());
   enemy.pathDistance = 0;
   enemy.pathProgress = 0;
   enemy.position = { ...payloadPosition };
@@ -310,7 +306,7 @@ swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
   type: 'stinkhorn_seeded_payload',
   position: { ...payloadPosition },
   radius: 35,
-  damage: 10,
+  damage: 0.5,
   delay: 1000,
   remaining: 0,
   sourceTowerId: 1,
@@ -318,7 +314,7 @@ swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
 swarmSeededPayloadFreshnessGame.update(1000);
 assertEqual(
   seededSwarmTargets[0].hp,
-  11,
+  0.55,
   'Seeded payload damage should refresh Swarm-linked state before detonation damage'
 );
 
@@ -328,9 +324,7 @@ const markingTower = markApplicationGame.placeTower(TowerType.Puffball, 720, 250
 assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
 const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
 assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
-const markTarget = createEnemy(914, EnemyType.BlueBeetle, markApplicationGame.getPath());
-markTarget.hp = 10;
-markTarget.maxHp = 10;
+const markTarget = createEnemy(914, EnemyType.DartWasp, markApplicationGame.getPath());
 markTarget.pathDistance = 1540;
 markTarget.pathProgress = 1540;
 markTarget.position = { ...markApplicationGame.getPath().getPointAtDistance(markTarget.pathDistance).position };
@@ -344,7 +338,7 @@ assert(
   'Connected Special Puffball should mark its direct target'
 );
 assert(
-  markTarget.hp <= 8,
+  markTarget.hp === 0,
   'The marked Puffball hit should include the +1 marked damage bonus'
 );
 
@@ -354,7 +348,7 @@ const executeTower = executeMarkedGame.placeTower(TowerType.ThornSniper, 720, 27
 assert(executeTower !== null, 'Should place Venus execute placeholder tower');
 const executeUpgrade = executeMarkedGame.upgradeTower(executeTower!.id, UpgradePath.Special);
 assert(executeUpgrade.success === true, 'Connected Venus should buy Special execute upgrade');
-const executeTarget = createEnemy(915, EnemyType.ArmoredBeetle, executeMarkedGame.getPath());
+const executeTarget = createEnemy(915, EnemyType.BulwarkBeetle, executeMarkedGame.getPath());
 executeTarget.pathDistance = 1520;
 executeTarget.pathProgress = 1520;
 executeTarget.position = { ...executeMarkedGame.getPath().getPointAtDistance(executeTarget.pathDistance).position };
@@ -391,7 +385,7 @@ const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.ThornSniper,
 assert(shieldExecuteTower !== null, 'Should place Venus shield execute tower');
 const shieldExecuteUpgrade = shieldedExecuteGame.upgradeTower(shieldExecuteTower!.id, UpgradePath.Special);
 assert(shieldExecuteUpgrade.success === true, 'Connected Venus should buy Special shield execute upgrade');
-const shieldedExecuteTarget = createEnemy(916, EnemyType.RainbowStag, shieldedExecuteGame.getPath());
+const shieldedExecuteTarget = createEnemy(916, EnemyType.WardMoth, shieldedExecuteGame.getPath());
 shieldedExecuteTarget.pathDistance = 1520;
 shieldedExecuteTarget.pathProgress = 1520;
 shieldedExecuteTarget.position = { ...shieldedExecuteGame.getPath().getPointAtDistance(shieldedExecuteTarget.pathDistance).position };

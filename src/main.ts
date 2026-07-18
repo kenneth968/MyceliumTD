@@ -49,16 +49,16 @@ interface Particle {
 
 // Enemy type -> color for death splats
 const ENEMY_COLORS: Record<string, string> = {
-    red_mushroom: '#E74C3C',
-    blue_beetle: '#3498DB',
-    green_caterpillar: '#27AE60',
-    yellow_wasp: '#F1C40F',
-    pink_ladybug: '#E91E90',
-    black_widow: '#2C3E50',
-    white_moth: '#ECF0F1',
-    armored_beetle: '#7F8C8D',
-    rainbow_stag: '#9B59B6',
-    shelled_snail: '#E67E22',
+    scout_beetle: '#E74C3C',
+    dart_wasp: '#3498DB',
+    shell_beetle: '#27AE60',
+    crawler_caterpillar: '#F1C40F',
+    swarm_wasp: '#E91E90',
+    iron_caterpillar: '#2C3E50',
+    veil_wasp: '#ECF0F1',
+    bulwark_beetle: '#7F8C8D',
+    ward_moth: '#9B59B6',
+    pale_moth: '#E67E22',
 };
 
 class ParticleSystem {
