@@ -44,6 +44,10 @@ class FakeAudio {
   }
 
   pause(): void {}
+
+  addEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
+
+  removeEventListener(_type: string, _listener: EventListenerOrEventListenerObject): void {}
 }
 
 function invoke(listener: EventListenerOrEventListenerObject | undefined, event: Event): void {
