@@ -123,7 +123,10 @@ export class AudioManager {
       return;
     }
 
-    if (this.currentTrack === track && this.fadingTrack === null) return;
+    if (this.currentTrack === track && this.fadingTrack === null) {
+      this.audioElements.get(track)?.play().catch(() => {});
+      return;
+    }
 
     const newAudio = this.audioElements.get(track);
     if (!newAudio) return;
