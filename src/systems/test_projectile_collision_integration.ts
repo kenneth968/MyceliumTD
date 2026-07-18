@@ -51,7 +51,7 @@ test('detectCollision should find enemy within range', () => {
     targetId: 1,
     speed: 200,
     damage: 10,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
   };
   
@@ -70,7 +70,7 @@ test('detectCollision should not find enemy out of range', () => {
     targetId: 1,
     speed: 200,
     damage: 10,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
   };
   
@@ -89,7 +89,7 @@ test('detectCollision should skip dead enemies', () => {
     targetId: 1,
     speed: 200,
     damage: 10,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
   };
   
@@ -109,7 +109,7 @@ test('resolveHit should return damage and effects for Orchid slow', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
     effectStrength: 0.5,
     effectDuration: 2000,
@@ -132,7 +132,7 @@ test('resolveHit should return damage and effects for Stinkhorn poison', () => {
     targetId: 1,
     speed: 200,
     damage: 3,
-    towerType: TowerType.StinkhornLine,
+    towerType: TowerType.BulbShooter,
     alive: true,
     effectStrength: 10,
     effectDuration: 3000,
@@ -154,7 +154,7 @@ test('resolveHit should stack poison damage for Stinkhorn', () => {
     targetId: 1,
     speed: 200,
     damage: 3,
-    towerType: TowerType.StinkhornLine,
+    towerType: TowerType.BulbShooter,
     alive: true,
     effectStrength: 5,
     effectDuration: 2000,
@@ -174,7 +174,7 @@ test('resolveHit should return instakill effect for Venus', () => {
     targetId: 1,
     speed: 200,
     damage: 100,
-    towerType: TowerType.VenusFlytower,
+    towerType: TowerType.ThornSniper,
     alive: true,
   };
   
@@ -192,7 +192,7 @@ test('resolveHit should return reveal_camo effect for Bioluminescent', () => {
     targetId: 1,
     speed: 200,
     damage: 1,
-    towerType: TowerType.BioluminescentShroom,
+    towerType: TowerType.LumenOracle,
     alive: true,
     effectStrength: 0.8,
     effectDuration: 5000,
@@ -314,7 +314,7 @@ test('updateProjectile should hit target when close enough', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -335,7 +335,7 @@ test('updateProjectile should move toward target', () => {
     targetId: 1,
     speed: 1000,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -358,7 +358,7 @@ test('updateProjectile should die if target is dead', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -378,7 +378,7 @@ test('updateProjectile should reach and hit stationary target', () => {
     targetId: 1,
     speed: 500,
     damage: 10,
-    towerType: TowerType.StinkhornLine,
+    towerType: TowerType.BulbShooter,
     alive: true,
   };
   
@@ -407,7 +407,7 @@ test('processProjectileCollision should detect collision and resolve hit', () =>
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -430,7 +430,7 @@ test('processProjectileCollision should calculate area damage for Puffball', () 
     targetId: 1,
     speed: 200,
     damage: 10,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
     areaRadius: 40,
   };
@@ -452,7 +452,7 @@ test('processProjectileCollision should return no hit when no collision', () => 
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -470,7 +470,7 @@ test('isProjectileInBounds should detect in-bounds projectile', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -486,7 +486,7 @@ test('isProjectileInBounds should detect out-of-bounds projectile', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -502,7 +502,7 @@ test('getProjectilesNeedingCleanup should return dead projectiles', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -512,7 +512,7 @@ test('getProjectilesNeedingCleanup should return dead projectiles', () => {
     targetId: 2,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: false,
   };
   
@@ -530,7 +530,7 @@ test('GameRunner should spawn projectiles from towers', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.OrchidTrap, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -555,7 +555,7 @@ test('GameRunner projectiles should hit enemies and apply effects', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.OrchidTrap, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -583,7 +583,7 @@ test('GameRunner Puffball projectiles should deal area damage', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.PuffballFungus, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const initialMoney = game.getEconomy().getMoney();
@@ -609,7 +609,7 @@ test('GameRunner Stinkhorn projectiles should poison enemies', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.StinkhornLine, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.BulbShooter, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -636,14 +636,14 @@ test('GameRunner Stinkhorn projectiles should poison enemies', () => {
 console.log('\n--- Tower Special Effects with Upgraded Values ---');
 
 test('Upgraded Orchid should apply stronger slow', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.OrchidTrap, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Slimefungus, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
   const info = getSpecialEffectInfo(tower);
   assert(info !== null, 'Should have special effect info');
   
-  const effects = getHitEffectsForTowerType(TowerType.OrchidTrap, 2, info.effectStrength, info.effectDuration);
+  const effects = getHitEffectsForTowerType(TowerType.Slimefungus, 2, info.effectStrength, info.effectDuration);
   const slowEffect = effects.find(e => e.type === 'slow');
   
   assert(slowEffect !== undefined, 'Should have slow effect');
@@ -651,21 +651,21 @@ test('Upgraded Orchid should apply stronger slow', () => {
 });
 
 test('Upgraded Stinkhorn should apply stronger poison', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.StinkhornLine, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.BulbShooter, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
   const info = getSpecialEffectInfo(tower);
   assert(info !== null, 'Should have special effect info');
   
-  const effects = getHitEffectsForTowerType(TowerType.StinkhornLine, 3, info.effectStrength, info.effectDuration);
+  const effects = getHitEffectsForTowerType(TowerType.BulbShooter, 3, info.effectStrength, info.effectDuration);
   const poisonEffect = effects.find(e => e.type === 'poison');
   
   assert(poisonEffect !== undefined, 'Should have poison effect');
 });
 
 test('Upgraded Puffball should have larger area radius', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
@@ -676,28 +676,28 @@ test('Upgraded Puffball should have larger area radius', () => {
 });
 
 test('Upgraded Venus should have stronger instakill', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.VenusFlytower, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.ThornSniper, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
   const info = getSpecialEffectInfo(tower);
   assert(info !== null, 'Should have special effect info');
   
-  const effects = getHitEffectsForTowerType(TowerType.VenusFlytower, 100, info.effectStrength);
+  const effects = getHitEffectsForTowerType(TowerType.ThornSniper, 100, info.effectStrength);
   const instakillEffect = effects.find(e => e.type === 'instakill');
   
   assert(instakillEffect !== undefined, 'Should have instakill effect');
 });
 
 test('Upgraded Bioluminescent should have longer reveal duration', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.BioluminescentShroom, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.LumenOracle, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
   const info = getSpecialEffectInfo(tower);
   assert(info !== null, 'Should have special effect info');
   
-  const effects = getHitEffectsForTowerType(TowerType.BioluminescentShroom, 1, info.effectStrength, info.effectDuration);
+  const effects = getHitEffectsForTowerType(TowerType.LumenOracle, 1, info.effectStrength, info.effectDuration);
   const revealEffect = effects.find(e => e.type === 'reveal_camo');
   
   assert(revealEffect !== undefined, 'Should have reveal_camo effect');
@@ -716,7 +716,7 @@ test('Dead projectile should not collide', () => {
     targetId: 1,
     speed: 200,
     damage: 5,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: false,
   };
   
@@ -734,7 +734,7 @@ test('Projectile with zero speed should still hit close target', () => {
     targetId: 1,
     speed: 0,
     damage: 5,
-    towerType: TowerType.VenusFlytower,
+    towerType: TowerType.ThornSniper,
     alive: true,
   };
   
@@ -756,7 +756,7 @@ test('Multiple enemies - projectile should only hit its target', () => {
     targetId: 1,
     speed: 500,
     damage: 10,
-    towerType: TowerType.StinkhornLine,
+    towerType: TowerType.BulbShooter,
     alive: true,
   };
   
@@ -785,7 +785,7 @@ test('Enemy moving away from projectile should still be hit', () => {
     targetId: 1,
     speed: 300,
     damage: 10,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   

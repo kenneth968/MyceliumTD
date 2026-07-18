@@ -49,7 +49,7 @@ const game = createRunningGame();
 
 console.log('--- Initial targeting mode state ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   expectEqual(game.getSelectedTargetingMode(), TargetingMode.First, 'Default targeting mode is First');
   expectEqual(game.getPlacementState(), PlacementState.Placing, 'Placement state is Placing');
   game.cancelPlacement();
@@ -64,7 +64,7 @@ console.log('\n--- selectTargetingModeAtPosition returns false when not placing 
 
 console.log('\n--- Place tower and check targeting mode buttons exist ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -79,7 +79,7 @@ console.log('\n--- Place tower and check targeting mode buttons exist ---');
 
 console.log('\n--- Click on First targeting mode button ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -97,7 +97,7 @@ console.log('\n--- Click on First targeting mode button ---');
 
 console.log('\n--- Click on Last targeting mode button ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -115,7 +115,7 @@ console.log('\n--- Click on Last targeting mode button ---');
 
 console.log('\n--- Click on Close targeting mode button ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -133,7 +133,7 @@ console.log('\n--- Click on Close targeting mode button ---');
 
 console.log('\n--- Click on Strong targeting mode button ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -151,7 +151,7 @@ console.log('\n--- Click on Strong targeting mode button ---');
 
 console.log('\n--- Click outside targeting mode buttons ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const result = game.selectTargetingModeAtPosition(999, 999);
@@ -164,7 +164,7 @@ console.log('\n--- Click outside targeting mode buttons ---');
 console.log('\n--- Change targeting mode then place tower ---');
 {
   const localGame = createRunningGame();
-  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.startTowerPlacement(TowerType.Puffball);
   localGame.updatePlacementPosition(300, 50);
   
   const renderData = localGame.getTargetingModeSelectionRenderData();
@@ -187,7 +187,7 @@ console.log('\n--- Change targeting mode then place tower ---');
 console.log('\n--- Place tower with Close mode then verify ---');
 {
   const localGame = createRunningGame();
-  localGame.startTowerPlacement(TowerType.OrchidTrap);
+  localGame.startTowerPlacement(TowerType.Slimefungus);
   localGame.updatePlacementPosition(300, 300);
   
   const renderData = localGame.getTargetingModeSelectionRenderData();
@@ -208,7 +208,7 @@ console.log('\n--- Place tower with Close mode then verify ---');
 console.log('\n--- Place tower with Strong mode then verify ---');
 {
   const localGame = createRunningGame();
-  localGame.startTowerPlacement(TowerType.VenusFlytower);
+  localGame.startTowerPlacement(TowerType.ThornSniper);
   localGame.updatePlacementPosition(700, 100);
   
   const renderData = localGame.getTargetingModeSelectionRenderData();
@@ -228,7 +228,7 @@ console.log('\n--- Place tower with Strong mode then verify ---');
 
 console.log('\n--- Targeting mode selection with different tower positions ---');
 {
-  game.startTowerPlacement(TowerType.BioluminescentShroom);
+  game.startTowerPlacement(TowerType.LumenOracle);
   game.updatePlacementPosition(150, 250);
   
   const renderData1 = game.getTargetingModeSelectionRenderData();
@@ -243,7 +243,7 @@ console.log('\n--- Targeting mode selection with different tower positions ---')
   
   game.cancelPlacement();
   
-  game.startTowerPlacement(TowerType.StinkhornLine);
+  game.startTowerPlacement(TowerType.BulbShooter);
   game.updatePlacementPosition(500, 100);
   
   const renderData2 = game.getTargetingModeSelectionRenderData();
@@ -261,7 +261,7 @@ console.log('\n--- Targeting mode selection with different tower positions ---')
 
 console.log('\n--- selectTargetingModeAtPosition returns false without position ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   
   const result = game.selectTargetingModeAtPosition(400, 380);
   expectFalse(result, 'Returns false when placementPosition is null');
@@ -271,7 +271,7 @@ console.log('\n--- selectTargetingModeAtPosition returns false without position 
 
 console.log('\n--- getTargetingModeSelectionRenderData reflects selection ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(200, 200);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -296,11 +296,12 @@ console.log('\n--- getTargetingModeSelectionRenderData reflects selection ---');
 console.log('\n--- Each tower type can be placed with Strong targeting mode ---');
 {
   const towerTypes = [
-    { type: TowerType.PuffballFungus, x: 100, y: 450 },
-    { type: TowerType.OrchidTrap, x: 150, y: 450 },
-    { type: TowerType.VenusFlytower, x: 300, y: 450 },
-    { type: TowerType.BioluminescentShroom, x: 700, y: 450 },
-    { type: TowerType.StinkhornLine, x: 500, y: 450 }
+    { type: TowerType.Puffball, x: 100, y: 450 },
+    { type: TowerType.Slimefungus, x: 150, y: 450 },
+    { type: TowerType.ThornSniper, x: 300, y: 450 },
+    { type: TowerType.LumenOracle, x: 700, y: 450 },
+    { type: TowerType.BulbShooter, x: 700, y: 450 },
+    { type: TowerType.Sporecap, x: 700, y: 450 }
   ];
   
   for (const { type: towerType, x, y } of towerTypes) {
@@ -334,7 +335,7 @@ console.log('\n--- Each tower type can be placed with Strong targeting mode ---'
 
 console.log('\n--- Click on button edge cases ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();
@@ -348,7 +349,7 @@ console.log('\n--- Click on button edge cases ---');
   expectTrue(game.selectTargetingModeAtPosition(leftEdge + 1, topEdge + 1), 'Click on button top-left corner works');
   
   game.cancelPlacement();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData2 = game.getTargetingModeSelectionRenderData();
@@ -364,7 +365,7 @@ console.log('\n--- Click on button edge cases ---');
 
 console.log('\n--- Click between buttons returns false ---');
 {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const renderData = game.getTargetingModeSelectionRenderData();

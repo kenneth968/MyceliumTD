@@ -27,12 +27,12 @@ export interface ProjectileRenderCollection {
 }
 
 const TOWER_COLORS: Record<TowerType, { primary: string; glow: string; size: number }> = {
-  [TowerType.PuffballFungus]: { primary: '#9B59B6', glow: '#E8DAEF', size: 8 },
-  [TowerType.OrchidTrap]: { primary: '#3498DB', glow: '#D4E6F1', size: 7 },
-  [TowerType.VenusFlytower]: { primary: '#E74C3C', glow: '#FADBD8', size: 12 },
-  [TowerType.BioluminescentShroom]: { primary: '#1ABC9C', glow: '#D1F2EB', size: 6 },
-  [TowerType.StinkhornLine]: { primary: '#27AE60', glow: '#D5F5E3', size: 7 },
-  [TowerType.MyceliumNetwork]: { primary: '#8E44AD', glow: '#D7BDE2', size: 10 },
+  [TowerType.Puffball]: { primary: '#9B59B6', glow: '#E8DAEF', size: 8 },
+  [TowerType.Slimefungus]: { primary: '#3498DB', glow: '#D4E6F1', size: 7 },
+  [TowerType.ThornSniper]: { primary: '#E74C3C', glow: '#FADBD8', size: 12 },
+  [TowerType.LumenOracle]: { primary: '#1ABC9C', glow: '#D1F2EB', size: 6 },
+  [TowerType.BulbShooter]: { primary: '#27AE60', glow: '#D5F5E3', size: 7 },
+  [TowerType.Sporecap]: { primary: '#8E44AD', glow: '#D7BDE2', size: 10 },
 };
 
 const MAX_TRAIL_POINTS = 20;
@@ -43,7 +43,7 @@ export function getProjectileRenderData(
   projectile: Projectile,
   previousPosition?: Vec2
 ): ProjectileRenderData {
-  const colors = TOWER_COLORS[projectile.towerType] || TOWER_COLORS[TowerType.PuffballFungus];
+  const colors = TOWER_COLORS[projectile.towerType] || TOWER_COLORS[TowerType.Puffball];
   const stats = TOWER_STATS[projectile.towerType];
 
   return {

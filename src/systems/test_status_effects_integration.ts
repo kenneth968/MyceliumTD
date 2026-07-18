@@ -45,7 +45,7 @@ test('GameRunner should track enemy status effects through update', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.OrchidTrap, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -72,7 +72,7 @@ test('GameRunner should handle stun blocking enemy movement', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.OrchidTrap, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -105,7 +105,7 @@ test('Poison damage should accumulate over time in GameRunner', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.StinkhornLine, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.BulbShooter, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.startWave(0);
@@ -148,9 +148,9 @@ test('Status effects should not persist after enemy death', () => {
 console.log('\n--- Upgrade System + Special Effects Integration ---');
 
 test('Special upgrade should modify hit effects for Orchid slow', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.OrchidTrap, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Slimefungus, TargetingMode.First);
   
-  const effectsBefore = getHitEffectsForTowerType(TowerType.OrchidTrap, 2);
+  const effectsBefore = getHitEffectsForTowerType(TowerType.Slimefungus, 2);
   const slowEffectBefore = effectsBefore.find(e => e.type === 'slow');
   assert(slowEffectBefore !== undefined, 'Should have slow effect');
   assert(slowEffectBefore!.strength === 0.5, 'Default slow strength should be 0.5');
@@ -160,14 +160,14 @@ test('Special upgrade should modify hit effects for Orchid slow', () => {
   const info = getSpecialEffectInfo(tower);
   assert(info !== null, 'Should have special effect info after upgrade');
   
-  const effectsAfter = getHitEffectsForTowerType(TowerType.OrchidTrap, 2, info.effectStrength, info.effectDuration);
+  const effectsAfter = getHitEffectsForTowerType(TowerType.Slimefungus, 2, info.effectStrength, info.effectDuration);
   const slowEffectAfter = effectsAfter.find(e => e.type === 'slow');
   assert(slowEffectAfter !== undefined, 'Should have slow effect after upgrade');
   assert(slowEffectAfter!.strength > 0.5, 'Upgraded slow strength should be higher');
 });
 
 test('Special upgrade should modify hit effects for Stinkhorn poison', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.StinkhornLine, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.BulbShooter, TargetingMode.First);
   
   const infoBefore = getSpecialEffectInfo(tower);
   
@@ -180,7 +180,7 @@ test('Special upgrade should modify hit effects for Stinkhorn poison', () => {
 });
 
 test('Special upgrade tier 3 should have maximum effect values', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.OrchidTrap, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Slimefungus, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   applyUpgrade(tower, UpgradePath.Special);
@@ -192,27 +192,27 @@ test('Special upgrade tier 3 should have maximum effect values', () => {
 });
 
 test('Venus flytower special effect should be instakill', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.VenusFlytower, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.ThornSniper, TargetingMode.First);
   
   applyUpgrade(tower, UpgradePath.Special);
   
-  const effects = getHitEffectsForTowerType(TowerType.VenusFlytower, 100);
+  const effects = getHitEffectsForTowerType(TowerType.ThornSniper, 100);
   const instakillEffect = effects.find(e => e.type === 'instakill');
   assert(instakillEffect !== undefined, 'Venus should have instakill effect');
 });
 
-test('BioluminescentShroom reveal_camo special effect', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.BioluminescentShroom, TargetingMode.First);
+test('LumenOracle reveal_camo special effect', () => {
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.LumenOracle, TargetingMode.First);
   
-  const effects = getHitEffectsForTowerType(TowerType.BioluminescentShroom, 1);
+  const effects = getHitEffectsForTowerType(TowerType.LumenOracle, 1);
   const camoEffect = effects.find(e => e.type === 'reveal_camo');
   assert(camoEffect !== undefined, 'Should have reveal_camo effect');
 });
 
-test('PuffballFungus area_damage special effect with upgraded radius', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+test('Puffball area_damage special effect with upgraded radius', () => {
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.First);
   
-  const effects = getHitEffectsForTowerType(TowerType.PuffballFungus, 1);
+  const effects = getHitEffectsForTowerType(TowerType.Puffball, 1);
   const areaEffect = effects.find(e => e.type === 'area_damage');
   assert(areaEffect !== undefined, 'Puffball should have area_damage effect');
 });
@@ -257,7 +257,7 @@ test('Round bonus should apply between waves with status effects active', () => 
 console.log('\n--- Tower Targeting + Status Effects ---');
 
 test('Tower should still target enemies affected by status effects', () => {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.OrchidTrap, TargetingMode.First);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Slimefungus, TargetingMode.First);
   
   const enemies: Enemy[] = [];
   for (let i = 0; i < 3; i++) {
@@ -486,7 +486,7 @@ test('Game should track status effect kills properly', () => {
   const game = createGameRunner({ startingMoney: 650, startingLives: 20 });
   game.start();
   
-  const tower = game.placeTower(TowerType.StinkhornLine, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.BulbShooter, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const initialMoney = game.getEconomy().getMoney();

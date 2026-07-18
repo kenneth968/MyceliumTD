@@ -126,7 +126,7 @@ function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
     return true;
   }
 
-  if (tower.towerType === 'bioluminescent_shroom' || tower.specialEffect === 'reveal_camo') {
+  if (tower.towerType === 'lumen_oracle' || tower.specialEffect === 'reveal_camo') {
     return true;
   }
 

@@ -35,15 +35,15 @@ assertEqual(stats.enemies, 0, 'Should have 0 enemies');
 game.start();
 assert(game.getState() === GameState.Playing, 'After start, state should be Playing');
 
-const canPlace = game.canPlaceTower(TowerType.PuffballFungus, 100, 100);
+const canPlace = game.canPlaceTower(TowerType.Puffball, 100, 100);
 assert(canPlace.canPlace === true, 'Should be able to place Puffball Fungus');
 
-const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
 assert(tower !== null, 'Should be able to place tower');
 assertEqual(game.getPlacedTowers().length, 1, 'Should have 1 placed tower');
 
 const newStats = game.getGameStats();
-assertEqual(newStats.money, 550, 'Should have 550 money after placing Puffball (cost 100)');
+assertEqual(newStats.money, 470, 'Should have 470 money after placing Puffball (cost 180)');
 assertEqual(newStats.towers, 1, 'Should have 1 tower');
 
 const upgradeInfo = game.getTowerUpgradeInfo(tower!.id);
@@ -115,7 +115,7 @@ assert(
 
 const metalCounterGame = createGameRunner({ startingMoney: 5000 });
 metalCounterGame.start();
-const nonExplosiveTower = metalCounterGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+const nonExplosiveTower = metalCounterGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 assert(nonExplosiveTower !== null, 'Should place non-explosive metal counter test tower');
 const metalTarget = createEnemy(901, EnemyType.ArmoredBeetle, metalCounterGame.getPath());
 metalTarget.pathDistance = 1520;
@@ -134,7 +134,7 @@ assertEqual(
 
 const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
 metalExplosiveGame.start();
-const explosiveTower = metalExplosiveGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const explosiveTower = metalExplosiveGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(explosiveTower !== null, 'Should place explosive metal counter test tower');
 const explosiveTarget = createEnemy(902, EnemyType.ArmoredBeetle, metalExplosiveGame.getPath());
 explosiveTarget.pathDistance = 1540;
@@ -152,7 +152,7 @@ assert(
 
 const traitDisruptionGame = createGameRunner({ startingMoney: 5000 });
 traitDisruptionGame.start();
-const disruptingTower = traitDisruptionGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+const disruptingTower = traitDisruptionGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(disruptingTower !== null, 'Should place Orchid trait disruption tower');
 const disruptingUpgrade = traitDisruptionGame.upgradeTower(disruptingTower!.id, UpgradePath.Special);
 assert(
@@ -181,7 +181,7 @@ assert(
 
 const plainOrchidGame = createGameRunner({ startingMoney: 5000 });
 plainOrchidGame.start();
-const plainOrchid = plainOrchidGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+const plainOrchid = plainOrchidGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(plainOrchid !== null, 'Should place ordinary Orchid metal regression tower');
 const plainOrchidMetalTarget = createEnemy(913, EnemyType.ArmoredBeetle, plainOrchidGame.getPath());
 plainOrchidMetalTarget.pathDistance = 1520;
@@ -200,7 +200,7 @@ assertEqual(
 
 const shieldedHitGame = createGameRunner({ startingMoney: 5000 });
 shieldedHitGame.start();
-const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(shieldBreakerTower !== null, 'Should place shielded enemy test tower');
 const shieldedTarget = createEnemy(903, EnemyType.RainbowStag, shieldedHitGame.getPath());
 shieldedTarget.pathDistance = 1540;
@@ -279,7 +279,7 @@ swarmProjectileFreshnessGame.getActiveProjectiles().push({
   targetId: movingOutOfPack.id,
   speed: 10000,
   damage: 10,
-  towerType: TowerType.StinkhornLine,
+  towerType: TowerType.BulbShooter,
   alive: true,
 });
 swarmProjectileFreshnessGame.update(1000);
@@ -324,7 +324,7 @@ assertEqual(
 
 const markApplicationGame = createGameRunner({ startingMoney: 5000 });
 markApplicationGame.start();
-const markingTower = markApplicationGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const markingTower = markApplicationGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
 const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
 assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
@@ -350,7 +350,7 @@ assert(
 
 const executeMarkedGame = createGameRunner({ startingMoney: 5000 });
 executeMarkedGame.start();
-const executeTower = executeMarkedGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+const executeTower = executeMarkedGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(executeTower !== null, 'Should place Venus execute placeholder tower');
 const executeUpgrade = executeMarkedGame.upgradeTower(executeTower!.id, UpgradePath.Special);
 assert(executeUpgrade.success === true, 'Connected Venus should buy Special execute upgrade');
@@ -369,7 +369,7 @@ executeMarkedGame.getActiveProjectiles().push({
   sourceTowerId: executeTower!.id,
   speed: 0,
   damage: executeTower!.damage,
-  towerType: TowerType.VenusFlytower,
+  towerType: TowerType.ThornSniper,
   alive: true,
 });
 const moneyBeforeExecute = executeMarkedGame.getEconomy().getMoney();
@@ -387,7 +387,7 @@ assertEqual(
 
 const shieldedExecuteGame = createGameRunner({ startingMoney: 5000 });
 shieldedExecuteGame.start();
-const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(shieldExecuteTower !== null, 'Should place Venus shield execute tower');
 const shieldExecuteUpgrade = shieldedExecuteGame.upgradeTower(shieldExecuteTower!.id, UpgradePath.Special);
 assert(shieldExecuteUpgrade.success === true, 'Connected Venus should buy Special shield execute upgrade');
@@ -406,7 +406,7 @@ shieldedExecuteGame.getActiveProjectiles().push({
   sourceTowerId: shieldExecuteTower!.id,
   speed: 0,
   damage: shieldExecuteTower!.damage,
-  towerType: TowerType.VenusFlytower,
+  towerType: TowerType.ThornSniper,
   alive: true,
 });
 shieldedExecuteGame.update(0);
@@ -440,9 +440,9 @@ const game2 = createGameRunner({ startingMoney: 1000, startingLives: 30 });
 assertEqual(game2.getGameStats().money, 1000, 'Should start with custom money');
 assertEqual(game2.getGameStats().lives, 30, 'Should start with custom lives');
 
-const placed = game2.placeTower(TowerType.VenusFlytower, 200, 200);
-assert(placed !== null, 'Should place Venus Flytower (cost 500)');
-assertEqual(game2.getGameStats().money, 500, 'Should have 500 money left');
+const placed = game2.placeTower(TowerType.ThornSniper, 200, 200);
+assert(placed !== null, 'Should place Thorn Sniper (cost 320)');
+assertEqual(game2.getGameStats().money, 680, 'Should have 680 money left');
 
 const sellValue = game2.sellTower(placed!.id);
 assert(sellValue > 0, 'Should get sell value');

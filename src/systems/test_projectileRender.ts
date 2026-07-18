@@ -46,7 +46,7 @@ function createTestProjectile(overrides: Partial<Projectile> = {}): Projectile {
     targetId: 1,
     speed: 200,
     damage: 1,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
     ...overrides,
   };
@@ -63,7 +63,7 @@ assertEqual(getProjectileRenderData(createTestProjectile()).color, '#9B59B6', 'P
 assertEqual(getProjectileRenderData(createTestProjectile()).glowColor, '#E8DAEF', 'Puffball glow should be #E8DAEF');
 assertEqual(getProjectileRenderData(createTestProjectile()).size, 8, 'Puffball size should be 8');
 assertEqual(getProjectileRenderData(createTestProjectile()).opacity, 1.0, 'opacity should be 1.0');
-assertEqual(getProjectileRenderData(createTestProjectile()).towerType, TowerType.PuffballFungus, 'towerType should be PuffballFungus');
+assertEqual(getProjectileRenderData(createTestProjectile()).towerType, TowerType.Puffball, 'towerType should be Puffball');
 assertEqual(getProjectileRenderData(createTestProjectile()).hasTrail, true, 'hasTrail should be true');
 assert(Array.isArray(getProjectileRenderData(createTestProjectile()).trailPoints), 'trailPoints should be array');
 
@@ -71,8 +71,8 @@ const prevPos = createVec2(90, 95);
 assertEqual(getProjectileRenderData(createTestProjectile(), prevPos).previousPosition, { x: 90, y: 95 }, 'previousPosition should be set when provided');
 assertEqual(getProjectileRenderData(createTestProjectile()).previousPosition, { x: 100, y: 100 }, 'previousPosition defaults to current position');
 
-const projectile1 = createTestProjectile({ towerType: TowerType.VenusFlytower });
-const projectile2 = createTestProjectile({ towerType: TowerType.BioluminescentShroom });
+const projectile1 = createTestProjectile({ towerType: TowerType.ThornSniper });
+const projectile2 = createTestProjectile({ towerType: TowerType.LumenOracle });
 assertEqual(getProjectileRenderData(projectile1).size, 12, 'Venus size should be 12');
 assertEqual(getProjectileRenderData(projectile2).size, 6, 'Biolum size should be 6');
 console.log('  ProjectileRenderData tests passed');
@@ -85,11 +85,11 @@ assertEqual(createTrailPoint(createVec2(50, 50), 1000).opacity, 1.0, 'default op
 console.log('  TrailPoint tests passed');
 
 console.log('  TrailColor tests...');
-assertEqual(getTrailColor(TowerType.PuffballFungus), '#E8DAEF', 'Puffball glow color');
-assertEqual(getTrailColor(TowerType.OrchidTrap), '#D4E6F1', 'Orchid glow color');
-assertEqual(getTrailColor(TowerType.VenusFlytower), '#FADBD8', 'Venus glow color');
-assertEqual(getTrailColor(TowerType.BioluminescentShroom), '#D1F2EB', 'Biolum glow color');
-assertEqual(getTrailColor(TowerType.StinkhornLine), '#D5F5E3', 'Stinkhorn glow color');
+assertEqual(getTrailColor(TowerType.Puffball), '#E8DAEF', 'Puffball glow color');
+assertEqual(getTrailColor(TowerType.Slimefungus), '#D4E6F1', 'Orchid glow color');
+assertEqual(getTrailColor(TowerType.ThornSniper), '#FADBD8', 'Venus glow color');
+assertEqual(getTrailColor(TowerType.LumenOracle), '#D1F2EB', 'Biolum glow color');
+assertEqual(getTrailColor(TowerType.BulbShooter), '#D5F5E3', 'Stinkhorn glow color');
 console.log('  TrailColor tests passed');
 
 console.log('  TrailOpacity tests...');
@@ -167,7 +167,7 @@ const trail: TrailPoint[] = [
   createTrailPoint(createVec2(10, 10), 1010, 0.8),
   createTrailPoint(createVec2(20, 20), 1020, 0.6),
 ];
-let segments = getTrailSegments(TowerType.PuffballFungus, trail);
+let segments = getTrailSegments(TowerType.Puffball, trail);
 assertEqual(segments.length, 2, 'creates correct number of segments');
 assertEqual(segments[0].start, { x: 0, y: 0 }, 'segment 1 start correct');
 assertEqual(segments[0].end, { x: 10, y: 10 }, 'segment 1 end correct');
@@ -178,10 +178,10 @@ const trail2: TrailPoint[] = [
   createTrailPoint(createVec2(0, 0), 1000, 1.0),
   createTrailPoint(createVec2(10, 10), 1010, 0.6),
 ];
-segments = getTrailSegments(TowerType.OrchidTrap, trail2);
+segments = getTrailSegments(TowerType.Slimefungus, trail2);
 assertEqual(segments[0].opacity, 0.8, 'segment opacity averaged');
 
-segments = getTrailSegments(TowerType.StinkhornLine, [createTrailPoint(createVec2(0, 0), 1000, 1.0)]);
+segments = getTrailSegments(TowerType.BulbShooter, [createTrailPoint(createVec2(0, 0), 1000, 1.0)]);
 assertEqual(segments.length, 0, 'single point produces no segments');
 console.log('  getTrailSegments tests passed');
 

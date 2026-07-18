@@ -58,7 +58,7 @@ function getLivesMoneyDisplayRenderDataTests() {
   assertEqual(data.money.currentMoney, 650, 'initial money should be 650');
   
   game.start();
-  game.placeTower(TowerType.PuffballFungus, 200, 200);
+  game.placeTower(TowerType.Puffball, 200, 200);
   
   data = game.getLivesMoneyDisplayRenderData();
   assert(data.money.currentMoney < 650, 'money should decrease after purchase');
@@ -103,7 +103,7 @@ function resetBehaviorTests() {
   console.log('Test: reset behavior');
   const game = createGameRunner();
   game.start();
-  game.placeTower(TowerType.PuffballFungus, 200, 200);
+  game.placeTower(TowerType.Puffball, 200, 200);
   
   game.reset();
   

@@ -51,7 +51,7 @@ function createMockEnemy(id: number, x: number, y: number, hp: number = 100): En
 
 let mockProjectileId = 1;
 
-function createMockProjectile(x: number, y: number, targetId: number, towerType: TowerType = TowerType.PuffballFungus): Projectile {
+function createMockProjectile(x: number, y: number, targetId: number, towerType: TowerType = TowerType.Puffball): Projectile {
   return {
     id: mockProjectileId++,
     position: { x, y },
@@ -131,7 +131,7 @@ console.log('  Testing Hit Resolution...');
 
 test('resolveHit returns damage effect for basic hit', () => {
   const enemy = createMockEnemy(1, 100, 100, 50);
-  const projectile = createMockProjectile(100, 100, 1, TowerType.PuffballFungus);
+  const projectile = createMockProjectile(100, 100, 1, TowerType.Puffball);
   projectile.damage = 10;
   const result = resolveHit(projectile, enemy, 16);
   assertTrue(result.hit === true, 'Should register hit');
@@ -140,27 +140,27 @@ test('resolveHit returns damage effect for basic hit', () => {
   assertTrue(result.effects.length > 0, 'Should have effects');
 });
 
-test('resolveHit includes slow effect for OrchidTrap', () => {
+test('resolveHit includes slow effect for Slimefungus', () => {
   const enemy = createMockEnemy(1, 100, 100);
-  const projectile = createMockProjectile(100, 100, 1, TowerType.OrchidTrap);
+  const projectile = createMockProjectile(100, 100, 1, TowerType.Slimefungus);
   const result = resolveHit(projectile, enemy, 16);
   const slowEffect = result.effects.find((e: HitEffect) => e.type === 'slow');
   assertTrue(slowEffect !== undefined, 'Should have slow effect');
   assertTrue(slowEffect!.strength === 0.5, 'Should have correct slow strength');
 });
 
-test('resolveHit includes poison effect for StinkhornLine', () => {
+test('resolveHit includes area damage effect for BulbShooter', () => {
   const enemy = createMockEnemy(1, 100, 100);
-  const projectile = createMockProjectile(100, 100, 1, TowerType.StinkhornLine);
+  const projectile = createMockProjectile(100, 100, 1, TowerType.BulbShooter);
   projectile.damage = 5;
   const result = resolveHit(projectile, enemy, 16);
-  const poisonEffect = result.effects.find((e: HitEffect) => e.type === 'poison');
-  assertTrue(poisonEffect !== undefined, 'Should have poison effect');
+  const areaDamageEffect = result.effects.find((e: HitEffect) => e.type === 'area_damage');
+  assertTrue(areaDamageEffect !== undefined, 'Should have area damage effect');
 });
 
-test('resolveHit VenusFlytower has damage effect', () => {
+test('resolveHit ThornSniper has damage effect', () => {
   const enemy = createMockEnemy(1, 100, 100, 200);
-  const projectile = createMockProjectile(100, 100, 1, TowerType.VenusFlytower);
+  const projectile = createMockProjectile(100, 100, 1, TowerType.ThornSniper);
   projectile.damage = 100;
   const result = resolveHit(projectile, enemy, 16);
   const damageEffect = result.effects.find((e: HitEffect) => e.type === 'damage');
@@ -203,7 +203,7 @@ test('ordinary towers ignore unrevealed camo enemies', () => {
     position: { x: 0, y: 300 },
     range: 200,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
   const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
@@ -227,7 +227,7 @@ test('Bioluminescent towers natively target camo enemies', () => {
     position: { x: 0, y: 300 },
     range: 200,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.BioluminescentShroom,
+    towerType: TowerType.LumenOracle,
     specialEffect: 'reveal_camo',
   };
   const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
@@ -247,7 +247,7 @@ test('reveal_camo hit effect makes camo enemies targetable until it expires', ()
     position: { x: 0, y: 300 },
     range: 200,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
   const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
@@ -276,7 +276,7 @@ test('trait disruption makes camo enemies targetable until it expires', () => {
     position: { x: 0, y: 300 },
     range: 200,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     specialEffect: 'area_damage',
   };
   const camoEnemy = createEnemy(1, EnemyType.WhiteMoth, path);
@@ -303,7 +303,7 @@ test('execute towers prioritize visible marked enemies', () => {
     position: { x: 0, y: 300 },
     range: 240,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.VenusFlytower,
+    towerType: TowerType.ThornSniper,
     specialEffect: 'instakill',
   };
   const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
@@ -328,7 +328,7 @@ test('execute towers ignore expired mark effects while targeting', () => {
     position: { x: 0, y: 300 },
     range: 240,
     targetingMode: TargetingMode.First,
-    towerType: TowerType.VenusFlytower,
+    towerType: TowerType.ThornSniper,
     specialEffect: 'instakill',
   };
   const unmarkedAhead = createEnemy(1, EnemyType.RedMushroom, path);
@@ -346,20 +346,20 @@ test('execute towers ignore expired mark effects while targeting', () => {
   assertEqual(result.target?.id, unmarkedAhead.id, 'Execute tower should ignore expired marks and use normal targeting');
 });
 
-test('getHitEffectsForTowerType returns correct effects for PuffballFungus', () => {
-  const effects = getHitEffectsForTowerType(TowerType.PuffballFungus, 10);
+test('getHitEffectsForTowerType returns correct effects for Puffball', () => {
+  const effects = getHitEffectsForTowerType(TowerType.Puffball, 10);
   assertTrue(effects.some((e: HitEffect) => e.type === 'damage'), 'Should have damage');
   assertTrue(effects.some((e: HitEffect) => e.type === 'area_damage'), 'Should have area damage');
 });
 
-test('getHitEffectsForTowerType returns correct effects for OrchidTrap', () => {
-  const effects = getHitEffectsForTowerType(TowerType.OrchidTrap, 10);
+test('getHitEffectsForTowerType returns correct effects for Slimefungus', () => {
+  const effects = getHitEffectsForTowerType(TowerType.Slimefungus, 10);
   assertTrue(effects.some((e: HitEffect) => e.type === 'slow'), 'Should have slow');
 });
 
-test('getHitEffectsForTowerType returns correct effects for StinkhornLine', () => {
-  const effects = getHitEffectsForTowerType(TowerType.StinkhornLine, 10);
-  assertTrue(effects.some((e: HitEffect) => e.type === 'poison'), 'Should have poison');
+test('getHitEffectsForTowerType returns correct effects for BulbShooter', () => {
+  const effects = getHitEffectsForTowerType(TowerType.BulbShooter, 10);
+  assertTrue(effects.some((e: HitEffect) => e.type === 'area_damage'), 'Should have area damage');
 });
 
 console.log('  Testing Area Damage...');
@@ -432,10 +432,10 @@ test('processProjectileCollision handles normal hit', () => {
   assertTrue(result.collision.target === enemy, 'Should have target');
 });
 
-test('processProjectileCollision handles area damage for PuffballFungus', () => {
+test('processProjectileCollision handles area damage for Puffball', () => {
   const enemy1 = createMockEnemy(1, 100, 100);
   const enemy2 = createMockEnemy(2, 110, 110);
-  const projectile = createMockProjectile(100, 100, 1, TowerType.PuffballFungus);
+  const projectile = createMockProjectile(100, 100, 1, TowerType.Puffball);
   const result = processProjectileCollision(projectile, [enemy1, enemy2], 16);
   assertTrue(result.collision.hit === true, 'Should register hit');
   assertTrue(result.areaDamage !== undefined, 'Should have area damage result');
@@ -463,8 +463,8 @@ test('isProjectileInBounds returns false for projectile outside bounds', () => {
 });
 
 test('getProjectilesNeedingCleanup returns dead projectiles', () => {
-  const alive: Projectile = { id: 100, position: { x: 100, y: 100 }, targetId: 1, speed: 200, damage: 10, towerType: TowerType.PuffballFungus, alive: true };
-  const dead: Projectile = { id: 200, position: { x: 200, y: 200 }, targetId: 2, speed: 200, damage: 10, towerType: TowerType.PuffballFungus, alive: false };
+  const alive: Projectile = { id: 100, position: { x: 100, y: 100 }, targetId: 1, speed: 200, damage: 10, towerType: TowerType.Puffball, alive: true };
+  const dead: Projectile = { id: 200, position: { x: 200, y: 200 }, targetId: 2, speed: 200, damage: 10, towerType: TowerType.Puffball, alive: false };
   const result = getProjectilesNeedingCleanup([alive, dead]);
   assertTrue(result.length === 1, 'Should return 1 projectile');
   assertTrue(result[0].id === 200, 'Should return dead projectile');

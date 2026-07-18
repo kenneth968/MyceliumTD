@@ -81,7 +81,7 @@ export function resolveHit(
   let totalDamage = projectile.damage;
   let appliedDamage = projectile.damage;
 
-  if (projectile.towerType === TowerType.StinkhornLine) {
+  if (projectile.towerType === TowerType.BulbShooter) {
     const existingPoison = target.statusEffects.find(
       e => e.type === StatusEffectType.Poison
     );
@@ -231,7 +231,7 @@ export function processProjectileCollision(
   const collision = resolveHit(projectile, target, deltaTime);
 
   let areaDamage: AreaDamageResult | undefined;
-  if (projectile.towerType === TowerType.PuffballFungus) {
+  if (projectile.towerType === TowerType.Puffball) {
     areaDamage = calculateAreaDamage(projectile.position, enemies, projectile.damage, projectile.areaRadius);
   }
 
@@ -268,7 +268,7 @@ export function updateProjectileCollision(
     projectile.position = { ...target.position };
     projectile.alive = false;
     const collision = resolveHit(projectile, target, deltaTime);
-    if (projectile.towerType === TowerType.PuffballFungus) {
+    if (projectile.towerType === TowerType.Puffball) {
       calculateAreaDamage(projectile.position, enemies, projectile.damage, projectile.areaRadius);
     }
     return collision;

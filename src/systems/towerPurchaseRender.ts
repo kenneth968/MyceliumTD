@@ -27,39 +27,21 @@ export interface TowerPurchasePanel {
 }
 
 const TOWER_COLORS: Record<TowerType, { primary: string; secondary: string }> = {
-  [TowerType.PuffballFungus]: { primary: '#98D8AA', secondary: '#5DAA7A' },
-  [TowerType.OrchidTrap]: { primary: '#DDA0DD', secondary: '#BA55D3' },
-  [TowerType.VenusFlytower]: { primary: '#90EE90', secondary: '#32CD32' },
-  [TowerType.BioluminescentShroom]: { primary: '#87CEEB', secondary: '#4169E1' },
-  [TowerType.StinkhornLine]: { primary: '#DEB887', secondary: '#D2691E' },
-  [TowerType.MyceliumNetwork]: { primary: '#9B59B6', secondary: '#8E44AD' },
-};
-
-const TOWER_DESCRIPTIONS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Area damage, hits multiple enemies',
-  [TowerType.OrchidTrap]: 'Slows enemies, great for control',
-  [TowerType.VenusFlytower]: 'Instakill low-HP enemies',
-  [TowerType.BioluminescentShroom]: 'Reveals camo enemies',
-  [TowerType.StinkhornLine]: 'Poisons enemies over time',
-  [TowerType.MyceliumNetwork]: 'Buffs nearby towers with mycelium network',
-};
-
-const TOWER_LABELS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Puffball',
-  [TowerType.OrchidTrap]: 'Orchid',
-  [TowerType.VenusFlytower]: 'Venus',
-  [TowerType.BioluminescentShroom]: 'BioLumi',
-  [TowerType.StinkhornLine]: 'Stinkhorn',
-  [TowerType.MyceliumNetwork]: 'Mycelium',
+  [TowerType.Puffball]: { primary: '#98D8AA', secondary: '#5DAA7A' },
+  [TowerType.Slimefungus]: { primary: '#DDA0DD', secondary: '#BA55D3' },
+  [TowerType.ThornSniper]: { primary: '#90EE90', secondary: '#32CD32' },
+  [TowerType.LumenOracle]: { primary: '#87CEEB', secondary: '#4169E1' },
+  [TowerType.BulbShooter]: { primary: '#DEB887', secondary: '#D2691E' },
+  [TowerType.Sporecap]: { primary: '#9B59B6', secondary: '#8E44AD' },
 };
 
 const HOTKEYS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: '1',
-  [TowerType.OrchidTrap]: '2',
-  [TowerType.VenusFlytower]: '3',
-  [TowerType.BioluminescentShroom]: '4',
-  [TowerType.StinkhornLine]: '5',
-  [TowerType.MyceliumNetwork]: '6',
+  [TowerType.Puffball]: '1',
+  [TowerType.Slimefungus]: '2',
+  [TowerType.ThornSniper]: '3',
+  [TowerType.LumenOracle]: '4',
+  [TowerType.BulbShooter]: '5',
+  [TowerType.Sporecap]: '6',
 };
 
 export interface TowerPurchaseLayoutConfig {
@@ -95,8 +77,8 @@ export function getTowerPurchaseButton(
     canAfford,
     isSelected,
     hotkey: HOTKEYS[towerType],
-    label: TOWER_LABELS[towerType],
-    description: TOWER_DESCRIPTIONS[towerType],
+    label: TOWER_STATS[towerType].displayName,
+    description: TOWER_STATS[towerType].description,
   };
 }
 
@@ -106,11 +88,12 @@ export function getTowerPurchaseButtons(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): TowerPurchaseButton[] {
   const towerTypes = [
-    TowerType.PuffballFungus,
-    TowerType.OrchidTrap,
-    TowerType.VenusFlytower,
-    TowerType.BioluminescentShroom,
-    TowerType.StinkhornLine,
+    TowerType.Puffball,
+    TowerType.Slimefungus,
+    TowerType.ThornSniper,
+    TowerType.LumenOracle,
+    TowerType.BulbShooter,
+    TowerType.Sporecap,
   ];
 
   const totalWidth = towerTypes.length * config.buttonWidth + (towerTypes.length - 1) * config.buttonSpacing;
@@ -172,7 +155,7 @@ export function getTowerPurchasePanelSize(
 export function getTowerPurchasePanelPosition(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): Vec2 {
-  const size = getTowerPurchasePanelSize(5, config);
+  const size = getTowerPurchasePanelSize(6, config);
   return {
     x: config.anchorX - size.width / 2,
     y: config.anchorY - config.panelPadding,
@@ -203,7 +186,7 @@ export function isTowerPurchasePanelAtPosition(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): boolean {
   const panelPos = getTowerPurchasePanelPosition(config);
-  const panelSize = getTowerPurchasePanelSize(5, config);
+  const panelSize = getTowerPurchasePanelSize(6, config);
 
   return (
     x >= panelPos.x &&
@@ -265,9 +248,9 @@ export function getTowerPurchaseButtonHotkey(towerType: TowerType): string {
 }
 
 export function getTowerPurchaseButtonLabel(towerType: TowerType): string {
-  return TOWER_LABELS[towerType] || towerType;
+  return TOWER_STATS[towerType].displayName;
 }
 
 export function getTowerPurchaseButtonDescription(towerType: TowerType): string {
-  return TOWER_DESCRIPTIONS[towerType] || '';
+  return TOWER_STATS[towerType].description;
 }

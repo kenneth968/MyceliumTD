@@ -29,7 +29,7 @@ export interface SpecialEffectUpgradeParams {
 }
 
 export const SPECIAL_EFFECT_UPGRADES: Record<TowerType, SpecialEffectUpgradeParams> = {
-  [TowerType.PuffballFungus]: {
+  [TowerType.Puffball]: {
     effectType: SpecialEffectType.AreaDamage,
     baseStrength: 0.5,
     strengthPerTier: [0, 0.1, 0.15, 0.2],
@@ -38,35 +38,35 @@ export const SPECIAL_EFFECT_UPGRADES: Record<TowerType, SpecialEffectUpgradePara
     baseAreaRadius: 40,
     areaRadiusPerTier: [0, 10, 20, 35],
   },
-  [TowerType.OrchidTrap]: {
+  [TowerType.Slimefungus]: {
     effectType: SpecialEffectType.Slow,
     baseStrength: 0.5,
     strengthPerTier: [0, 0.1, 0.15, 0.35],
     baseDuration: 1000,
     durationPerTier: [0, 500, 1000, 2000],
   },
-  [TowerType.VenusFlytower]: {
+  [TowerType.ThornSniper]: {
     effectType: SpecialEffectType.Instakill,
     baseStrength: 1.0,
     strengthPerTier: [0, 0.1, 0.25, 0.5],
     baseDuration: 0,
     durationPerTier: [0, 0, 0, 0],
   },
-  [TowerType.BioluminescentShroom]: {
+  [TowerType.LumenOracle]: {
     effectType: SpecialEffectType.RevealCamo,
     baseStrength: 1.0,
     strengthPerTier: [0, 0, 0, 0],
     baseDuration: 500,
     durationPerTier: [0, 500, 1500, 3000],
   },
-  [TowerType.StinkhornLine]: {
+  [TowerType.BulbShooter]: {
     effectType: SpecialEffectType.Poison,
     baseStrength: 0.5,
     strengthPerTier: [0, 0.2, 0.4, 0.7],
     baseDuration: 3000,
     durationPerTier: [0, 1000, 2000, 4000],
   },
-  [TowerType.MyceliumNetwork]: {
+  [TowerType.Sporecap]: {
     effectType: SpecialEffectType.NetworkBuff,
     baseStrength: 0.05,
     strengthPerTier: [0, 0.05, 0.10, 0.15],
@@ -241,7 +241,7 @@ export function createTowerWithUpgrades(
   id: number,
   x: number,
   y: number,
-  towerType: TowerType = TowerType.PuffballFungus,
+  towerType: TowerType = TowerType.Puffball,
   targetingMode: TargetingMode = TargetingMode.First
 ): TowerWithUpgrades {
   const effectParams = SPECIAL_EFFECT_UPGRADES[towerType];

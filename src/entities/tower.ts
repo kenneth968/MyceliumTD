@@ -3,82 +3,10 @@ import { Path } from '../systems/path';
 import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
 import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getMarkedAdjustedDamage, getTraitAdjustedDamage } from './enemy';
+import { TOWER_DEFINITIONS, TowerType } from '../content/towerDefinitions';
 
-export enum TowerType {
-  PuffballFungus = 'puffball_fungus',
-  OrchidTrap = 'orchid_trap',
-  VenusFlytower = 'venus_flytower',
-  BioluminescentShroom = 'bioluminescent_shroom',
-  StinkhornLine = 'stinkhorn_line',
-  MyceliumNetwork = 'mycelium_network',
-}
-
-export interface TowerStats {
-  type: TowerType;
-  damage: number;
-  range: number;
-  fireRate: number;
-  cost: number;
-  projectileSpeed?: number;
-  specialEffect?: string;
-}
-
-export const TOWER_STATS: Record<TowerType, TowerStats> = {
-  [TowerType.PuffballFungus]: {
-    type: TowerType.PuffballFungus,
-    damage: 1,
-    range: 80,
-    fireRate: 500,
-    cost: 100,
-    projectileSpeed: 200,
-    specialEffect: 'area_damage',
-  },
-  [TowerType.OrchidTrap]: {
-    type: TowerType.OrchidTrap,
-    damage: 2,
-    range: 100,
-    fireRate: 800,
-    cost: 150,
-    projectileSpeed: 150,
-    specialEffect: 'slow',
-  },
-  [TowerType.VenusFlytower]: {
-    type: TowerType.VenusFlytower,
-    damage: 100,
-    range: 50,
-    fireRate: 3000,
-    cost: 500,
-    projectileSpeed: 0,
-    specialEffect: 'instakill',
-  },
-  [TowerType.BioluminescentShroom]: {
-    type: TowerType.BioluminescentShroom,
-    damage: 1,
-    range: 120,
-    fireRate: 600,
-    cost: 200,
-    projectileSpeed: 180,
-    specialEffect: 'reveal_camo',
-  },
-  [TowerType.StinkhornLine]: {
-    type: TowerType.StinkhornLine,
-    damage: 3,
-    range: 90,
-    fireRate: 400,
-    cost: 250,
-    projectileSpeed: 120,
-    specialEffect: 'poison',
-  },
-  [TowerType.MyceliumNetwork]: {
-    type: TowerType.MyceliumNetwork,
-    damage: 0,
-    range: 100,
-    fireRate: 0,
-    cost: 350,
-    projectileSpeed: 0,
-    specialEffect: 'network_buff',
-  },
-};
+export { TowerDefinition as TowerStats, TowerType } from '../content/towerDefinitions';
+export const TOWER_STATS = TOWER_DEFINITIONS;
 
 export interface Projectile {
   id: number;
@@ -116,7 +44,7 @@ export function createTower(
   id: number,
   x: number,
   y: number,
-  towerType: TowerType = TowerType.PuffballFungus,
+  towerType: TowerType = TowerType.Sporecap,
   targetingMode: TargetingMode = TargetingMode.First
 ): Tower {
   const stats = TOWER_STATS[towerType];
@@ -271,7 +199,7 @@ export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions
 
 export function getTowerDamageType(towerType: TowerType): DamageType {
   switch (towerType) {
-    case TowerType.PuffballFungus:
+    case TowerType.Puffball:
       return DamageType.Explosive;
     default:
       return DamageType.Normal;

@@ -54,22 +54,13 @@ export interface TowerInfoPanelRenderData {
   scale: number;
 }
 
-const TOWER_NAMES: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Puffball Fungus',
-  [TowerType.OrchidTrap]: 'Orchid Trap',
-  [TowerType.VenusFlytower]: 'Venus Flytower',
-  [TowerType.BioluminescentShroom]: 'Bioluminescent Shroom',
-  [TowerType.StinkhornLine]: 'Stinkhorn Line',
-  [TowerType.MyceliumNetwork]: 'Mycelium Network',
-};
-
 const TOWER_ICONS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: '🌿',
-  [TowerType.OrchidTrap]: '🌸',
-  [TowerType.VenusFlytower]: '🌺',
-  [TowerType.BioluminescentShroom]: '✨',
-  [TowerType.StinkhornLine]: '📍',
-  [TowerType.MyceliumNetwork]: '🔮',
+  [TowerType.Puffball]: '🌿',
+  [TowerType.Slimefungus]: '🌸',
+  [TowerType.ThornSniper]: '🌺',
+  [TowerType.LumenOracle]: '✨',
+  [TowerType.BulbShooter]: '📍',
+  [TowerType.Sporecap]: '🔮',
 };
 
 const UPGRADE_PATH_INFO: Record<UpgradePath, { label: string; icon: string; shortLabel: string }> = {
@@ -122,7 +113,7 @@ export function getTowerInfoPanelRenderData(
       isVisible: false,
       towerId: 0,
       towerName: '',
-      towerType: TowerType.PuffballFungus,
+      towerType: TowerType.Puffball,
       position: { x: 0, y: 0 },
       size: { ...PANEL_SIZE },
       stats: [],
@@ -225,7 +216,7 @@ export function getTowerInfoPanelRenderData(
   return {
     isVisible: true,
     towerId: tower.id,
-    towerName: TOWER_NAMES[tower.towerType],
+    towerName: TOWER_STATS[tower.towerType].displayName,
     towerType: tower.towerType,
     position: panelPosition,
     size: { ...PANEL_SIZE },

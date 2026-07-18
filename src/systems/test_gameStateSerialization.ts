@@ -180,7 +180,7 @@ console.log('\nserializeProjectile:');
     targetId: 5,
     speed: 150,
     damage: 2,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -188,7 +188,7 @@ console.log('\nserializeProjectile:');
   assertEqual(serialized.id, 1, 'id is 1');
   assertEqual(serialized.position.x, 100, 'position.x is 100');
   assertEqual(serialized.targetId, 5, 'targetId is 5');
-  assertEqual(serialized.towerType, 'orchid_trap', 'towerType is orchid_trap');
+  assertEqual(serialized.towerType, 'slimefungus', 'towerType is slimefungus');
 }
 
 console.log('\nserializeProjectile with effect upgrades:');
@@ -199,7 +199,7 @@ console.log('\nserializeProjectile with effect upgrades:');
     targetId: 10,
     speed: 200,
     damage: 3,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
     effectStrength: 0.75,
     effectDuration: 500,
@@ -243,7 +243,7 @@ console.log('\nserializePlacedTower:');
       position: { x: 100, y: 200 },
       range: 80,
       targetingMode: TargetingMode.First,
-      towerType: TowerType.PuffballFungus,
+      towerType: TowerType.Puffball,
       damage: 1,
       fireRate: 500,
       fireTimer: 0,
@@ -277,7 +277,7 @@ console.log('\nserializePlacedTower:');
   };
   
   const serialized = serializePlacedTower(placedTower);
-  assertEqual(serialized.tower.towerType, 'puffball_fungus', 'towerType is puffball_fungus');
+  assertEqual(serialized.tower.towerType, 'puffball', 'towerType is puffball');
   assertEqual(serialized.tower.upgrades.damage, 1, 'upgrade damage is 1');
   assertEqual(serialized.x, 150, 'x is 150');
   assertEqual(serialized.y, 250, 'y is 250');
@@ -330,11 +330,11 @@ console.log('\nserializeGameState (full game state):');
 console.log('\nserializeGameState after placing towers:');
 {
   const game = createTestGame();
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.Puffball, 100, 100);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 placed tower');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'tower type is puffball_fungus');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'tower type is puffball');
 }
 
 console.log('\nserializeGameState with different game speeds:');
@@ -374,7 +374,7 @@ console.log('\ngetSerializedGameStateSize with towers:');
   
   const sizeBefore = getSerializedGameStateSize(game);
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.Puffball, 100, 100);
   
   const sizeAfter = getSerializedGameStateSize(game);
   assertGreaterThan(sizeAfter, sizeBefore, 'size increased after adding tower');
@@ -421,15 +421,15 @@ console.log('\nserialize game with multiple towers:');
   const game = createTestGame();
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
-  game.placeTower(TowerType.OrchidTrap, 200, 200);
-  game.placeTower(TowerType.VenusFlytower, 300, 300);
+  game.placeTower(TowerType.Puffball, 100, 100);
+  game.placeTower(TowerType.Slimefungus, 200, 200);
+  game.placeTower(TowerType.ThornSniper, 300, 300);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 3, 'has 3 towers');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'first is puffball');
-  assertEqual(serialized.placedTowers[1].tower.towerType, 'orchid_trap', 'second is orchid');
-  assertEqual(serialized.placedTowers[2].tower.towerType, 'venus_flytower', 'third is venus');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'first is puffball');
+  assertEqual(serialized.placedTowers[1].tower.towerType, 'slimefungus', 'second is orchid');
+  assertEqual(serialized.placedTowers[2].tower.towerType, 'thorn_sniper', 'third is venus');
 }
 
 console.log('\nserialize game with tower (upgrade may not apply in test context):');
@@ -437,11 +437,11 @@ console.log('\nserialize game with tower (upgrade may not apply in test context)
   const game = createTestGame();
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 150, 150);
+  game.placeTower(TowerType.Puffball, 150, 150);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 tower');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'tower type is puffball');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'tower type is puffball');
   assertEqual(typeof serialized.placedTowers[0].tower.upgrades.damage, 'number', 'damage upgrade is a number');
 }
 

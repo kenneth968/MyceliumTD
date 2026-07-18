@@ -17,19 +17,19 @@ function assertEqual(actual: any, expected: any, message: string) {
   }
 }
 
-console.log('Testing MyceliumNetwork...');
+console.log('Testing Sporecap...');
 
 const game = createGameRunner({ startingMoney: 5000 });
 game.start();
 
-const mycelium = game.placeTower(TowerType.MyceliumNetwork, 200, 200, TargetingMode.First);
-assert(mycelium !== null, 'Should place MyceliumNetwork tower');
-assertEqual(mycelium!.towerType, TowerType.MyceliumNetwork, 'Tower type should be MyceliumNetwork');
-assertEqual(mycelium!.damage, 0, 'MyceliumNetwork should have 0 damage');
-assertEqual(mycelium!.fireRate, 0, 'MyceliumNetwork should have 0 fire rate');
-assertEqual(mycelium!.specialEffect, 'network_buff', 'MyceliumNetwork should have network_buff effect');
+const mycelium = game.placeTower(TowerType.Sporecap, 200, 200, TargetingMode.First);
+assert(mycelium !== null, 'Should place Sporecap tower');
+assertEqual(mycelium!.towerType, TowerType.Sporecap, 'Tower type should be Sporecap');
+assertEqual(mycelium!.damage, 1, 'Sporecap should have 1 damage');
+assertEqual(mycelium!.fireRate, 550, 'Sporecap should have a 550ms fire rate');
+assertEqual(mycelium!.specialEffect, 'none', 'Sporecap should have the canonical none effect');
 
-const puffball = game.placeTower(TowerType.PuffballFungus, 200, 280, TargetingMode.First);
+const puffball = game.placeTower(TowerType.Puffball, 200, 280, TargetingMode.First);
 assert(puffball !== null, 'Should place Puffball tower within range');
 
 const buffedTowers = game.getNetworkBuffedTowers();
@@ -44,12 +44,12 @@ assert(buffInfo !== null, 'Buff info should not be null');
 assert(buffInfo!.buffStrength > 0, 'Buff strength should be positive');
 assertEqual(buffInfo!.sources, 1, 'Should have 1 mycelium source');
 
-const farPuffball = game.placeTower(TowerType.PuffballFungus, 600, 600, TargetingMode.First);
+const farPuffball = game.placeTower(TowerType.Puffball, 600, 600, TargetingMode.First);
 assert(farPuffball !== null, 'Should place Puffball far away');
 assertEqual(game.isTowerNetworkBuffed(farPuffball!.id), false, 'Far Puffball should not be buffed');
 
-const secondMycelium = game.placeTower(TowerType.MyceliumNetwork, 230, 280, TargetingMode.First);
-assert(secondMycelium !== null, 'Should place second MyceliumNetwork');
+const secondMycelium = game.placeTower(TowerType.Sporecap, 230, 280, TargetingMode.First);
+assert(secondMycelium !== null, 'Should place second Sporecap');
 
 const doubleBuffed = game.getNetworkBuffedTowers();
 const puffballBuff = doubleBuffed.find(b => b.tower.id === puffball!.id);
@@ -57,13 +57,13 @@ assert(puffballBuff !== undefined, 'Puffball should still be buffed');
 assertEqual(puffballBuff!.sources.length, 2, 'Puffball should have 2 mycelium sources');
 
 const myceliumTowers = game.getNetworkBuffedTowers();
-const myceliumCount = myceliumTowers.filter(b => b.tower.towerType === TowerType.MyceliumNetwork);
+const myceliumCount = myceliumTowers.filter(b => b.tower.towerType === TowerType.Sporecap);
 assertEqual(myceliumCount.length, 0, 'Mycelium towers should not buff each other');
 
 const unconnectedGame = createGameRunner({ startingMoney: 5000 });
 unconnectedGame.start();
 
-const unconnectedTower = unconnectedGame.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+const unconnectedTower = unconnectedGame.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
 assert(unconnectedTower !== null, 'Should place an unconnected Puffball tower');
 assertEqual(unconnectedGame.isTowerConnectedToNetwork(unconnectedTower!.id), false, 'Far tower should not be connected to the network');
 
@@ -85,7 +85,7 @@ assertEqual(lockedIndicator!.canUpgrade, false, 'Special upgrade indicator shoul
 const kernelConnectedGame = createGameRunner({ startingMoney: 5000 });
 kernelConnectedGame.start();
 
-const kernelTower = kernelConnectedGame.placeTower(TowerType.PuffballFungus, 720, 180, TargetingMode.First);
+const kernelTower = kernelConnectedGame.placeTower(TowerType.Puffball, 720, 180, TargetingMode.First);
 assert(kernelTower !== null, 'Should place a tower near the kernel network');
 assertEqual(kernelConnectedGame.isTowerConnectedToNetwork(kernelTower!.id), true, 'Tower near the kernel should be network-connected');
 
@@ -93,14 +93,14 @@ const unlockedSpecialUpgrade = kernelConnectedGame.upgradeTower(kernelTower!.id,
 assertEqual(unlockedSpecialUpgrade.success, true, 'Connected tower should buy the bottom/special upgrade');
 assertEqual(unlockedSpecialUpgrade.newTier, 1, 'Connected bottom/special upgrade should advance to tier 1');
 
-const chainedTower = kernelConnectedGame.placeTower(TowerType.OrchidTrap, 600, 180, TargetingMode.First);
+const chainedTower = kernelConnectedGame.placeTower(TowerType.Slimefungus, 600, 180, TargetingMode.First);
 assert(chainedTower !== null, 'Should place a tower chained from a connected tower');
 assertEqual(kernelConnectedGame.isTowerConnectedToNetwork(chainedTower!.id), true, 'Nearby tower should connect through an already-connected tower');
 
 const networkRevealGame = createGameRunner({ startingMoney: 5000 });
 networkRevealGame.start();
 
-const oracle = networkRevealGame.placeTower(TowerType.BioluminescentShroom, 720, 250, TargetingMode.First);
+const oracle = networkRevealGame.placeTower(TowerType.LumenOracle, 720, 250, TargetingMode.First);
 assert(oracle !== null, 'Should place a Bioluminescent tower near the kernel network');
 assertEqual(networkRevealGame.isTowerConnectedToNetwork(oracle!.id), true, 'Bioluminescent tower should be connected before buying the special upgrade');
 
@@ -132,7 +132,7 @@ assertEqual(slowEffect!.strength, 0.1, 'Network reveal slow should apply a 10% s
 const fungalFieldGame = createGameRunner({ startingMoney: 5000 });
 fungalFieldGame.start();
 
-const fieldPuffball = fungalFieldGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const fieldPuffball = fungalFieldGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(fieldPuffball !== null, 'Should place a Puffball tower near the kernel network');
 assertEqual(fungalFieldGame.isTowerConnectedToNetwork(fieldPuffball!.id), true, 'Puffball tower should be connected before buying the special upgrade');
 
@@ -179,7 +179,7 @@ assertEqual(expiredFields.length, 0, 'Lingering fungal field should expire after
 const seededPayloadGame = createGameRunner({ startingMoney: 5000 });
 seededPayloadGame.start();
 
-const seededStinkhorn = seededPayloadGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+const seededStinkhorn = seededPayloadGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 assert(seededStinkhorn !== null, 'Should place a Stinkhorn tower near the kernel network');
 assertEqual(seededPayloadGame.isTowerConnectedToNetwork(seededStinkhorn!.id), true, 'Stinkhorn tower should be connected before buying the special upgrade');
 
@@ -219,4 +219,4 @@ assert(delayedVictim.hp < delayedVictim.maxHp, 'Seeded payload detonation should
 const spentPayloads = seededPayloadGame.getSeededPayloads();
 assertEqual(spentPayloads.length, 0, 'Seeded payloads should be removed after they detonate');
 
-console.log('All MyceliumNetwork tests passed!');
+console.log('All Sporecap tests passed!');

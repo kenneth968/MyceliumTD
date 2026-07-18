@@ -60,7 +60,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
   bodyShape: 'circle' | 'hexagon' | 'diamond' | 'star';
   animationSpeed: number;
 }> = {
-  [TowerType.PuffballFungus]: {
+  [TowerType.Puffball]: {
     primary: '#9B59B6',
     secondary: '#8E44AD',
     glow: '#D7BDE2',
@@ -69,7 +69,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
     bodyShape: 'circle',
     animationSpeed: 1.0,
   },
-  [TowerType.OrchidTrap]: {
+  [TowerType.Slimefungus]: {
     primary: '#3498DB',
     secondary: '#2980B9',
     glow: '#AED6F1',
@@ -78,7 +78,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
     bodyShape: 'hexagon',
     animationSpeed: 0.8,
   },
-  [TowerType.VenusFlytower]: {
+  [TowerType.ThornSniper]: {
     primary: '#E74C3C',
     secondary: '#C0392B',
     glow: '#FADBD8',
@@ -87,7 +87,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
     bodyShape: 'diamond',
     animationSpeed: 1.2,
   },
-  [TowerType.BioluminescentShroom]: {
+  [TowerType.LumenOracle]: {
     primary: '#1ABC9C',
     secondary: '#16A085',
     glow: '#A3E4D7',
@@ -96,7 +96,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
     bodyShape: 'circle',
     animationSpeed: 0.6,
   },
-  [TowerType.StinkhornLine]: {
+  [TowerType.BulbShooter]: {
     primary: '#27AE60',
     secondary: '#1E8449',
     glow: '#A9DFBF',
@@ -105,7 +105,7 @@ const TOWER_VISUAL_CONFIGS: Record<TowerType, {
     bodyShape: 'star',
     animationSpeed: 0.9,
   },
-  [TowerType.MyceliumNetwork]: {
+  [TowerType.Sporecap]: {
     primary: '#8E44AD',
     secondary: '#6C3483',
     glow: '#D7BDE2',
@@ -124,7 +124,7 @@ const TARGETING_MODE_COLORS: Record<TargetingMode, string> = {
 };
 
 export function getTowerVisualConfig(towerType: TowerType) {
-  return TOWER_VISUAL_CONFIGS[towerType] || TOWER_VISUAL_CONFIGS[TowerType.PuffballFungus];
+  return TOWER_VISUAL_CONFIGS[towerType] || TOWER_VISUAL_CONFIGS[TowerType.Puffball];
 }
 
 export function getTowerColors(towerType: TowerType): { primary: string; secondary: string; glow: string } {

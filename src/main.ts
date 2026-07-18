@@ -710,7 +710,7 @@ class Game {
         const BUTTON_WIDTH = 120;
         const BUTTON_HEIGHT = 80;
         const BUTTON_SPACING = 10;
-        const BUTTON_COUNT = 5;
+        const BUTTON_COUNT = 6;
         
         const totalWidth = BUTTON_COUNT * BUTTON_WIDTH + (BUTTON_COUNT - 1) * BUTTON_SPACING;
         const startX = CANVAS_WIDTH / 2 - totalWidth / 2;
@@ -724,11 +724,12 @@ class Game {
             const buttonX = startX + i * (BUTTON_WIDTH + BUTTON_SPACING);
             if (screenX >= buttonX && screenX <= buttonX + BUTTON_WIDTH) {
                 const TOWER_TYPES = [
-                    TowerType.PuffballFungus,
-                    TowerType.OrchidTrap,
-                    TowerType.VenusFlytower,
-                    TowerType.BioluminescentShroom,
-                    TowerType.StinkhornLine,
+                    TowerType.Puffball,
+                    TowerType.Slimefungus,
+                    TowerType.ThornSniper,
+                    TowerType.LumenOracle,
+                    TowerType.BulbShooter,
+                    TowerType.Sporecap,
                 ];
                 return TOWER_TYPES[i];
             }
@@ -851,11 +852,12 @@ class Game {
         }
 
         const towerKeys: Record<string, TowerType> = {
-            '1': TowerType.PuffballFungus,
-            '2': TowerType.OrchidTrap,
-            '3': TowerType.VenusFlytower,
-            '4': TowerType.BioluminescentShroom,
-            '5': TowerType.StinkhornLine,
+            '1': TowerType.Puffball,
+            '2': TowerType.Slimefungus,
+            '3': TowerType.ThornSniper,
+            '4': TowerType.LumenOracle,
+            '5': TowerType.BulbShooter,
+            '6': TowerType.Sporecap,
         };
 
         if (towerKeys[e.key]) {
@@ -1006,12 +1008,12 @@ class Game {
         this.ctx.lineWidth = 2;
         
         const typeMap: Record<TowerType, 'circle' | 'square' | 'diamond'> = {
-            [TowerType.PuffballFungus]: 'circle',
-            [TowerType.OrchidTrap]: 'diamond',
-            [TowerType.VenusFlytower]: 'square',
-            [TowerType.BioluminescentShroom]: 'circle',
-            [TowerType.StinkhornLine]: 'diamond',
-            [TowerType.MyceliumNetwork]: 'circle',
+            [TowerType.Puffball]: 'circle',
+            [TowerType.Slimefungus]: 'diamond',
+            [TowerType.ThornSniper]: 'square',
+            [TowerType.LumenOracle]: 'circle',
+            [TowerType.BulbShooter]: 'diamond',
+            [TowerType.Sporecap]: 'circle',
         };
         const shapeType = typeMap[ghost.towerType] || 'circle';
         
@@ -1355,7 +1357,7 @@ class Game {
 
     private isEnemyRevealed(ex: number, ey: number): boolean {
         for (const placed of this.game.getPlacedTowers()) {
-            if (placed.tower.towerType === TowerType.BioluminescentShroom) {
+            if (placed.tower.towerType === TowerType.LumenOracle) {
                 const dx = ex - placed.tower.position.x;
                 const dy = ey - placed.tower.position.y;
                 if (dx * dx + dy * dy <= placed.tower.range * placed.tower.range) {
@@ -2114,36 +2116,28 @@ class Game {
         const BUTTON_WIDTH = 120;
         const BUTTON_HEIGHT = 80;
         const BUTTON_SPACING = 10;
-        const BUTTON_COUNT = 5;
+        const BUTTON_COUNT = 6;
         
         const totalWidth = BUTTON_COUNT * BUTTON_WIDTH + (BUTTON_COUNT - 1) * BUTTON_SPACING;
         const startX = CANVAS_WIDTH / 2 - totalWidth / 2;
         const startY = CANVAS_HEIGHT - BUTTON_HEIGHT - 20;
         
         const TOWER_TYPES = [
-            TowerType.PuffballFungus,
-            TowerType.OrchidTrap,
-            TowerType.VenusFlytower,
-            TowerType.BioluminescentShroom,
-            TowerType.StinkhornLine,
+            TowerType.Puffball,
+            TowerType.Slimefungus,
+            TowerType.ThornSniper,
+            TowerType.LumenOracle,
+            TowerType.BulbShooter,
+            TowerType.Sporecap,
         ];
         
-        const LABELS: Record<TowerType, string> = {
-            [TowerType.PuffballFungus]: 'Puffball',
-            [TowerType.OrchidTrap]: 'Orchid',
-            [TowerType.VenusFlytower]: 'Venus',
-            [TowerType.BioluminescentShroom]: 'BioLumi',
-            [TowerType.StinkhornLine]: 'Stinkhorn',
-            [TowerType.MyceliumNetwork]: 'Mycelium',
-        };
-        
         const HOTKEYS: Record<TowerType, string> = {
-            [TowerType.PuffballFungus]: '1',
-            [TowerType.OrchidTrap]: '2',
-            [TowerType.VenusFlytower]: '3',
-            [TowerType.BioluminescentShroom]: '4',
-            [TowerType.StinkhornLine]: '5',
-            [TowerType.MyceliumNetwork]: '6',
+            [TowerType.Puffball]: '1',
+            [TowerType.Slimefungus]: '2',
+            [TowerType.ThornSniper]: '3',
+            [TowerType.LumenOracle]: '4',
+            [TowerType.BulbShooter]: '5',
+            [TowerType.Sporecap]: '6',
         };
         
         for (let i = 0; i < BUTTON_COUNT; i++) {
@@ -2165,7 +2159,7 @@ class Game {
             this.ctx.font = 'bold 12px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'top';
-            this.ctx.fillText(LABELS[towerType], x + BUTTON_WIDTH / 2, y + 5);
+            this.ctx.fillText(TOWER_STATS[towerType].displayName, x + BUTTON_WIDTH / 2, y + 5);
             
             this.ctx.fillStyle = button.canAfford ? '#4CAF50' : '#F44336';
             this.ctx.font = 'bold 14px sans-serif';

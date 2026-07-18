@@ -56,10 +56,10 @@ function runTest(name: string, fn: () => void) {
   }
 }
 
-const testTower = createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First);
+const testTower = createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First);
 
-runTest('getTowerVisualConfig returns correct config for PuffballFungus', () => {
-  const config = getTowerVisualConfig(TowerType.PuffballFungus);
+runTest('getTowerVisualConfig returns correct config for Puffball', () => {
+  const config = getTowerVisualConfig(TowerType.Puffball);
   assert(config.primary === '#9B59B6', 'primary color should be #9B59B6');
   assert(config.secondary === '#8E44AD', 'secondary color should be #8E44AD');
   assert(config.glow === '#D7BDE2', 'glow color should be #D7BDE2');
@@ -68,76 +68,76 @@ runTest('getTowerVisualConfig returns correct config for PuffballFungus', () => 
   assert(config.bodyShape === 'circle', 'bodyShape should be circle');
 });
 
-runTest('getTowerVisualConfig returns correct config for OrchidTrap', () => {
-  const config = getTowerVisualConfig(TowerType.OrchidTrap);
+runTest('getTowerVisualConfig returns correct config for Slimefungus', () => {
+  const config = getTowerVisualConfig(TowerType.Slimefungus);
   assert(config.primary === '#3498DB', 'primary color should be #3498DB');
   assert(config.bodyShape === 'hexagon', 'bodyShape should be hexagon');
 });
 
-runTest('getTowerVisualConfig returns correct config for VenusFlytower', () => {
-  const config = getTowerVisualConfig(TowerType.VenusFlytower);
+runTest('getTowerVisualConfig returns correct config for ThornSniper', () => {
+  const config = getTowerVisualConfig(TowerType.ThornSniper);
   assert(config.primary === '#E74C3C', 'primary color should be #E74C3C');
   assert(config.bodyShape === 'diamond', 'bodyShape should be diamond');
   assert(config.baseRadius === 24, 'baseRadius should be 24');
 });
 
-runTest('getTowerVisualConfig returns correct config for BioluminescentShroom', () => {
-  const config = getTowerVisualConfig(TowerType.BioluminescentShroom);
+runTest('getTowerVisualConfig returns correct config for LumenOracle', () => {
+  const config = getTowerVisualConfig(TowerType.LumenOracle);
   assert(config.primary === '#1ABC9C', 'primary color should be #1ABC9C');
   assert(config.bodyShape === 'circle', 'bodyShape should be circle');
 });
 
-runTest('getTowerVisualConfig returns correct config for StinkhornLine', () => {
-  const config = getTowerVisualConfig(TowerType.StinkhornLine);
+runTest('getTowerVisualConfig returns correct config for BulbShooter', () => {
+  const config = getTowerVisualConfig(TowerType.BulbShooter);
   assert(config.primary === '#27AE60', 'primary color should be #27AE60');
   assert(config.bodyShape === 'star', 'bodyShape should be star');
 });
 
-runTest('getTowerVisualConfig falls back to PuffballFungus for unknown type', () => {
+runTest('getTowerVisualConfig falls back to Puffball for unknown type', () => {
   const config = getTowerVisualConfig('unknown' as TowerType);
-  assert(config.primary === '#9B59B6', 'should fallback to PuffballFungus primary');
+  assert(config.primary === '#9B59B6', 'should fallback to Puffball primary');
 });
 
 runTest('getTowerColors returns colors for each tower type', () => {
-  const puffball = getTowerColors(TowerType.PuffballFungus);
+  const puffball = getTowerColors(TowerType.Puffball);
   assert(puffball.primary === '#9B59B6', 'Puffball primary should be #9B59B6');
   assert(puffball.secondary === '#8E44AD', 'Puffball secondary should be #8E44AD');
   assert(puffball.glow === '#D7BDE2', 'Puffball glow should be #D7BDE2');
 
-  const orchid = getTowerColors(TowerType.OrchidTrap);
+  const orchid = getTowerColors(TowerType.Slimefungus);
   assert(orchid.primary === '#3498DB', 'Orchid primary should be #3498DB');
 
-  const venus = getTowerColors(TowerType.VenusFlytower);
+  const venus = getTowerColors(TowerType.ThornSniper);
   assert(venus.primary === '#E74C3C', 'Venus primary should be #E74C3C');
 
-  const bio = getTowerColors(TowerType.BioluminescentShroom);
+  const bio = getTowerColors(TowerType.LumenOracle);
   assert(bio.primary === '#1ABC9C', 'Bioluminescent primary should be #1ABC9C');
 
-  const stink = getTowerColors(TowerType.StinkhornLine);
+  const stink = getTowerColors(TowerType.BulbShooter);
   assert(stink.primary === '#27AE60', 'Stinkhorn primary should be #27AE60');
 });
 
 runTest('getTowerRadii returns correct radii for each tower type', () => {
-  assertEqual(getTowerRadii(TowerType.PuffballFungus), { baseRadius: 18, bodyRadius: 14 }, 'Puffball radii');
-  assertEqual(getTowerRadii(TowerType.OrchidTrap), { baseRadius: 20, bodyRadius: 16 }, 'Orchid radii');
-  assertEqual(getTowerRadii(TowerType.VenusFlytower), { baseRadius: 24, bodyRadius: 20 }, 'Venus radii');
-  assertEqual(getTowerRadii(TowerType.BioluminescentShroom), { baseRadius: 16, bodyRadius: 12 }, 'Bio radii');
-  assertEqual(getTowerRadii(TowerType.StinkhornLine), { baseRadius: 22, bodyRadius: 10 }, 'Stinkhorn radii');
+  assertEqual(getTowerRadii(TowerType.Puffball), { baseRadius: 18, bodyRadius: 14 }, 'Puffball radii');
+  assertEqual(getTowerRadii(TowerType.Slimefungus), { baseRadius: 20, bodyRadius: 16 }, 'Orchid radii');
+  assertEqual(getTowerRadii(TowerType.ThornSniper), { baseRadius: 24, bodyRadius: 20 }, 'Venus radii');
+  assertEqual(getTowerRadii(TowerType.LumenOracle), { baseRadius: 16, bodyRadius: 12 }, 'Bio radii');
+  assertEqual(getTowerRadii(TowerType.BulbShooter), { baseRadius: 22, bodyRadius: 10 }, 'Stinkhorn radii');
 });
 
 runTest('getTowerBodyShape returns correct body shapes', () => {
-  assert(getTowerBodyShape(TowerType.PuffballFungus) === 'circle', 'Puffball should be circle');
-  assert(getTowerBodyShape(TowerType.OrchidTrap) === 'hexagon', 'Orchid should be hexagon');
-  assert(getTowerBodyShape(TowerType.VenusFlytower) === 'diamond', 'Venus should be diamond');
-  assert(getTowerBodyShape(TowerType.BioluminescentShroom) === 'circle', 'Bio should be circle');
-  assert(getTowerBodyShape(TowerType.StinkhornLine) === 'star', 'Stinkhorn should be star');
+  assert(getTowerBodyShape(TowerType.Puffball) === 'circle', 'Puffball should be circle');
+  assert(getTowerBodyShape(TowerType.Slimefungus) === 'hexagon', 'Orchid should be hexagon');
+  assert(getTowerBodyShape(TowerType.ThornSniper) === 'diamond', 'Venus should be diamond');
+  assert(getTowerBodyShape(TowerType.LumenOracle) === 'circle', 'Bio should be circle');
+  assert(getTowerBodyShape(TowerType.BulbShooter) === 'star', 'Stinkhorn should be star');
 });
 
 runTest('getTowerRenderData returns complete render data for tower', () => {
   const renderData = getTowerRenderData(testTower);
   
   assert(renderData.id === 1, 'id should be 1');
-  assert(renderData.towerType === TowerType.PuffballFungus, 'towerType should be PuffballFungus');
+  assert(renderData.towerType === TowerType.Puffball, 'towerType should be Puffball');
   assert(renderData.position.x === 100 && renderData.position.y === 200, 'position should be (100, 200)');
   assert(renderData.primaryColor === '#5d356d', 'primaryColor should be darkened for Sprout stage');
   assert(renderData.secondaryColor === '#472256', 'secondaryColor should be darkened for Sprout');
@@ -182,9 +182,9 @@ runTest('getTowerRenderData uses default values when options not provided', () =
 
 runTest('getTowersRenderData returns render data for all towers', () => {
   const towers = [
-    createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First),
-    createTower(2, 150, 250, TowerType.OrchidTrap, TargetingMode.Last),
-    createTower(3, 200, 300, TowerType.VenusFlytower, TargetingMode.Close),
+    createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First),
+    createTower(2, 150, 250, TowerType.Slimefungus, TargetingMode.Last),
+    createTower(3, 200, 300, TowerType.ThornSniper, TargetingMode.Close),
   ];
   
   const collection = getTowersRenderData(towers);
@@ -196,8 +196,8 @@ runTest('getTowersRenderData returns render data for all towers', () => {
 
 runTest('getTowersRenderData identifies selected tower', () => {
   const towers = [
-    createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First),
-    createTower(2, 150, 250, TowerType.OrchidTrap, TargetingMode.Last),
+    createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First),
+    createTower(2, 150, 250, TowerType.Slimefungus, TargetingMode.Last),
   ];
   
   const collection = getTowersRenderData(towers, {
@@ -212,9 +212,9 @@ runTest('getTowersRenderData identifies selected tower', () => {
 
 runTest('getTowersRenderData marks firing towers', () => {
   const towers = [
-    createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First),
-    createTower(2, 150, 250, TowerType.OrchidTrap, TargetingMode.Last),
-    createTower(3, 200, 300, TowerType.VenusFlytower, TargetingMode.Close),
+    createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First),
+    createTower(2, 150, 250, TowerType.Slimefungus, TargetingMode.Last),
+    createTower(3, 200, 300, TowerType.ThornSniper, TargetingMode.Close),
   ];
   
   const firingIds = new Set<number>([1, 3]);
@@ -231,9 +231,9 @@ runTest('getTowersRenderData marks firing towers', () => {
 
 runTest('getTowersRenderData applies cooldown progress map', () => {
   const towers = [
-    createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First),
-    createTower(2, 150, 250, TowerType.OrchidTrap, TargetingMode.Last),
-    createTower(3, 200, 300, TowerType.VenusFlytower, TargetingMode.Close),
+    createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First),
+    createTower(2, 150, 250, TowerType.Slimefungus, TargetingMode.Last),
+    createTower(3, 200, 300, TowerType.ThornSniper, TargetingMode.Close),
   ];
   
   const cooldownMap = new Map<number, number>([[1, 0.8], [2, 0.3], [3, 1.0]]);
@@ -246,9 +246,9 @@ runTest('getTowersRenderData applies cooldown progress map', () => {
 
 runTest('getTowersRenderData applies upgrade maps', () => {
   const towers = [
-    createTower(1, 100, 200, TowerType.PuffballFungus, TargetingMode.First),
-    createTower(2, 150, 250, TowerType.OrchidTrap, TargetingMode.Last),
-    createTower(3, 200, 300, TowerType.VenusFlytower, TargetingMode.Close),
+    createTower(1, 100, 200, TowerType.Puffball, TargetingMode.First),
+    createTower(2, 150, 250, TowerType.Slimefungus, TargetingMode.Last),
+    createTower(3, 200, 300, TowerType.ThornSniper, TargetingMode.Close),
   ];
   
   const upgradeLevelMap = new Map<number, number>([[1, 3], [2, 1], [3, 6]]);
@@ -265,44 +265,44 @@ runTest('getTowersRenderData applies upgrade maps', () => {
 });
 
 runTest('getAnimationState returns animation data for Idle state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.Idle, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.Idle, 1000);
   assert(anim.scale > 0.9 && anim.scale <= 1.02, 'scale should be between 0.9 and 1.02');
   assert(anim.rotation === 0, 'rotation should be 0 for Idle');
   assert(anim.glowIntensity > 0.2, 'glowIntensity should be greater than 0.2');
 });
 
 runTest('getAnimationState returns animation data for Firing state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.Firing, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.Firing, 1000);
   assert(anim.scale > 1.0, 'scale should be greater than 1.0 for Firing');
   assert(anim.glowIntensity === 0.8, 'glowIntensity should be 0.8 for Firing');
 });
 
 runTest('getAnimationState returns animation data for Targeting state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.Targeting, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.Targeting, 1000);
   assert(anim.scale === 1.05, 'scale should be 1.05 for Targeting');
   assert(anim.rotation !== 0, 'rotation should not be 0 for Targeting');
 });
 
 runTest('getAnimationState returns animation data for Cooldown state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.Cooldown, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.Cooldown, 1000);
   assert(anim.scale < 1.05, 'scale should be less than 1.05 for Cooldown');
 });
 
 runTest('getAnimationState returns animation data for Selected state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.Selected, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.Selected, 1000);
   assert(anim.scale === 1.08, 'scale should be 1.08 for Selected');
   assert(anim.glowIntensity >= 0.4, 'glowIntensity should be at least 0.4 for Selected');
 });
 
 runTest('getAnimationState returns animation data for UpgradeGlow state', () => {
-  const anim = getAnimationState(TowerType.PuffballFungus, TowerAnimationState.UpgradeGlow, 1000);
+  const anim = getAnimationState(TowerType.Puffball, TowerAnimationState.UpgradeGlow, 1000);
   assert(anim.scale === 1.1, 'scale should be 1.1 for UpgradeGlow');
   assert(anim.glowIntensity === 0.9, 'glowIntensity should be 0.9 for UpgradeGlow');
 });
 
 runTest('getAnimationState varies by tower type animation speed', () => {
-  const venusAnim = getAnimationState(TowerType.VenusFlytower, TowerAnimationState.Idle, 1000);
-  const bioAnim = getAnimationState(TowerType.BioluminescentShroom, TowerAnimationState.Idle, 1000);
+  const venusAnim = getAnimationState(TowerType.ThornSniper, TowerAnimationState.Idle, 1000);
+  const bioAnim = getAnimationState(TowerType.LumenOracle, TowerAnimationState.Idle, 1000);
   assert(venusAnim.scale !== bioAnim.scale, 'animations should differ by tower type');
 });
 
@@ -333,7 +333,7 @@ runTest('getAnimatedTowerRenderData combines base render data with animation', (
   });
 
   assert(renderData.id === 1, 'id should be 1');
-  assert(renderData.towerType === TowerType.PuffballFungus, 'towerType should be PuffballFungus');
+  assert(renderData.towerType === TowerType.Puffball, 'towerType should be Puffball');
   assert(renderData.scale > 1.0, 'scale should be greater than 1.0 for firing');
   assert(renderData.isFiring === true, 'isFiring should be true');
 });
@@ -350,35 +350,35 @@ runTest('getTowerFacingAngle calculates correct angle to target', () => {
   assert(angle === 0, 'angle to right should be 0');
 });
 
-runTest('getTowerBaseDecorations returns circle decorations for PuffballFungus', () => {
-  const decorations = getTowerBaseDecorations(TowerType.PuffballFungus);
+runTest('getTowerBaseDecorations returns circle decorations for Puffball', () => {
+  const decorations = getTowerBaseDecorations(TowerType.Puffball);
   assert(decorations.length === 1, 'should have 1 decoration');
   assert(decorations[0].type === 'ring', 'type should be ring');
 });
 
-runTest('getTowerBaseDecorations returns hexagon decorations for OrchidTrap', () => {
-  const decorations = getTowerBaseDecorations(TowerType.OrchidTrap);
+runTest('getTowerBaseDecorations returns hexagon decorations for Slimefungus', () => {
+  const decorations = getTowerBaseDecorations(TowerType.Slimefungus);
   assert(decorations.length === 1, 'should have 1 decoration');
   assert(decorations[0].type === 'dots', 'type should be dots');
   assert(decorations[0].count === 6, 'count should be 6');
 });
 
-runTest('getTowerBaseDecorations returns diamond decorations for VenusFlytower', () => {
-  const decorations = getTowerBaseDecorations(TowerType.VenusFlytower);
+runTest('getTowerBaseDecorations returns diamond decorations for ThornSniper', () => {
+  const decorations = getTowerBaseDecorations(TowerType.ThornSniper);
   assert(decorations.length === 2, 'should have 2 decorations');
   assert(decorations[0].type === 'ring', 'first type should be ring');
   assert(decorations[1].type === 'circle', 'second type should be circle');
 });
 
-runTest('getTowerBaseDecorations returns star decorations for StinkhornLine', () => {
-  const decorations = getTowerBaseDecorations(TowerType.StinkhornLine);
+runTest('getTowerBaseDecorations returns star decorations for BulbShooter', () => {
+  const decorations = getTowerBaseDecorations(TowerType.BulbShooter);
   assert(decorations.length === 1, 'should have 1 decoration');
   assert(decorations[0].type === 'dots', 'type should be dots');
   assert(decorations[0].count === 5, 'count should be 5');
 });
 
 runTest('getUpgradeTierVisuals returns 3 upgrade tiers', () => {
-  const tiers = getUpgradeTierVisuals(TowerType.PuffballFungus);
+  const tiers = getUpgradeTierVisuals(TowerType.Puffball);
   assert(tiers.length === 3, 'should have 3 tiers');
   
   assertEqual(tiers[0], { tier: 1, color: '#3498DB', ringRadius: 22, symbol: 'I' }, 'tier 1');
@@ -387,37 +387,37 @@ runTest('getUpgradeTierVisuals returns 3 upgrade tiers', () => {
 });
 
 runTest('getUpgradeIndicatorForTower returns null for upgradeLevel 0', () => {
-  const indicator = getUpgradeIndicatorForTower(TowerType.PuffballFungus, 0);
+  const indicator = getUpgradeIndicatorForTower(TowerType.Puffball, 0);
   assert(indicator === null, 'indicator should be null for 0 upgrade level');
 });
 
 runTest('getUpgradeIndicatorForTower returns first tier for upgradeLevel 1', () => {
-  const indicator = getUpgradeIndicatorForTower(TowerType.PuffballFungus, 1);
+  const indicator = getUpgradeIndicatorForTower(TowerType.Puffball, 1);
   assert(indicator !== null, 'indicator should not be null');
   assert(indicator!.tier === 1, 'tier should be 1');
 });
 
 runTest('getUpgradeIndicatorForTower returns second tier for upgradeLevel 2', () => {
-  const indicator = getUpgradeIndicatorForTower(TowerType.PuffballFungus, 2);
+  const indicator = getUpgradeIndicatorForTower(TowerType.Puffball, 2);
   assert(indicator !== null, 'indicator should not be null');
   assert(indicator!.tier === 2, 'tier should be 2');
 });
 
 runTest('getUpgradeIndicatorForTower caps at third tier for high upgrade levels', () => {
-  const indicator = getUpgradeIndicatorForTower(TowerType.PuffballFungus, 10);
+  const indicator = getUpgradeIndicatorForTower(TowerType.Puffball, 10);
   assert(indicator !== null, 'indicator should not be null');
   assert(indicator!.tier === 3, 'tier should be capped at 3');
 });
 
 runTest('getTowerPlacementGhostData returns valid placement ghost data', () => {
   const ghost = getTowerPlacementGhostData(
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     { x: 150, y: 200 },
     80,
     true
   );
 
-  assert(ghost.towerType === TowerType.PuffballFungus, 'towerType should be PuffballFungus');
+  assert(ghost.towerType === TowerType.Puffball, 'towerType should be Puffball');
   assert(ghost.position.x === 150 && ghost.position.y === 200, 'position should be (150, 200)');
   assert(ghost.isValid === true, 'isValid should be true');
   assert(ghost.rangeRadius === 80, 'rangeRadius should be 80');
@@ -427,7 +427,7 @@ runTest('getTowerPlacementGhostData returns valid placement ghost data', () => {
 
 runTest('getTowerPlacementGhostData includes invalid reason when invalid', () => {
   const ghost = getTowerPlacementGhostData(
-    TowerType.OrchidTrap,
+    TowerType.Slimefungus,
     { x: 150, y: 200 },
     100,
     false,
@@ -440,7 +440,7 @@ runTest('getTowerPlacementGhostData includes invalid reason when invalid', () =>
 
 runTest('getTowerPlacementGhostData uses custom opacity', () => {
   const ghost = getTowerPlacementGhostData(
-    TowerType.VenusFlytower,
+    TowerType.ThornSniper,
     { x: 150, y: 200 },
     50,
     true,

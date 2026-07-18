@@ -1,4 +1,4 @@
-import { createTower, Tower, TowerType, fireTower, canFire, getCooldownProgress, updateProjectile, applyDamage, getKillReward } from './entities/tower';
+import { createTower, Tower, TowerType, TOWER_STATS, fireTower, canFire, getCooldownProgress, updateProjectile, applyDamage, getKillReward } from './entities/tower';
 import { createDefaultPath, Path } from './systems/path';
 import { TargetingMode, Enemy, createEnemy } from './systems/targeting';
 import { ENEMY_STATS, EnemyType } from './systems/wave';
@@ -17,29 +17,43 @@ function assertEqual(actual: any, expected: any, message: string) {
 
 console.log('Testing Tower Entity System...');
 
+const canonicalTypes = Object.values(TowerType);
+assertEqual(canonicalTypes.length, 6, 'exactly six tower types');
+assert(canonicalTypes.includes(TowerType.Sporecap), 'Sporecap exists');
+assert(canonicalTypes.includes(TowerType.ThornSniper), 'Thorn Sniper exists');
+assert(canonicalTypes.includes(TowerType.Puffball), 'Puffball exists');
+assert(canonicalTypes.includes(TowerType.Slimefungus), 'Slimefungus exists');
+assert(canonicalTypes.includes(TowerType.BulbShooter), 'Bulb Shooter exists');
+assert(canonicalTypes.includes(TowerType.LumenOracle), 'Lumen Oracle exists');
+
+for (const type of canonicalTypes) {
+  assert(TOWER_STATS[type].cost > 0, `${type} has a positive cost`);
+  assert(TOWER_STATS[type].displayName.length > 0, `${type} has a display name`);
+}
+
 const path = createDefaultPath();
 const currentTime = 1000;
 
-const tower1 = createTower(1, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+const tower1 = createTower(1, 100, 100, TowerType.Puffball, TargetingMode.First);
 assert(tower1.id === 1, 'Tower id should be 1');
-assert(tower1.damage === 1, 'Puffball damage should be 1');
-assert(tower1.range === 80, 'Puffball range should be 80');
-assert(tower1.fireRate === 500, 'Puffball fireRate should be 500');
-assert(tower1.cost === 100, 'Puffball cost should be 100');
+assert(tower1.damage === 2, 'Puffball damage should be 2');
+assert(tower1.range === 95, 'Puffball range should be 95');
+assert(tower1.fireRate === 900, 'Puffball fireRate should be 900');
+assert(tower1.cost === 180, 'Puffball cost should be 180');
 assert(tower1.specialEffect === 'area_damage', 'Puffball specialEffect should be area_damage');
-console.log('  ✓ createTower with PuffballFungus');
+console.log('  ✓ createTower with Puffball');
 
-const tower2 = createTower(2, 200, 200, TowerType.VenusFlytower, TargetingMode.Close);
-assert(tower2.damage === 100, 'Venus damage should be 100 (instakill)');
-assert(tower2.range === 50, 'Venus range should be 50');
-assert(tower2.fireRate === 3000, 'Venus fireRate should be 3000');
-assert(tower2.specialEffect === 'instakill', 'Venus specialEffect should be instakill');
-console.log('  ✓ createTower with VenusFlytower');
+const tower2 = createTower(2, 200, 200, TowerType.ThornSniper, TargetingMode.Close);
+assert(tower2.damage === 4, 'Thorn Sniper damage should be 4');
+assert(tower2.range === 190, 'Thorn Sniper range should be 190');
+assert(tower2.fireRate === 1600, 'Thorn Sniper fireRate should be 1600');
+assert(tower2.specialEffect === 'precision', 'Thorn Sniper specialEffect should be precision');
+console.log('  ✓ createTower with ThornSniper');
 
-const tower3 = createTower(3, 150, 150, TowerType.StinkhornLine, TargetingMode.Last);
-assert(tower3.damage === 3, 'Stinkhorn damage should be 3');
-assert(tower3.specialEffect === 'poison', 'Stinkhorn specialEffect should be poison');
-console.log('  ✓ createTower with StinkhornLine');
+const tower3 = createTower(3, 150, 150, TowerType.BulbShooter, TargetingMode.Last);
+assert(tower3.damage === 3, 'Bulb Shooter damage should be 3');
+assert(tower3.specialEffect === 'area_damage', 'Bulb Shooter specialEffect should be area_damage');
+console.log('  ✓ createTower with BulbShooter');
 
 const enemies: Enemy[] = [
   createEnemy(1, 0, ENEMY_STATS[EnemyType.RedMushroom].hp, ENEMY_STATS[EnemyType.RedMushroom].speed, path),
@@ -56,21 +70,21 @@ console.log('  ✓ canFire on fresh tower');
 
 tower1.lastFireTime = currentTime - 200;
 assert(canFire(tower1, currentTime) === false, 'Tower on cooldown should not fire (200ms elapsed, 500ms rate)');
-tower1.lastFireTime = currentTime - 500;
-assert(canFire(tower1, currentTime) === true, 'Tower after cooldown should fire (500ms elapsed, 500ms rate)');
+tower1.lastFireTime = currentTime - 900;
+assert(canFire(tower1, currentTime) === true, 'Tower after cooldown should fire (900ms elapsed, 900ms rate)');
 console.log('  ✓ canFire cooldown logic');
 
-const cooldownTower = createTower(10, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
-cooldownTower.lastFireTime = currentTime - 100;
+const cooldownTower = createTower(10, 100, 100, TowerType.Puffball, TargetingMode.First);
+cooldownTower.lastFireTime = currentTime - 180;
 const cooldown0 = getCooldownProgress(cooldownTower, currentTime);
-assert(cooldown0 === 0.2, `Cooldown at 100ms should be 0.2, got ${cooldown0}`);
+assert(cooldown0 === 0.2, `Cooldown at 180ms should be 0.2, got ${cooldown0}`);
 
-const cooldownTower2 = createTower(11, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
-cooldownTower2.lastFireTime = currentTime - 250;
+const cooldownTower2 = createTower(11, 100, 100, TowerType.Puffball, TargetingMode.First);
+cooldownTower2.lastFireTime = currentTime - 450;
 const cooldown50 = getCooldownProgress(cooldownTower2, currentTime);
-assert(cooldown50 === 0.5, `Cooldown at 250ms should be 0.5, got ${cooldown50}`);
+assert(cooldown50 === 0.5, `Cooldown at 450ms should be 0.5, got ${cooldown50}`);
 
-const cooldownTower3 = createTower(12, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+const cooldownTower3 = createTower(12, 100, 100, TowerType.Puffball, TargetingMode.First);
 cooldownTower3.lastFireTime = currentTime - 1000;
 const cooldownFull = getCooldownProgress(cooldownTower3, currentTime);
 assert(cooldownFull === 1.0, `Cooldown at 1000ms should be 1.0 (capped), got ${cooldownFull}`);
@@ -88,18 +102,18 @@ assert(fireResultCooldown.projectile === null, 'Should not fire during cooldown'
 assert(fireResultCooldown.target === null, 'Should not have target during cooldown');
 console.log('  ✓ fireTower respects cooldown');
 
-const closeTower = createTower(4, 150, 150, TowerType.BioluminescentShroom, TargetingMode.Close);
+const closeTower = createTower(4, 150, 150, TowerType.LumenOracle, TargetingMode.Close);
 const closeResult = fireTower(closeTower, enemies, path, currentTime);
 assert(closeResult.target !== null, 'Close targeting should find target');
 console.log('  ✓ fireTower with Close targeting');
 
-const strongTower = createTower(5, 150, 150, TowerType.OrchidTrap, TargetingMode.Strong);
+const strongTower = createTower(5, 150, 150, TowerType.Slimefungus, TargetingMode.Strong);
 const strongResult = fireTower(strongTower, enemies, path, currentTime);
 assert(strongResult.target !== null, 'Strong targeting should find target');
 assert(strongResult.target!.id === enemies[2].id, 'Strong targeting should target Green Caterpillar (highest HP = 3)');
 console.log('  ✓ fireTower with Strong targeting');
 
-const lastTower = createTower(6, 150, 150, TowerType.PuffballFungus, TargetingMode.Last);
+const lastTower = createTower(6, 150, 150, TowerType.Puffball, TargetingMode.Last);
 const lastResult = fireTower(lastTower, enemies, path, currentTime);
 assert(lastResult.target !== null, 'Last targeting should find target');
 assert(lastResult.target!.id === enemies[0].id, 'Last targeting should target Red Mushroom (lowest pathProgress)');
@@ -134,13 +148,14 @@ if (projDeadTarget.projectile) {
 }
 console.log('  ✓ updateProjectile handles dead target');
 
-const instantTower = createTower(13, 200, 200, TowerType.VenusFlytower, TargetingMode.First);
+const instantTower = createTower(13, 200, 200, TowerType.ThornSniper, TargetingMode.First);
+instantTower.projectileSpeed = 0;
 const instantEnemy = createEnemy(201, 0, 10, 50, path);
 instantEnemy.position = { x: 230, y: 200 };
 const instantFire = fireTower(instantTower, [instantEnemy], path, currentTime + instantTower.fireRate);
-assert(instantFire.projectile !== null, 'Venus should fire an instant projectile');
+assert(instantFire.projectile !== null, 'Zero-speed Thorn Sniper should fire an instant projectile');
 const instantUpdate = updateProjectile(instantFire.projectile!, [instantEnemy], deltaTime);
-assert(instantUpdate.hit === true, 'Zero-speed Venus projectile should resolve as an instant hit');
+assert(instantUpdate.hit === true, 'Zero-speed Thorn Sniper projectile should resolve as an instant hit');
 assert(instantUpdate.target === instantEnemy, 'Instant projectile should report its target');
 assert(instantFire.projectile!.alive === false, 'Instant projectile should be consumed on hit');
 assertEqual(instantFire.projectile!.position.x, instantEnemy.position.x, 'Instant projectile should snap to target x');
@@ -183,7 +198,7 @@ console.log('  ✓ getKillReward returns 0 for unknown enemy');
 
 console.log('\nAll tests passed!');
 console.log('Summary:');
-console.log('  - Tower creation with all 5 tower types');
+console.log('  - Canonical six-tower roster and tower creation');
 console.log('  - Fire rate cooldown tracking');
 console.log('  - Fire with all 4 targeting modes');
 console.log('  - Projectile movement and hit detection');
@@ -191,7 +206,7 @@ console.log('  - Damage application and kill detection');
 console.log('  - Kill reward lookup');
 
 function farTower(enemies: Enemy[]) {
-  const tower = createTower(99, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+  const tower = createTower(99, 100, 100, TowerType.Puffball, TargetingMode.First);
   tower.position = { x: 100, y: 100 };
   return tower;
 }

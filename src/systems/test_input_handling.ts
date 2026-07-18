@@ -5,7 +5,7 @@ import { UpgradePath } from '../systems/upgrade';
 
 console.log('=== Testing Keyboard/Mouse Input with Placement Workflow ===');
 
-const game = createGameRunner();
+const game = createGameRunner({ startingMoney: 5000 });
 game.start();
 
 let passed = 0;
@@ -57,7 +57,7 @@ test('Initial game state is Playing after start()', () => {
 
 console.log('\n--- Mouse Click: Tower Purchase Button Starts Placement ---');
 test('Clicking tower purchase button when no placement starts placement', () => {
-  const towerType = TowerType.PuffballFungus;
+  const towerType = TowerType.Puffball;
   game.startTowerPlacement(towerType);
   const result = assertEqual(game.getPlacementState(), PlacementState.Placing, 'Placement state');
   game.cancelPlacement();
@@ -66,7 +66,7 @@ test('Clicking tower purchase button when no placement starts placement', () => 
 
 console.log('\n--- Mouse Move: Updates Placement Position ---');
 test('updatePlacementPosition sets position during placing', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(200, 300);
   const pos = (game as any).placementPosition;
   game.cancelPlacement();
@@ -75,7 +75,7 @@ test('updatePlacementPosition sets position during placing', () => {
 
 console.log('\n--- Click During Placing: Confirm Placement ---');
 test('confirmPlacement returns tower and resets state', () => {
-  game.startTowerPlacement(TowerType.OrchidTrap);
+  game.startTowerPlacement(TowerType.Slimefungus);
   game.updatePlacementPosition(600, 100);
   const tower = game.confirmPlacement(TargetingMode.First);
   const state = game.getPlacementState();
@@ -87,7 +87,7 @@ test('confirmPlacement returns tower and resets state', () => {
 
 console.log('\n--- Click During Placing: Targeting Mode Selection ---');
 test('selectTargetingModeAtPosition returns true when clicking targeting button', () => {
-  game.startTowerPlacement(TowerType.VenusFlytower);
+  game.startTowerPlacement(TowerType.ThornSniper);
   game.updatePlacementPosition(400, 200);
   const selected = game.selectTargetingModeAtPosition(400, 200);
   game.cancelPlacement();
@@ -96,7 +96,7 @@ test('selectTargetingModeAtPosition returns true when clicking targeting button'
 
 console.log('\n--- Click on Existing Tower: Select Tower ---');
 test('selectTowerAtPosition selects tower when clicking on placed tower', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(500, 100);
   const placed = game.confirmPlacement(TargetingMode.First);
   if (!placed) {
@@ -113,14 +113,14 @@ test('selectTowerAtPosition selects tower when clicking on placed tower', () => 
 
 console.log('\n--- Right Click: Cancel Placement ---');
 test('cancelPlacement resets placement state', () => {
-  game.startTowerPlacement(TowerType.StinkhornLine);
+  game.startTowerPlacement(TowerType.BulbShooter);
   game.cancelPlacement();
   return assertEqual(game.getPlacementState(), PlacementState.None, 'Placement state after cancel');
 });
 
 console.log('\n--- Right Click: Deselect Tower ---');
 test('deselectTower resets selecting state', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(700, 200);
   const placed = game.confirmPlacement(TargetingMode.First);
   if (!placed) {
@@ -135,11 +135,12 @@ test('deselectTower resets selecting state', () => {
 
 console.log('\n--- Keyboard: Tower Hotkeys Start Placement ---');
 const towerHotkeys: [string, TowerType][] = [
-  ['1', TowerType.PuffballFungus],
-  ['2', TowerType.OrchidTrap],
-  ['3', TowerType.VenusFlytower],
-  ['4', TowerType.BioluminescentShroom],
-  ['5', TowerType.StinkhornLine],
+  ['1', TowerType.Puffball],
+  ['2', TowerType.Slimefungus],
+  ['3', TowerType.ThornSniper],
+  ['4', TowerType.LumenOracle],
+  ['5', TowerType.BulbShooter],
+  ['6', TowerType.Sporecap],
 ];
 
 for (const [key, towerType] of towerHotkeys) {
@@ -156,13 +157,13 @@ for (const [key, towerType] of towerHotkeys) {
 
 console.log('\n--- Keyboard: Escape Cancels Placement ---');
 test('Escape cancels placement during placing', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.cancelPlacement();
   return assertEqual(game.getPlacementState(), PlacementState.None, 'Placement cancelled');
 });
 
 test('Escape deselects tower during selecting', () => {
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(300, 300);
   const placed = game.confirmPlacement(TargetingMode.First);
   if (!placed) {
@@ -190,7 +191,7 @@ console.log('\n--- Sell Button Click ---');
 test('sellTowerAtPosition returns success when clicking sell button', () => {
   const localGame = createGameRunner();
   localGame.start();
-  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.startTowerPlacement(TowerType.Puffball);
   localGame.updatePlacementPosition(700, 100);
   const placed = localGame.confirmPlacement(TargetingMode.First);
   if (!placed) {
@@ -216,7 +217,7 @@ test('Can place multiple towers sequentially', () => {
   let allPlaced = true;
   
   for (const [x, y] of positions) {
-    localGame.startTowerPlacement(TowerType.PuffballFungus);
+    localGame.startTowerPlacement(TowerType.Puffball);
     localGame.updatePlacementPosition(x, y);
     const tower = localGame.confirmPlacement(TargetingMode.First);
     if (!tower) {
@@ -229,7 +230,7 @@ test('Can place multiple towers sequentially', () => {
 
 console.log('\n--- Targeting Mode Selection During Placement ---');
 test('Can select targeting mode before confirming placement', () => {
-  game.startTowerPlacement(TowerType.OrchidTrap);
+  game.startTowerPlacement(TowerType.Slimefungus);
   game.updatePlacementPosition(250, 250);
   
   const modes: TargetingMode[] = [TargetingMode.First, TargetingMode.Last, TargetingMode.Close, TargetingMode.Strong];
@@ -250,7 +251,7 @@ test('Can select targeting mode before confirming placement', () => {
 console.log('\n--- State Transitions ---');
 test('State transitions: None -> Placing -> None (confirm)', () => {
   game.cancelPlacement();
-  game.startTowerPlacement(TowerType.BioluminescentShroom);
+  game.startTowerPlacement(TowerType.LumenOracle);
   game.updatePlacementPosition(550, 150);
   game.confirmPlacement(TargetingMode.First);
   const state1 = game.getPlacementState();
@@ -260,7 +261,7 @@ test('State transitions: None -> Placing -> None (confirm)', () => {
 
 test('State transitions: None -> Placing -> None (cancel)', () => {
   game.cancelPlacement();
-  game.startTowerPlacement(TowerType.BioluminescentShroom);
+  game.startTowerPlacement(TowerType.LumenOracle);
   game.cancelPlacement();
   return assertEqual(game.getPlacementState(), PlacementState.None, 'Back to None after cancel');
 });
@@ -269,7 +270,7 @@ test('State transitions: None -> Selecting -> None (deselect)', () => {
   game.cancelPlacement();
   
   (game as any).economy.money = 500;
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(500, 50);
   
   const placed = game.confirmPlacement(TargetingMode.First);
@@ -289,7 +290,7 @@ test('Cannot confirm tower placement on the path', () => {
   localGame.start();
   const beforeMoney = localGame.getGameStats().money;
   const beforeTowers = localGame.getGameStats().towers;
-  localGame.startTowerPlacement(TowerType.PuffballFungus);
+  localGame.startTowerPlacement(TowerType.Puffball);
   localGame.updatePlacementPosition(200, 300);
   const tower = localGame.confirmPlacement(TargetingMode.First);
   const afterStats = localGame.getGameStats();
@@ -304,13 +305,13 @@ test('Cannot confirm tower placement on the path', () => {
 test('Cannot confirm tower placement too close to an existing tower', () => {
   const localGame = createGameRunner({ startingMoney: 650 });
   localGame.start();
-  const first = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  const first = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
   if (!first) {
     return false;
   }
   const beforeMoney = localGame.getGameStats().money;
   const beforeTowers = localGame.getGameStats().towers;
-  localGame.startTowerPlacement(TowerType.OrchidTrap);
+  localGame.startTowerPlacement(TowerType.Slimefungus);
   localGame.updatePlacementPosition(510, 50);
   const tower = localGame.confirmPlacement(TargetingMode.First);
   const afterStats = localGame.getGameStats();
@@ -325,7 +326,7 @@ test('Cannot confirm tower placement too close to an existing tower', () => {
 test('Cannot place tower without enough money', () => {
   const localGame = createGameRunner();
   localGame.start();
-  localGame.startTowerPlacement(TowerType.MyceliumNetwork);
+  localGame.startTowerPlacement(TowerType.Sporecap);
   localGame.updatePlacementPosition(700, 100);
   (localGame as any).economy.money = 10;
   const tower = localGame.confirmPlacement(TargetingMode.First);
@@ -337,7 +338,7 @@ console.log('\n--- Selected Tower Upgrade Input ---');
 test('Clicking an affordable upgrade indicator upgrades the selected tower', () => {
   const localGame = createGameRunner({ startingMoney: 1000 });
   localGame.start();
-  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
   if (!tower || !localGame.selectTower(tower.id)) {
     return false;
   }
@@ -364,9 +365,9 @@ test('Clicking an affordable upgrade indicator upgrades the selected tower', () 
 });
 
 test('Clicking an unaffordable upgrade indicator keeps the tower selected without upgrading', () => {
-  const localGame = createGameRunner({ startingMoney: TOWER_STATS[TowerType.PuffballFungus].cost });
+  const localGame = createGameRunner({ startingMoney: TOWER_STATS[TowerType.Puffball].cost });
   localGame.start();
-  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
   if (!tower || !localGame.selectTower(tower.id)) {
     return false;
   }
@@ -393,7 +394,7 @@ test('Clicking an unaffordable upgrade indicator keeps the tower selected withou
 test('Selling an upgraded tower refunds the displayed sell value', () => {
   const localGame = createGameRunner({ startingMoney: 1000 });
   localGame.start();
-  const tower = localGame.placeTower(TowerType.PuffballFungus, 500, 50, TargetingMode.First);
+  const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
   if (!tower) {
     return false;
   }

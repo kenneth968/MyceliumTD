@@ -768,7 +768,7 @@ export class GameRunner {
   }
 
   private canProjectileDisruptTraits(projectile: Projectile): boolean {
-    if (projectile.towerType !== TowerType.OrchidTrap || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.Slimefungus || projectile.sourceTowerId === undefined) {
       return false;
     }
 
@@ -787,7 +787,7 @@ export class GameRunner {
   }
 
   private canProjectileMarkEnemies(projectile: Projectile): boolean {
-    if (projectile.towerType !== TowerType.PuffballFungus || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.Puffball || projectile.sourceTowerId === undefined) {
       return false;
     }
 
@@ -806,7 +806,7 @@ export class GameRunner {
   }
 
   private canProjectileExecuteMarkedEnemy(projectile: Projectile): boolean {
-    if (projectile.towerType !== TowerType.VenusFlytower || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.ThornSniper || projectile.sourceTowerId === undefined) {
       return false;
     }
 
@@ -871,7 +871,7 @@ export class GameRunner {
     this.eventQueue.push({
       type: 'area_hit',
       position: { ...payload.position },
-      towerType: TowerType.StinkhornLine,
+      towerType: TowerType.BulbShooter,
       radius: payload.radius,
     });
 
@@ -890,7 +890,7 @@ export class GameRunner {
     for (const placed of this.placedTowers) {
       const tower = placed.tower;
 
-      if (tower.towerType === TowerType.MyceliumNetwork) {
+      if (tower.towerType === TowerType.Sporecap) {
         continue;
       }
 
@@ -919,7 +919,7 @@ export class GameRunner {
 
       const projectile = fireTowerWithProjectile(tower, this.activeEnemies, this.path, this.currentTime, finalEffectStrength, finalEffectDuration, finalAreaRadius);
       if (projectile) {
-        if (tower.towerType === TowerType.BioluminescentShroom &&
+        if (tower.towerType === TowerType.LumenOracle &&
             tower.upgradeLevels[UpgradePath.Special] > 0 &&
             this.isTowerConnectedToNetwork(tower.id)) {
           const revealDuration = Math.round((projectile.effectDuration ?? tower.effectDuration) * NETWORK_REVEAL_DURATION_MULTIPLIER);
@@ -968,7 +968,7 @@ export class GameRunner {
           effectType: TOWER_STATS[projectile.towerType].specialEffect,
         });
 
-        if (projectile.towerType === TowerType.PuffballFungus) {
+        if (projectile.towerType === TowerType.Puffball) {
           const areaResult = calculateAreaDamage(
             projectile.position,
             this.activeEnemies,
@@ -993,7 +993,7 @@ export class GameRunner {
           this.createPuffballLingeringField(projectile);
         }
 
-        if (projectile.towerType === TowerType.StinkhornLine) {
+        if (projectile.towerType === TowerType.BulbShooter) {
           this.createSeededPayloads(projectile);
         }
 
@@ -1008,7 +1008,7 @@ export class GameRunner {
   }
 
   private createSeededPayloads(projectile: Projectile): void {
-    if (projectile.towerType !== TowerType.StinkhornLine || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.BulbShooter || projectile.sourceTowerId === undefined) {
       return;
     }
 
@@ -1044,7 +1044,7 @@ export class GameRunner {
   }
 
   private createPuffballLingeringField(projectile: Projectile): void {
-    if (projectile.towerType !== TowerType.PuffballFungus || projectile.sourceTowerId === undefined) {
+    if (projectile.towerType !== TowerType.Puffball || projectile.sourceTowerId === undefined) {
       return;
     }
 
@@ -1790,7 +1790,7 @@ export class GameRunner {
 
   private getMyceliumTowers(): TowerWithUpgrades[] {
     return this.placedTowers
-      .filter(p => p.tower.towerType === TowerType.MyceliumNetwork)
+      .filter(p => p.tower.towerType === TowerType.Sporecap)
       .map(p => p.tower);
   }
 
@@ -1829,7 +1829,7 @@ export class GameRunner {
 
       for (const placed of this.placedTowers) {
         const tower = placed.tower;
-        if (connected.has(tower.id) || tower.towerType === TowerType.MyceliumNetwork) {
+        if (connected.has(tower.id) || tower.towerType === TowerType.Sporecap) {
           continue;
         }
 
@@ -1876,7 +1876,7 @@ export class GameRunner {
     }
     const buffed: TowerWithUpgrades[] = [];
     for (const placed of this.placedTowers) {
-      if (placed.tower.towerType === TowerType.MyceliumNetwork) {
+      if (placed.tower.towerType === TowerType.Sporecap) {
         continue;
       }
       const dist = vec2Distance(mycelium.position, placed.tower.position);

@@ -108,7 +108,7 @@ console.log('  ✓ loseLife respects minimum of 0');
 
 economy.reset();
 economy.addKillReward(500);
-economy.spendForTower(200, 'PuffballFungus');
+economy.spendForTower(200, 'Puffball');
 assert(economy.getMoney() === startingMoney + 500 - 200, 'Money should reflect tower purchase');
 console.log('  ✓ spendForTower');
 

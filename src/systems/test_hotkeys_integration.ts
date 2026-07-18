@@ -160,32 +160,32 @@ describe('GameRunner integration', () => {
 
   test('GameRunner startTowerPlacement changes placement state to Placing', () => {
     const game = new GameRunner();
-    game.startTowerPlacement(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
     expect(game.getPlacementState()).toEqual(PlacementState.Placing);
   });
 
   test('GameRunner cancelPlacement resets placement state to None', () => {
     const game = new GameRunner();
-    game.startTowerPlacement(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
     game.cancelPlacement();
     expect(game.getPlacementState()).toEqual(PlacementState.None);
   });
 
   test('GameRunner can select tower when not placing', () => {
     const game = new GameRunner();
-    expect(game.startTowerPlacement(TowerType.PuffballFungus)).toBeTruthy();
+    expect(game.startTowerPlacement(TowerType.Puffball)).toBeTruthy();
   });
 
   test('GameRunner cannot start placement when already placing', () => {
     const game = new GameRunner();
-    game.startTowerPlacement(TowerType.PuffballFungus);
-    expect(game.startTowerPlacement(TowerType.OrchidTrap)).toBeFalsy();
+    game.startTowerPlacement(TowerType.Puffball);
+    expect(game.startTowerPlacement(TowerType.Slimefungus)).toBeFalsy();
   });
 
   test('GameRunner selectTower changes state to Selecting', () => {
     const game = new GameRunner();
     game.start();
-    const tower = game.placeTower(TowerType.PuffballFungus, 100, 100);
+    const tower = game.placeTower(TowerType.Puffball, 100, 100);
     if (tower) {
       game.selectTower(tower.id);
       expect(game.getPlacementState()).toEqual(PlacementState.Selecting);
@@ -195,7 +195,7 @@ describe('GameRunner integration', () => {
   test('GameRunner deselectTower resets state to None', () => {
     const game = new GameRunner();
     game.start();
-    const tower = game.placeTower(TowerType.PuffballFungus, 100, 100);
+    const tower = game.placeTower(TowerType.Puffball, 100, 100);
     if (tower) {
       game.selectTower(tower.id);
       game.deselectTower();
@@ -203,14 +203,15 @@ describe('GameRunner integration', () => {
     }
   });
 
-  test('GameRunner handles all 5 tower types for hotkeys', () => {
+  test('GameRunner handles all 6 tower types for hotkeys', () => {
     const game = new GameRunner();
     const towerTypes = [
-      TowerType.PuffballFungus,
-      TowerType.OrchidTrap,
-      TowerType.VenusFlytower,
-      TowerType.BioluminescentShroom,
-      TowerType.StinkhornLine,
+      TowerType.Puffball,
+      TowerType.Slimefungus,
+      TowerType.ThornSniper,
+      TowerType.LumenOracle,
+      TowerType.BulbShooter,
+      TowerType.Sporecap,
     ];
     for (const tt of towerTypes) {
       expect(game.startTowerPlacement(tt)).toBeTruthy();
@@ -223,18 +224,18 @@ describe('GameRunner + Hotkey integration scenarios', () => {
   test('pressing 1 then 2 replaces tower selection', () => {
     const game = new GameRunner();
     game.start();
-    game.startTowerPlacement(TowerType.PuffballFungus);
-    expect(game.getSelectedTowerType()).toEqual(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
+    expect(game.getSelectedTowerType()).toEqual(TowerType.Puffball);
     
     game.cancelPlacement();
-    game.startTowerPlacement(TowerType.OrchidTrap);
-    expect(game.getSelectedTowerType()).toEqual(TowerType.OrchidTrap);
+    game.startTowerPlacement(TowerType.Slimefungus);
+    expect(game.getSelectedTowerType()).toEqual(TowerType.Slimefungus);
   });
 
   test('Escape cancels active placement', () => {
     const game = new GameRunner();
     game.start();
-    game.startTowerPlacement(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
     expect(game.getPlacementState()).toEqual(PlacementState.Placing);
     
     const cancelResult = processHotkey('Escape', { 
@@ -253,11 +254,11 @@ describe('GameRunner + Hotkey integration scenarios', () => {
     const game = new GameRunner();
     game.start();
     
-    game.startTowerPlacement(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
     game.cancelPlacement();
     
-    game.startTowerPlacement(TowerType.OrchidTrap);
-    game.updatePlacementPosition(300, 50);
+    game.startTowerPlacement(TowerType.Slimefungus);
+    game.updatePlacementPosition(300, 450);
     const tower = game.confirmPlacement();
     
     expect(tower !== null).toBeTruthy();
@@ -267,7 +268,7 @@ describe('GameRunner + Hotkey integration scenarios', () => {
   test('selecting tower then pressing Escape deselects', () => {
     const game = new GameRunner();
     game.start();
-    const tower = game.placeTower(TowerType.PuffballFungus, 100, 100);
+    const tower = game.placeTower(TowerType.Puffball, 100, 100);
     
     if (tower) {
       game.selectTower(tower.id);
@@ -351,7 +352,7 @@ describe('Space bar pause/resume hotkey', () => {
   test('Space bar pauses even during tower placement (user can think while paused)', () => {
     const game = new GameRunner();
     game.start();
-    game.startTowerPlacement(TowerType.PuffballFungus);
+    game.startTowerPlacement(TowerType.Puffball);
     expect(game.getPlacementState()).toEqual(PlacementState.Placing);
     
     const pauseResult = processHotkey('Space', { 
@@ -369,7 +370,7 @@ describe('Space bar pause/resume hotkey', () => {
   test('Space bar pauses even during tower selection', () => {
     const game = new GameRunner();
     game.start();
-    const tower = game.placeTower(TowerType.PuffballFungus, 100, 100);
+    const tower = game.placeTower(TowerType.Puffball, 100, 100);
     
     if (tower) {
       game.selectTower(tower.id);

@@ -183,10 +183,13 @@ assertEqual(caveMap.maxWaves, 15, 'Cave map should have 15 max waves');
 // Test available towers per map
 console.log('Testing available towers per map...');
 const gardenTowers = getMapById('garden_path')!.availableTowers;
-assert(gardenTowers.includes(TowerType.PuffballFungus), 'Garden should have PuffballFungus');
-assert(gardenTowers.includes(TowerType.OrchidTrap), 'Garden should have OrchidTrap');
-assert(gardenTowers.includes(TowerType.BioluminescentShroom), 'Garden should have BioluminescentShroom');
-assert(!gardenTowers.includes(TowerType.VenusFlytower), 'Garden should NOT have VenusFlytower');
+assert(gardenTowers.includes(TowerType.Puffball), 'Garden should have Puffball');
+assert(gardenTowers.includes(TowerType.Slimefungus), 'Garden should have Slimefungus');
+assert(gardenTowers.includes(TowerType.ThornSniper), 'Garden should have ThornSniper');
+assert(gardenTowers.includes(TowerType.LumenOracle), 'Garden should have LumenOracle');
+assert(gardenTowers.includes(TowerType.BulbShooter), 'Garden should have BulbShooter');
+assert(gardenTowers.includes(TowerType.Sporecap), 'Garden should have Sporecap');
+assertEqual(gardenTowers.length, 6, 'Garden should expose the canonical six-tower roster');
 
 const expertTowers = getMapById('expert_zigzag')!.availableTowers;
 assertEqual(expertTowers.length, 5, 'Expert map should have all 5 tower types');

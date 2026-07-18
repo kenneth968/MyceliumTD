@@ -107,7 +107,7 @@ console.log('PASS: getTargetingModeAtPosition correctly identifies clicked butto
 console.log('\n=== Test: getTargetingModeSelectionRenderData - visible state ===');
 const renderData = getTargetingModeSelectionRenderData(
   PlacementMode.Placing,
-  TowerType.PuffballFungus,
+  TowerType.Puffball,
   { x: 400, y: 300 },
   TargetingMode.First
 );
@@ -138,7 +138,7 @@ assert(!noTowerData.isVisible, 'Should not be visible when no tower selected');
 
 const noPositionData = getTargetingModeSelectionRenderData(
   PlacementMode.Placing,
-  TowerType.OrchidTrap,
+  TowerType.Slimefungus,
   null,
   TargetingMode.First
 );
@@ -146,7 +146,7 @@ assert(!noPositionData.isVisible, 'Should not be visible when no position set');
 
 const selectingData = getTargetingModeSelectionRenderData(
   PlacementMode.Selecting,
-  TowerType.VenusFlytower,
+  TowerType.ThornSniper,
   { x: 400, y: 300 },
   TargetingMode.First
 );
@@ -157,7 +157,7 @@ console.log('\n=== Test: getTargetingModeSelectionRenderData - different modes =
 for (const mode of [TargetingMode.First, TargetingMode.Last, TargetingMode.Close, TargetingMode.Strong]) {
   const data = getTargetingModeSelectionRenderData(
     PlacementMode.Placing,
-    TowerType.BioluminescentShroom,
+    TowerType.LumenOracle,
     { x: 300, y: 200 },
     mode
   );
@@ -171,7 +171,7 @@ console.log('PASS: Targeting mode selection works for all modes');
 console.log('\n=== Test: Selected button indicator ===');
 const selectedData = getTargetingModeSelectionRenderData(
   PlacementMode.Placing,
-  TowerType.StinkhornLine,
+  TowerType.BulbShooter,
   { x: 250, y: 180 },
   TargetingMode.Strong
 );
@@ -184,7 +184,7 @@ assert(!nonSelectedButtons[2].isSelected, 'Close button should not be selected')
 console.log('PASS: Only the selected button is marked as selected');
 
 console.log('\n=== Test: All tower types support targeting mode selection ===');
-for (const towerType of [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.VenusFlytower, TowerType.BioluminescentShroom, TowerType.StinkhornLine]) {
+for (const towerType of [TowerType.Puffball, TowerType.Slimefungus, TowerType.ThornSniper, TowerType.LumenOracle, TowerType.BulbShooter]) {
   const data = getTargetingModeSelectionRenderData(
     PlacementMode.Placing,
     towerType,

@@ -41,11 +41,11 @@ test('Full game session: start -> place towers -> play wave -> verify economy tr
   assert(stats.lives === 20, `Should start with 20 lives, got ${stats.lives}`);
   assert(stats.state === GameState.Playing, 'Game should be Playing');
   
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   assert(tower !== null, 'Should place Puffball Fungus tower');
   
   const afterPlace = game.getGameStats();
-  assert(afterPlace.money === 550, `Should have 550 money after tower purchase, got ${afterPlace.money}`);
+  assert(afterPlace.money === 470, `Should have 470 money after tower purchase, got ${afterPlace.money}`);
   assert(afterPlace.towers === 1, `Should have 1 tower, got ${afterPlace.towers}`);
   
   game.startWave(0);
@@ -75,12 +75,12 @@ test('Tower placement deducts cost from economy', () => {
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
-  const canPlaceTooClose = game.canPlaceTower(TowerType.OrchidTrap, 105, 105);
+  const canPlaceTooClose = game.canPlaceTower(TowerType.Slimefungus, 105, 105);
   assert(canPlaceTooClose.canPlace === false, 'Should not be able to afford second Orchid without more money');
   
-  const validSpot = game.canPlaceTower(TowerType.VenusFlytower, 300, 300);
+  const validSpot = game.canPlaceTower(TowerType.ThornSniper, 300, 300);
   assert(validSpot.canPlace === true, 'Should be able to place in valid spot');
 });
 
@@ -88,7 +88,7 @@ test('Upgrade system integration: upgrading tower modifies stats and costs money
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
-  const tower = game.placeTower(TowerType.OrchidTrap, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const preUpgrade = game.getTowerUpgradeInfo(tower!.id);
@@ -152,22 +152,22 @@ test('Recommended build order can reach victory across all 10 waves', () => {
   game.start();
 
   const buildOrder = [
-    { type: TowerType.StinkhornLine, x: 340, y: 440, mode: TargetingMode.First },
-    { type: TowerType.BioluminescentShroom, x: 340, y: 160, mode: TargetingMode.First },
-    { type: TowerType.PuffballFungus, x: 100, y: 240, mode: TargetingMode.First },
-    { type: TowerType.PuffballFungus, x: 100, y: 360, mode: TargetingMode.First },
-    { type: TowerType.StinkhornLine, x: 460, y: 440, mode: TargetingMode.First },
-    { type: TowerType.OrchidTrap, x: 260, y: 160, mode: TargetingMode.First },
-    { type: TowerType.PuffballFungus, x: 340, y: 300, mode: TargetingMode.First },
-    { type: TowerType.BioluminescentShroom, x: 660, y: 360, mode: TargetingMode.First },
-    { type: TowerType.StinkhornLine, x: 540, y: 440, mode: TargetingMode.First },
-    { type: TowerType.PuffballFungus, x: 460, y: 300, mode: TargetingMode.First },
-    { type: TowerType.VenusFlytower, x: 660, y: 240, mode: TargetingMode.Strong },
-    { type: TowerType.StinkhornLine, x: 340, y: 560, mode: TargetingMode.First },
-    { type: TowerType.BioluminescentShroom, x: 700, y: 360, mode: TargetingMode.First },
-    { type: TowerType.PuffballFungus, x: 700, y: 240, mode: TargetingMode.First },
-    { type: TowerType.OrchidTrap, x: 500, y: 300, mode: TargetingMode.First },
-    { type: TowerType.VenusFlytower, x: 460, y: 160, mode: TargetingMode.Strong },
+    { type: TowerType.BulbShooter, x: 340, y: 440, mode: TargetingMode.First },
+    { type: TowerType.LumenOracle, x: 340, y: 160, mode: TargetingMode.First },
+    { type: TowerType.Puffball, x: 100, y: 240, mode: TargetingMode.First },
+    { type: TowerType.Puffball, x: 100, y: 360, mode: TargetingMode.First },
+    { type: TowerType.BulbShooter, x: 460, y: 440, mode: TargetingMode.First },
+    { type: TowerType.Slimefungus, x: 260, y: 160, mode: TargetingMode.First },
+    { type: TowerType.Puffball, x: 340, y: 300, mode: TargetingMode.First },
+    { type: TowerType.LumenOracle, x: 660, y: 360, mode: TargetingMode.First },
+    { type: TowerType.BulbShooter, x: 540, y: 440, mode: TargetingMode.First },
+    { type: TowerType.Puffball, x: 460, y: 300, mode: TargetingMode.First },
+    { type: TowerType.ThornSniper, x: 660, y: 240, mode: TargetingMode.Strong },
+    { type: TowerType.BulbShooter, x: 340, y: 560, mode: TargetingMode.First },
+    { type: TowerType.LumenOracle, x: 700, y: 360, mode: TargetingMode.First },
+    { type: TowerType.Puffball, x: 700, y: 240, mode: TargetingMode.First },
+    { type: TowerType.Slimefungus, x: 500, y: 300, mode: TargetingMode.First },
+    { type: TowerType.ThornSniper, x: 460, y: 160, mode: TargetingMode.Strong },
   ];
   let nextBuildIndex = 0;
   let wavesStarted = 0;
@@ -220,7 +220,7 @@ test('Sell tower returns value and removes from placed towers', () => {
   const game = createGameRunner({ startingMoney: 650 });
   game.start();
   
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const preSellMoney = game.getGameStats().money;
@@ -251,7 +251,7 @@ test('Reset clears all game state back to initial', () => {
   const game = createGameRunner({ startingMoney: 650, startingLives: 20 });
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   game.startWave(0);
   
   game.reset();
@@ -267,7 +267,7 @@ test('Game speed changes affect update delta time', () => {
   const game = createGameRunner();
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   game.startWave(0);
   
   game.setGameSpeed(1);
@@ -302,9 +302,9 @@ test('Towers can be placed and tracked in game state', () => {
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
-  const tower1 = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
-  const tower2 = game.placeTower(TowerType.OrchidTrap, 200, 100, TargetingMode.Last);
-  const tower3 = game.placeTower(TowerType.VenusFlytower, 300, 100, TargetingMode.Strong);
+  const tower1 = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
+  const tower2 = game.placeTower(TowerType.Slimefungus, 200, 100, TargetingMode.Last);
+  const tower3 = game.placeTower(TowerType.ThornSniper, 300, 100, TargetingMode.Strong);
   
   assert(tower1 !== null, 'First tower placed');
   assert(tower2 !== null, 'Second tower placed');
@@ -318,7 +318,7 @@ test('Tower info panel integrates with game runner selection', () => {
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
-  const tower = game.placeTower(TowerType.VenusFlytower, 200, 200, TargetingMode.First);
+  const tower = game.placeTower(TowerType.ThornSniper, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   game.selectTower(tower!.id);
@@ -359,8 +359,8 @@ test('Game runner update loop runs without errors through multiple frames', () =
   const game = createGameRunner({ startingMoney: 650, startingLives: 20 });
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
-  game.placeTower(TowerType.OrchidTrap, 200, 100, TargetingMode.Last);
+  game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
+  game.placeTower(TowerType.Slimefungus, 200, 100, TargetingMode.Last);
   game.startWave(0);
   
   const loopStartTime = Date.now();
@@ -377,7 +377,7 @@ test('Enemies spawn from wave spawner when wave starts', () => {
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   game.startWave(0);
   
   let enemySpawned = false;
@@ -424,10 +424,10 @@ test('Multiple towers can have different targeting modes', () => {
   const game = createGameRunner({ startingMoney: 2000 });
   game.start();
   
-  const tower1 = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
-  const tower2 = game.placeTower(TowerType.OrchidTrap, 200, 100, TargetingMode.Last);
-  const tower3 = game.placeTower(TowerType.VenusFlytower, 300, 100, TargetingMode.Close);
-  const tower4 = game.placeTower(TowerType.StinkhornLine, 400, 100, TargetingMode.Strong);
+  const tower1 = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
+  const tower2 = game.placeTower(TowerType.Slimefungus, 200, 100, TargetingMode.Last);
+  const tower3 = game.placeTower(TowerType.ThornSniper, 300, 100, TargetingMode.Close);
+  const tower4 = game.placeTower(TowerType.BulbShooter, 400, 100, TargetingMode.Strong);
   
   assert(tower1 !== null, 'First tower placed');
   assert(tower2 !== null, 'Second tower placed');
@@ -444,7 +444,7 @@ test('Economy tracks tower purchase and sell transactions', () => {
   
   const initialMoney = game.getGameStats().money;
   
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
   const afterPurchase = game.getGameStats().money;

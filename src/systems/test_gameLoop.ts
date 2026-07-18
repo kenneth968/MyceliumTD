@@ -158,7 +158,7 @@ test('lifecycle - after stop not active', () => lifecycleLoop.isActive() === fal
 console.log('\nGame through loop tests:');
 const gameLoop = createTestGameLoop();
 gameLoop.start();
-const tower = gameLoop.getGame().placeTower(TowerType.PuffballFungus, 200, 200, TargetingMode.First);
+const tower = gameLoop.getGame().placeTower(TowerType.Puffball, 200, 200, TargetingMode.First);
 test('can place tower through game loop', () => tower !== null);
 gameLoop.stop();
 
