@@ -28,6 +28,7 @@ export enum DamageType {
 
 export interface DamageOptions {
   damageType?: DamageType | `${DamageType}`;
+  piercing?: boolean;
   applyMarkBonus?: boolean;
 }
 
@@ -52,6 +53,7 @@ export interface Enemy {
   layers: EnemyLayerState[];
   currentLayerIndex: number;
   variant: EnemyVariant;
+  isBoss?: boolean;
   pathProgress: number;
   pathDistance: number;
   speed: number;
@@ -67,9 +69,9 @@ export interface Enemy {
 }
 
 export const SWARM_LINK_RADIUS = 80;
-export const SWARM_LINK_THRESHOLD = 3;
+export const SWARM_LINK_THRESHOLD = 2;
 export const SWARM_LINK_SPEED_MULTIPLIER = 1.2;
-export const SWARM_LINK_DAMAGE_MULTIPLIER = 0.9;
+export const METAL_DAMAGE_REDUCTION = 0.3;
 export const MARK_DURATION = 4000;
 export const MARK_DAMAGE_BONUS = 1;
 export const TRAIT_DISRUPTION_DURATION = 5000;
@@ -135,14 +137,19 @@ export function consumeShieldBlock(
 }
 
 export function getTraitAdjustedDamage(
-  enemy: TraitCarrier & { swarmLinkedActive?: boolean },
-  damage: number
+  enemy: TraitCarrier,
+  damage: number,
+  options: DamageOptions = {}
 ): number {
-  if (isSwarmLinked(enemy) && enemy.swarmLinkedActive === true) {
-    return damage * SWARM_LINK_DAMAGE_MULTIPLIER;
+  if (
+    !isMetal(enemy) ||
+    options.damageType === DamageType.Explosive ||
+    options.piercing === true
+  ) {
+    return damage;
   }
 
-  return damage;
+  return Math.max(1, Math.floor(damage * (1 - METAL_DAMAGE_REDUCTION)));
 }
 
 export function getSwarmLinkedSpeedMultiplier(
@@ -177,11 +184,7 @@ export function canDamageEnemy(
   enemy: TraitCarrier,
   options: DamageOptions = {}
 ): boolean {
-  if (!isMetal(enemy)) {
-    return true;
-  }
-
-  return options.damageType === DamageType.Explosive;
+  return true;
 }
 
 type StatusCarrier = {
@@ -297,6 +300,7 @@ export function createEnemy(
     layers,
     currentLayerIndex: 0,
     variant: EnemyVariant.Normal,
+    isBoss: false,
     pathProgress: 0,
     pathDistance: 0,
     speed: definition.speed,
@@ -310,6 +314,33 @@ export function createEnemy(
     statusEffects: [],
     hasReachedEnd: false,
   };
+}
+
+const VARIANT_LAYER_MULTIPLIER: Record<EnemyVariant, number> = {
+  [EnemyVariant.Normal]: 1,
+  [EnemyVariant.Elite]: 2,
+  [EnemyVariant.Boss]: 6,
+};
+
+export function applyEnemyVariant(enemy: Enemy, variant: EnemyVariant): void {
+  const multiplier = VARIANT_LAYER_MULTIPLIER[variant];
+  enemy.variant = variant;
+  enemy.isBoss = variant === EnemyVariant.Boss;
+  if (
+    variant === EnemyVariant.Boss &&
+    enemy.enemyType === EnemyType.WardMoth &&
+    !enemy.traits.includes(EnemyTrait.Camo)
+  ) {
+    enemy.traits = [...enemy.traits, EnemyTrait.Camo];
+  }
+  enemy.layers = enemy.layers.map(layer => ({
+    hp: layer.maxHp * multiplier,
+    maxHp: layer.maxHp * multiplier,
+  }));
+  enemy.currentLayerIndex = 0;
+  enemy.hp = enemy.layers.reduce((sum, layer) => sum + layer.hp, 0);
+  enemy.maxHp = enemy.hp;
+  enemy.reward = Math.floor(enemy.reward * multiplier);
 }
 
 export function updateEnemyPosition(
@@ -388,15 +419,12 @@ export function resolveDamage(enemy: Enemy, rawDamage: number, options: DamageOp
   if (!enemy.alive || rawDamage <= 0) {
     return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: false };
   }
-  if (!canDamageEnemy(enemy, options)) {
-    return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: false };
-  }
   if (consumeShieldBlock(enemy)) {
     return { killed: false, damageApplied: 0, layersBroken: 0, shieldConsumed: true };
   }
 
   const markedDamage = getMarkedAdjustedDamage(enemy, rawDamage, options);
-  let remaining = getTraitAdjustedDamage(enemy, markedDamage);
+  let remaining = getTraitAdjustedDamage(enemy, markedDamage, options);
   let damageApplied = 0;
   let layersBroken = 0;
 

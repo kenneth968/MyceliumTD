@@ -212,6 +212,19 @@ test('should process multiple effects at once', () => {
   assert(result.effectsApplied.includes(StatusEffectType.Poison), 'Should include poison');
 });
 
+test('shielded hit should consume damage and status together', () => {
+  const enemy = createEnemy(2, EnemyType.WardMoth, path);
+  const result = processStatusEffectHit(enemy, [
+    { type: 'damage', strength: 3 },
+    { type: 'slow', strength: 0.5, duration: 1000 },
+  ], 16);
+
+  assert(result.damage === 0, 'Shielded hit should apply zero damage');
+  assert(enemy.shieldCharges === 0, 'Shielded hit should consume the shield charge');
+  assert(result.effectsApplied.length === 0, 'Shielded hit should consume its status effect');
+  assert(!hasStatusEffect(enemy, StatusEffectType.Slow), 'Shielded hit should not apply slow');
+});
+
 console.log('\n--- Tower type status effects ---');
 
 test('Orchid trap should apply slow', () => {

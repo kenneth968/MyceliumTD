@@ -161,8 +161,13 @@ export function getHitEffectsForTowerType(
 export function applyHitEffects(
   enemy: Enemy,
   effects: HitEffect[],
-  deltaTime: number
+  deltaTime: number,
+  blockedByShield: boolean = false
 ): void {
+  if (blockedByShield) {
+    return;
+  }
+
   for (const effect of effects) {
     switch (effect.type) {
       case 'slow':

@@ -146,19 +146,19 @@ console.assert(isCamo(camoEnemy) === true, 'VeilWasp should be camo');
 console.assert(isCamo(nonCamoEnemy) === false, 'ScoutBeetle should not be camo');
 console.log('  PASS\n');
 
-console.log('Test 15: Metal trait blocks non-explosive damage');
+console.log('Test 15: Metal trait soft-counters non-explosive damage');
 const metalEnemy = createEnemy(8, EnemyType.BulwarkBeetle, path);
 const metalStartingHp = metalEnemy.hp;
 console.assert(Array.isArray(metalEnemy.traits), 'Metal enemy should expose traits');
 console.assert(metalEnemy.traits.includes(EnemyTrait.Metal), 'BulwarkBeetle should have Metal trait');
-const blockedByMetal = applyDamageToEnemy(metalEnemy, 5);
-console.log('  Non-explosive damage blocked:', blockedByMetal === false, 'HP:', metalEnemy.hp);
-console.assert(blockedByMetal === false, 'Non-explosive damage should not damage Metal enemies');
-console.assert(metalEnemy.hp === metalStartingHp, 'Metal enemy HP should stay unchanged after non-explosive damage');
+const reducedByMetal = applyDamageToEnemy(metalEnemy, 5);
+console.log('  Non-explosive damage reduced:', reducedByMetal === false, 'HP:', metalEnemy.hp);
+console.assert(reducedByMetal === false, 'Reduced non-explosive damage should not kill Metal enemies');
+console.assert(metalEnemy.hp === metalStartingHp - 3, 'Metal enemy should take floor(5 * 0.7) ordinary damage');
 const explosivePartial = applyDamageToEnemy(metalEnemy, 5, { damageType: 'explosive' });
 console.log('  Explosive damage applied:', explosivePartial === false, 'HP:', metalEnemy.hp);
 console.assert(explosivePartial === false, 'Partial explosive damage should not kill Metal enemy');
-console.assert(metalEnemy.hp === metalStartingHp - 5, 'Explosive damage should reduce Metal enemy HP');
+console.assert(metalEnemy.hp === metalStartingHp - 8, 'Explosive damage should bypass Metal reduction');
 console.log('  PASS\n');
 
 console.log('Test 16: Shielded trait blocks the first hit');
@@ -177,7 +177,7 @@ assertTest(shieldedPartial === false, 'Second partial hit should not kill Shield
 assertTest(shieldedEnemy.hp === shieldedStartingHp - 5, 'Second hit should damage Shielded enemy after shield breaks');
 console.log('  PASS\n');
 
-console.log('Test 17: Swarm-linked trait activates pack resistance');
+console.log('Test 17: Swarm-linked trait does not alter incoming damage');
 const swarmEnemy = createEnemy(10, EnemyType.SwarmWasp, path);
 const swarmStartingHp = swarmEnemy.hp;
 assertTest(swarmEnemy.traits.includes(EnemyTrait.SwarmLinked), 'SwarmWasp should have Swarm-linked trait');
@@ -186,7 +186,7 @@ swarmEnemy.swarmLinkCount = 3;
 const swarmPartial = applyDamageToEnemy(swarmEnemy, 0.5);
 console.log('  Swarm-linked damage reduced:', swarmPartial === false, 'HP:', swarmEnemy.hp);
 assertTest(swarmPartial === false, 'Partial swarm-resistant hit should not kill Swarm-linked enemy');
-assertTest(swarmEnemy.hp === swarmStartingHp - 0.45, 'Active Swarm-linked enemy should take 10% less incoming damage');
+assertTest(swarmEnemy.hp === swarmStartingHp - 0.5, 'Swarm-linked should only affect speed, not incoming damage');
 console.log('  PASS\n');
 
 console.log('Test 18: Enemy type mapping for all types');
@@ -223,7 +223,7 @@ assertTest(hasEnemyTrait(disruptedMetal, EnemyTrait.Metal) === true, 'Metal trai
 const restoredMetalHp = disruptedMetal.hp;
 const restoredMetalHit = applyDamageToEnemy(disruptedMetal, 5);
 assertTest(restoredMetalHit === false, 'Restored Metal enemy should block ordinary damage');
-assertTest(disruptedMetal.hp === restoredMetalHp, 'Restored Metal enemy HP should stay unchanged after ordinary damage');
+assertTest(disruptedMetal.hp === restoredMetalHp - 3, 'Restored Metal should reduce ordinary damage by 30%');
 console.log('  PASS\n');
 
 console.log('Test 20: Trait disruption breaks active shields');
@@ -247,8 +247,8 @@ const disruptedSwarmTrait = disruptEnemyTrait(disruptedSwarmPack[0], 5000);
 assertTest(disruptedSwarmTrait === EnemyTrait.SwarmLinked, 'Disruption should strip Swarm-linked from PinkLadybug');
 refreshSwarmLinkStates(disruptedSwarmPack);
 assertTest(disruptedSwarmPack[0].swarmLinkedActive === false, 'Disrupted Swarm-linked enemy should not activate pack bonus');
-assertTest(disruptedSwarmPack[1].swarmLinkedActive === false, 'Packmates should lose pack bonus when disrupted enemy no longer counts');
-assertTest(disruptedSwarmPack[2].swarmLinkedActive === false, 'All packmates should require three undisrupted swarm enemies');
+assertTest(disruptedSwarmPack[1].swarmLinkedActive === true, 'Two undisrupted nearby packmates should retain the speed bonus');
+assertTest(disruptedSwarmPack[2].swarmLinkedActive === true, 'Swarm-link should activate for a nearby pair');
 console.log('  PASS\n');
 
 console.log('Test 22: Mark adds one damage per hit and refreshes without stacking');

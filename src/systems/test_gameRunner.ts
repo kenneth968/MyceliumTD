@@ -128,8 +128,8 @@ metalCounterGame.update(1000);
 metalCounterGame.update(1400);
 assertEqual(
   metalTarget.hp,
-  metalTarget.maxHp,
-  'Metal enemies should ignore ordinary non-explosive tower hits'
+  metalTarget.maxHp - 2,
+  'Metal enemies should take floor(3 * 0.7) from ordinary Bulb Shooter hits'
 );
 
 const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
@@ -194,8 +194,8 @@ plainOrchidGame.update(1000);
 plainOrchidGame.update(2200);
 assertEqual(
   plainOrchidMetalTarget.hp,
-  plainOrchidMetalTarget.maxHp,
-  'Ordinary Orchid should not bypass Metal without connected Special upgrade'
+  plainOrchidMetalTarget.maxHp - 2,
+  'Two ordinary Orchid hits should each deal the one-damage Metal floor without suppressing the trait'
 );
 
 const shieldedHitGame = createGameRunner({ startingMoney: 5000 });
@@ -314,8 +314,8 @@ swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
 swarmSeededPayloadFreshnessGame.update(1000);
 assertEqual(
   seededSwarmTargets[0].hp,
-  0.55,
-  'Seeded payload damage should refresh Swarm-linked state before detonation damage'
+  0.5,
+  'Seeded payload damage should not receive a Swarm-linked damage modifier'
 );
 
 const markApplicationGame = createGameRunner({ startingMoney: 5000 });
@@ -324,7 +324,7 @@ const markingTower = markApplicationGame.placeTower(TowerType.Puffball, 720, 250
 assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
 const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
 assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
-const markTarget = createEnemy(914, EnemyType.DartWasp, markApplicationGame.getPath());
+const markTarget = createEnemy(914, EnemyType.CrawlerCaterpillar, markApplicationGame.getPath());
 markTarget.pathDistance = 1540;
 markTarget.pathProgress = 1540;
 markTarget.position = { ...markApplicationGame.getPath().getPointAtDistance(markTarget.pathDistance).position };
@@ -338,8 +338,8 @@ assert(
   'Connected Special Puffball should mark its direct target'
 );
 assert(
-  markTarget.hp === 0,
-  'The marked Puffball hit should include the +1 marked damage bonus'
+  markTarget.hp === markTarget.maxHp - markingTower!.damage,
+  'The direct hit should resolve before its newly applied Mark can affect later hits'
 );
 
 const executeMarkedGame = createGameRunner({ startingMoney: 5000 });

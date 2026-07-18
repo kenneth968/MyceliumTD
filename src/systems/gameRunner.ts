@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { DamageResolution, Enemy, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
+import { DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -133,7 +133,7 @@ export enum GameState {
 }
 
 export interface GameEvent {
-  type: 'hit' | 'death' | 'area_hit' | 'layer_broken';
+  type: 'hit' | 'death' | 'area_hit' | 'layer_broken' | 'trait_broken';
   position: Vec2;
   towerType?: TowerType;
   enemyId?: number;
@@ -142,6 +142,8 @@ export interface GameEvent {
   enemyColor?: string;
   radius?: number;
   effectType?: string;
+  trait?: EnemyTrait;
+  timestamp?: number;
 }
 
 export interface PlacedTower {
@@ -760,9 +762,23 @@ export class GameRunner {
     refreshSwarmLinkStates(this.activeEnemies);
   }
 
+  private emitTraitBroken(enemy: Enemy, trait: EnemyTrait): void {
+    this.eventQueue.push({
+      type: 'trait_broken',
+      position: { ...enemy.position },
+      enemyId: enemy.id,
+      trait,
+      timestamp: this.currentTime,
+    });
+  }
+
   private applyTowerDamageWithFreshTraits(enemy: Enemy, damage: number, options: { damageType?: DamageType | `${DamageType}` } = {}): DamageResolution {
     this.refreshEnemyTraitStates();
     const resolution = resolveDamage(enemy, damage, options);
+
+    if (resolution.shieldConsumed) {
+      this.emitTraitBroken(enemy, EnemyTrait.Shielded);
+    }
 
     if (resolution.layersBroken > 0) {
       this.eventQueue.push({
@@ -796,7 +812,15 @@ export class GameRunner {
       return;
     }
 
-    disruptEnemyTrait(enemy, TRAIT_DISRUPTION_DURATION);
+    const disruptedBefore = new Set(
+      enemy.statusEffects
+        .filter(effect => effect.type === StatusEffectType.TraitDisrupted && effect.disruptedTrait)
+        .map(effect => effect.disruptedTrait)
+    );
+    const trait = disruptEnemyTrait(enemy, TRAIT_DISRUPTION_DURATION);
+    if (trait && !disruptedBefore.has(trait)) {
+      this.emitTraitBroken(enemy, trait);
+    }
   }
 
   private canProjectileMarkEnemies(projectile: Projectile): boolean {
@@ -835,6 +859,7 @@ export class GameRunner {
     }
 
     if (consumeShieldBlock(enemy)) {
+      this.emitTraitBroken(enemy, EnemyTrait.Shielded);
       return true;
     }
 
@@ -963,12 +988,17 @@ export class GameRunner {
           projectile.effectDuration
         );
         effects.push(...(projectile.extraHitEffects ?? []));
-        this.applyTraitDisruptionFromProjectile(projectile, result.target as Enemy);
-        this.applyMarkFromProjectile(projectile, result.target as Enemy);
         const executeHandled = this.applyExecuteFromProjectile(projectile, result.target as Enemy);
         if (!executeHandled) {
-          applyHitEffects(result.target as any, effects, deltaTime);
-          this.applyTowerDamageWithFreshTraits(result.target as Enemy, projectile.damage, { damageType: getTowerDamageType(projectile.towerType) });
+          const enemy = result.target as Enemy;
+          const resolution = this.applyTowerDamageWithFreshTraits(enemy, projectile.damage, {
+            damageType: getTowerDamageType(projectile.towerType),
+          });
+          applyHitEffects(enemy, effects, deltaTime, resolution.shieldConsumed);
+          if (!resolution.shieldConsumed) {
+            this.applyTraitDisruptionFromProjectile(projectile, enemy);
+            this.applyMarkFromProjectile(projectile, enemy);
+          }
         }
 
         // Emit hit event for visual effects
