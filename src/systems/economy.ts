@@ -6,17 +6,19 @@ export interface EconomyConfig {
   interestInterval: number;
   roundBonusBase: number;
   roundBonusMultiplier: number;
+  perfectWaveBonusPercent: number;
   sellRefundPercent: number;
 }
 
 export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
-  startingMoney: 650,
+  startingMoney: 500,
   startingLives: 20,
   interestRate: 0,
   maxInterest: 200,
   interestInterval: 5000,
-  roundBonusBase: 100,
-  roundBonusMultiplier: 50,
+  roundBonusBase: 75,
+  roundBonusMultiplier: 25,
+  perfectWaveBonusPercent: 0.1,
   sellRefundPercent: 0.7,
 };
 
@@ -25,6 +27,12 @@ export interface Transaction {
   amount: number;
   timestamp: number;
   description: string;
+}
+
+export interface RoundBonusBreakdown {
+  completion: number;
+  perfect: number;
+  total: number;
 }
 
 export enum TransactionType {
@@ -128,18 +136,20 @@ export class GameEconomy {
     return interestEarned;
   }
 
-  addRoundBonus(): number {
-    const bonus = this.config.roundBonusBase + (this.roundsCompleted * this.config.roundBonusMultiplier);
-    this.money += bonus;
-    this.totalEarned += bonus;
+  addRoundBonus(leaks: number = 0): RoundBonusBreakdown {
+    const completion = this.config.roundBonusBase + this.roundsCompleted * this.config.roundBonusMultiplier;
+    const perfect = leaks === 0 ? Math.floor(completion * this.config.perfectWaveBonusPercent) : 0;
+    const total = completion + perfect;
+    this.money += total;
+    this.totalEarned += total;
     this.roundsCompleted++;
     this.transactions.push({
       type: TransactionType.RoundBonus,
-      amount: bonus,
+      amount: total,
       timestamp: Date.now(),
-      description: `Round ${this.roundsCompleted} completed`,
+      description: `Wave ${this.roundsCompleted} completed`,
     });
-    return bonus;
+    return { completion, perfect, total };
   }
 
   spend(amount: number, description: string): boolean {

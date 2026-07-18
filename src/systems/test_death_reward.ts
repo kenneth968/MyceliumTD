@@ -114,4 +114,59 @@ enemyReachEnd.pathDistance = path.getTotalLength() + 1;
 enemyReachEnd.hasReachedEnd = true;
 assert(enemyReachEnd.alive === true, 'Enemy that reached end is still technically alive until processed');
 
+const lifecycleGame = createGameRunner({ startingLives: 20 });
+assert(lifecycleGame.startWave(0), 'First release wave should start');
+const waveStartedEvents = lifecycleGame.drainEvents().filter(event => event.type === 'wave_started');
+assertEqual(waveStartedEvents.length, 1, 'Wave start should emit exactly one semantic event');
+assertEqual(waveStartedEvents[0].waveNumber, 1, 'Wave start should use a one-based wave number');
+
+const indexedWaveGame = createGameRunner({ startingLives: 20 });
+assert(indexedWaveGame.startWave(5), 'Direct release-wave start should succeed');
+const indexedWaveStart = indexedWaveGame.drainEvents().find(event => event.type === 'wave_started');
+assertEqual(indexedWaveStart?.waveNumber, 6, 'Wave identity should follow the selected one-based release wave');
+
+const lifecycleLeak = createEnemy(400, EnemyType.ScoutBeetle, lifecycleGame.getPath());
+lifecycleLeak.pathDistance = lifecycleGame.getPath().getTotalLength() + 1;
+lifecycleLeak.hasReachedEnd = true;
+lifecycleGame.getActiveEnemies().push(lifecycleLeak);
+lifecycleGame.update(0);
+const leakEvents = lifecycleGame.drainEvents().filter(event => event.type === 'enemy_leaked');
+assertEqual(leakEvents.length, 1, 'A Kernel leak should emit exactly one semantic event');
+assertEqual(leakEvents[0].enemyId, lifecycleLeak.id, 'Leak event should identify the enemy');
+assertEqual(leakEvents[0].enemyType, lifecycleLeak.enemyType, 'Leak event should identify the enemy type');
+assertEqual(leakEvents[0].waveNumber, 1, 'Leak event should identify the active wave');
+
+const firstWaveEnemy = lifecycleGame.getActiveEnemies()[0];
+lifecycleGame.getWaveSpawner().update(100000);
+firstWaveEnemy.alive = false;
+lifecycleGame.update(1);
+const firstCompletionEvents = lifecycleGame.drainEvents().filter(event => event.type === 'wave_completed');
+assertEqual(firstCompletionEvents.length, 1, 'Wave completion should emit exactly one semantic event');
+assertEqual(firstCompletionEvents[0].waveNumber, 1, 'Completion event should identify the wave');
+assertEqual(firstCompletionEvents[0].completion, 75, 'Completion event should include completion reward');
+assertEqual(firstCompletionEvents[0].perfect, 0, 'Leaked wave should report no perfect reward');
+assertEqual(firstCompletionEvents[0].total, 75, 'Leaked wave should report the recoverable total');
+
+for (let waveNumber = 2; waveNumber <= 10; waveNumber++) {
+  assert(lifecycleGame.startWave(), `Wave ${waveNumber} should start`);
+  lifecycleGame.getWaveSpawner().update(0);
+  lifecycleGame.getWaveSpawner().update(100000);
+  lifecycleGame.update(waveNumber);
+}
+const terminalEvents = lifecycleGame.drainEvents();
+assertEqual(terminalEvents.filter(event => event.type === 'victory').length, 1, 'Victory should emit exactly once');
+lifecycleGame.getRoundManager().checkRoundCompletion(0);
+assertEqual(lifecycleGame.drainEvents().filter(event => event.type === 'victory').length, 0, 'Terminal rechecks should not duplicate victory');
+
+const defeatGame = createGameRunner({ startingLives: 1 });
+assert(defeatGame.startWave(0), 'Defeat scenario should start its first wave');
+defeatGame.drainEvents();
+const fatalLeak = createEnemy(401, EnemyType.ScoutBeetle, defeatGame.getPath());
+fatalLeak.pathDistance = defeatGame.getPath().getTotalLength() + 1;
+fatalLeak.hasReachedEnd = true;
+defeatGame.getActiveEnemies().push(fatalLeak);
+defeatGame.update(0);
+defeatGame.update(1);
+assertEqual(defeatGame.drainEvents().filter(event => event.type === 'defeat').length, 1, 'Defeat should emit exactly once');
+
 console.log('All enemy death and kill reward integration tests passed!');

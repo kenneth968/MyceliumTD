@@ -1,20 +1,25 @@
 import { Path } from './path';
-import { Enemy, createEnemy } from '../entities/enemy';
-import { EnemyType } from '../content/enemyDefinitions';
+import { Enemy, applyEnemyVariant, createEnemy } from '../entities/enemy';
+import { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
+import { RELEASE_WAVES } from '../content/waveDefinitions';
 
 export { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
 export { ENEMY_DEFINITIONS as ENEMY_STATS } from '../content/enemyDefinitions';
 
 export interface SpawnGroup {
-  enemyType: EnemyType;
+  type?: EnemyType;
+  enemyType?: EnemyType;
   count: number;
   interval: number;
+  delay?: number;
+  variant?: EnemyVariant;
 }
 
 export interface Wave {
   id: number;
   name: string;
   groups: SpawnGroup[];
+  completionBonus?: number;
   delayBetweenGroups: number;
   totalDuration: number;
 }
@@ -145,51 +150,54 @@ export class WaveSpawner {
     const newEnemies: Enemy[] = [];
     const elapsed = currentTime - this.waveStartTime;
 
-    while (this.currentGroupIndex < wave.groups.length) {
-      const group = wave.groups[this.currentGroupIndex];
-      const groupStartTime = this.getGroupStartTime(wave, this.currentGroupIndex);
+    for (let groupIndex = 0; groupIndex < wave.groups.length; groupIndex++) {
+      const group = wave.groups[groupIndex];
+      const groupStartTime = this.getGroupStartTime(wave, groupIndex);
       const timeSinceGroupStart = elapsed - groupStartTime;
 
       if (timeSinceGroupStart < 0) {
-        break;
+        continue;
       }
 
-      while (this.enemiesInCurrentGroup < group.count) {
-        const spawnOffset = this.enemiesInCurrentGroup * group.interval;
+      let spawnedInGroup = this.spawnTimers.get(groupIndex) ?? 0;
+      while (spawnedInGroup < group.count) {
+        const spawnOffset = spawnedInGroup * group.interval;
         if (timeSinceGroupStart < spawnOffset) {
           break;
         }
 
-        const enemy = this.spawnEnemy(group.enemyType);
+        const enemy = this.spawnEnemy(group);
         newEnemies.push(enemy);
         this.spawnedEnemies.push({
           enemy,
           spawnTime: currentTime,
-          groupIndex: this.currentGroupIndex,
+          groupIndex,
         });
         this.totalSpawnedInWave++;
-        this.enemiesInCurrentGroup++;
+        spawnedInGroup++;
       }
-
-      const groupComplete = this.enemiesInCurrentGroup >= group.count;
-      const groupDelayPassed = timeSinceGroupStart >= group.count * group.interval + wave.delayBetweenGroups;
-
-      if (!groupComplete || !groupDelayPassed) {
-        break;
-      }
-
-      this.currentGroupIndex++;
-      this.enemiesInCurrentGroup = 0;
+      this.spawnTimers.set(groupIndex, spawnedInGroup);
     }
 
-    if (this.currentGroupIndex >= wave.groups.length && this.totalSpawnedInWave >= this.getTotalEnemyCount(wave)) {
+    this.currentGroupIndex = wave.groups.findIndex(
+      (group, groupIndex) => (this.spawnTimers.get(groupIndex) ?? 0) < group.count
+    );
+    if (this.currentGroupIndex === -1) {
+      this.currentGroupIndex = wave.groups.length;
+      this.enemiesInCurrentGroup = 0;
       this.isActive = false;
+    } else {
+      this.enemiesInCurrentGroup = this.spawnTimers.get(this.currentGroupIndex) ?? 0;
     }
 
     return newEnemies;
   }
 
   private getGroupStartTime(wave: Wave, groupIndex: number): number {
+    const configuredDelay = wave.groups[groupIndex].delay;
+    if (configuredDelay !== undefined) {
+      return configuredDelay;
+    }
     let time = 0;
     for (let i = 0; i < groupIndex; i++) {
       const g = wave.groups[i];
@@ -198,12 +206,15 @@ export class WaveSpawner {
     return time;
   }
 
-  private getTotalEnemyCount(wave: Wave): number {
-    return wave.groups.reduce((sum, g) => sum + g.count, 0);
-  }
-
-  private spawnEnemy(type: EnemyType): Enemy {
+  private spawnEnemy(group: SpawnGroup): Enemy {
+    const type = group.type ?? group.enemyType;
+    if (!type) {
+      throw new Error('Spawn group requires an enemy type');
+    }
     const enemy = createEnemy(this.nextEnemyId++, type, this.path);
+    if (group.variant !== undefined) {
+      applyEnemyVariant(enemy, group.variant);
+    }
     return enemy;
   }
 
@@ -225,64 +236,35 @@ export class WaveSpawner {
 
   getRemainingEnemyCount(): number {
     const wave = this.getCurrentWave();
-    if (!wave || this.currentGroupIndex >= wave.groups.length) {
+    if (!wave) {
       return 0;
     }
-
-    let total = this.getRemainingInCurrentGroup();
-    for (let i = this.currentGroupIndex + 1; i < wave.groups.length; i++) {
-      total += wave.groups[i].count;
-    }
-    return total;
+    return wave.groups.reduce(
+      (total, group, groupIndex) => total + group.count - (this.spawnTimers.get(groupIndex) ?? 0),
+      0
+    );
   }
 
   getRemainingGroups(): number {
     const wave = this.getCurrentWave();
     if (!wave) return 0;
-    return wave.groups.length - this.currentGroupIndex - 1;
+    const incompleteGroups = wave.groups.filter(
+      (group, groupIndex) => (this.spawnTimers.get(groupIndex) ?? 0) < group.count
+    ).length;
+    return Math.max(0, incompleteGroups - 1);
   }
 }
 
 export function createDefaultWaves(): Wave[] {
-  return [
-    createWave(1, "Red Dawn", [
-      { enemyType: EnemyType.ScoutBeetle, count: 10, interval: 500 },
-    ]),
-    createWave(2, "Beetle Surge", [
-      { enemyType: EnemyType.ScoutBeetle, count: 10, interval: 400 },
-      { enemyType: EnemyType.DartWasp, count: 5, interval: 600 },
-    ]),
-    createWave(3, "Caterpillar Crawl", [
-      { enemyType: EnemyType.DartWasp, count: 8, interval: 500 },
-      { enemyType: EnemyType.ShellBeetle, count: 5, interval: 800 },
-    ]),
-    createWave(4, "Wasp Wave", [
-      { enemyType: EnemyType.ShellBeetle, count: 10, interval: 600 },
-      { enemyType: EnemyType.CrawlerCaterpillar, count: 8, interval: 400 },
-    ]),
-    createWave(5, "Ladybug Legion", [
-      { enemyType: EnemyType.CrawlerCaterpillar, count: 15, interval: 300 },
-      { enemyType: EnemyType.SwarmWasp, count: 5, interval: 500 },
-    ]),
-    createWave(6, "Widow's Web", [
-      { enemyType: EnemyType.SwarmWasp, count: 10, interval: 400 },
-      { enemyType: EnemyType.IronCaterpillar, count: 3, interval: 1000 },
-    ]),
-    createWave(7, "Moth Flight", [
-      { enemyType: EnemyType.VeilWasp, count: 20, interval: 200 },
-    ]),
-    createWave(8, "Armored Assault", [
-      { enemyType: EnemyType.BulwarkBeetle, count: 5, interval: 1500 },
-      { enemyType: EnemyType.ShellBeetle, count: 15, interval: 400 },
-    ]),
-    createWave(9, "Rainbow Rush", [
-      { enemyType: EnemyType.WardMoth, count: 5, interval: 800 },
-      { enemyType: EnemyType.DartWasp, count: 10, interval: 300 },
-      { enemyType: EnemyType.CrawlerCaterpillar, count: 10, interval: 300 },
-    ]),
-    createWave(10, "Snail Siege", [
-      { enemyType: EnemyType.PaleMoth, count: 3, interval: 2000 },
-      { enemyType: EnemyType.SwarmWasp, count: 20, interval: 200 },
-    ]),
-  ];
+  return RELEASE_WAVES.map(definition => ({
+    id: definition.number,
+    name: definition.name,
+    completionBonus: definition.completionBonus,
+    groups: definition.groups.map(group => ({ ...group })),
+    delayBetweenGroups: 0,
+    totalDuration: definition.groups.reduce(
+      (duration, group) => Math.max(duration, group.delay + group.count * group.interval),
+      0
+    ),
+  }));
 }

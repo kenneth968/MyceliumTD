@@ -2,11 +2,18 @@ import {
   WaveSpawner,
   createDefaultWaves,
   EnemyType,
+  EnemyVariant,
   ENEMY_STATS,
   createWave,
   SpawnGroup,
 } from './systems/wave';
 import { createDefaultPath } from './systems/path';
+
+function assert(condition: boolean, message: string): void {
+  if (!condition) {
+    throw new Error(`Assertion failed: ${message}`);
+  }
+}
 
 const path = createDefaultPath();
 console.log(`Path length: ${path.getTotalLength()}`);
@@ -14,13 +21,33 @@ console.log(`Path length: ${path.getTotalLength()}`);
 const waves = createDefaultWaves();
 console.log(`\n--- Created ${waves.length} default waves ---\n`);
 
+assert(waves.length === 10, 'release has ten waves');
+assert(waves[0].groups[0].type === EnemyType.ScoutBeetle, 'wave 1 teaches Scouts');
+assert(waves[4].groups.some(group => group.type === EnemyType.IronCaterpillar), 'wave 5 introduces Metal');
+assert(waves[5].groups.some(group => group.type === EnemyType.VeilWasp), 'wave 6 introduces Camo');
+assert(waves[9].groups.some(group => group.variant === EnemyVariant.Boss), 'wave 10 contains the boss');
+
+const releaseTimingSpawner = new WaveSpawner(path, waves);
+releaseTimingSpawner.startWave(1);
+releaseTimingSpawner.update(0);
+const delayedSpawns = releaseTimingSpawner.update(2200);
+assert(
+  delayedSpawns.some(enemy => enemy.enemyType === EnemyType.DartWasp),
+  'canonical group delays allow overlapping arrivals'
+);
+
+const bossSpawner = new WaveSpawner(path, waves);
+bossSpawner.startWave(9);
+const bossSpawn = bossSpawner.update(0)[0];
+assert(bossSpawn.variant === EnemyVariant.Boss, 'boss group variant reaches spawned enemy');
+
 waves.forEach((wave, i) => {
   console.log(`Wave ${wave.id}: ${wave.name}`);
   console.log(`  Groups: ${wave.groups.length}`);
   let totalEnemies = 0;
   wave.groups.forEach(g => {
     totalEnemies += g.count;
-    console.log(`    - ${g.count}x ${g.enemyType} (interval: ${g.interval}ms)`);
+    console.log(`    - ${g.count}x ${g.type ?? g.enemyType} (interval: ${g.interval}ms)`);
   });
   console.log(`  Total enemies: ${totalEnemies}`);
   console.log(`  Total duration: ${wave.totalDuration}ms`);
@@ -63,7 +90,7 @@ console.log(`Started wave 2: ${spawner.getCurrentWave()?.name}`);
 
 allSpawned.length = 0;
 updates = 0;
-const wave3ExpectedCount = 8 + 5;
+const wave3ExpectedCount = waves[2].groups.reduce((total, group) => total + group.count, 0);
 console.log(`Expected enemies: ${wave3ExpectedCount}`);
 
 while (spawner.isWaveActive() && updates < maxUpdates) {

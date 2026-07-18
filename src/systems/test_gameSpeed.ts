@@ -81,7 +81,7 @@ fastSpawnGame.startWave(0);
 const fastSpawnStartTime = Date.now();
 fastSpawnGame.update(fastSpawnStartTime);
 assertEqual(fastSpawnGame.getActiveEnemies().length, 1, 'Fast-forward wave starts with one spawned enemy');
-fastSpawnGame.update(fastSpawnStartTime + 200);
+fastSpawnGame.update(fastSpawnStartTime + 250);
 assertEqual(
   fastSpawnGame.getActiveEnemies().length,
   2,

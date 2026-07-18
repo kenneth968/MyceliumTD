@@ -97,7 +97,8 @@ test('WaveSpawner generates unique enemy IDs across multiple spawns', () => {
     if (!spawner.isWaveActive()) break;
   }
   
-  assertEqual(ids.size, 10, 'All 10 enemies have unique IDs');
+  const expectedCount = waves[0].groups.reduce((total, group) => total + group.count, 0);
+  assertEqual(ids.size, expectedCount, 'Every release-wave enemy has a unique ID');
 });
 
 test('WaveSpawner tracks all spawned enemies via getSpawnedEnemies', () => {
@@ -114,7 +115,8 @@ test('WaveSpawner tracks all spawned enemies via getSpawnedEnemies', () => {
   }
   
   const spawnedEnemies = spawner.getSpawnedEnemies();
-  assertEqual(spawnedEnemies.length, 10, 'WaveSpawner tracks all 10 spawned enemies');
+  const expectedCount = waves[0].groups.reduce((total, group) => total + group.count, 0);
+  assertEqual(spawnedEnemies.length, expectedCount, 'WaveSpawner tracks every release-wave enemy');
 });
 
 test('Enemies from different waves have correct types', () => {

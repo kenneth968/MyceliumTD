@@ -78,18 +78,30 @@ console.log('  ✓ addInterest respects 5s interval');
 
 economy.reset();
 const bonus = economy.addRoundBonus();
-assert(bonus === DEFAULT_ECONOMY_CONFIG.roundBonusBase, `Round bonus should be base ${DEFAULT_ECONOMY_CONFIG.roundBonusBase}`);
+assert(bonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase, `Round completion should be base ${DEFAULT_ECONOMY_CONFIG.roundBonusBase}`);
+assert(bonus.perfect === Math.floor(bonus.completion * DEFAULT_ECONOMY_CONFIG.perfectWaveBonusPercent), 'Perfect wave should receive the configured bonus');
+assert(bonus.total === bonus.completion + bonus.perfect, 'Round total should include completion and perfect bonuses');
 assert(economy.getRoundsCompleted() === 1, 'Rounds completed should be 1');
-assert(economy.getMoney() === startingMoney + DEFAULT_ECONOMY_CONFIG.roundBonusBase, 'Money should include round bonus');
+assert(economy.getMoney() === startingMoney + bonus.total, 'Money should include round bonus');
 console.log('  ✓ addRoundBonus');
 
 economy.reset();
 economy.addRoundBonus();
 economy.addKillReward(100);
 const secondBonus = economy.addRoundBonus();
-assert(secondBonus === DEFAULT_ECONOMY_CONFIG.roundBonusBase + DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier, 
+assert(secondBonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase + DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier,
   `Second bonus should include multiplier`);
 console.log('  ✓ addRoundBonus includes multiplier');
+
+const leakedWaveEconomy = createEconomy();
+const leakedWaveBonus = leakedWaveEconomy.addRoundBonus(1);
+assert(
+  leakedWaveBonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase,
+  'A leaked wave should still receive its completion bonus'
+);
+assert(leakedWaveBonus.perfect === 0, 'A leaked wave should not receive a perfect bonus');
+assert(leakedWaveBonus.total === leakedWaveBonus.completion, 'A leaked wave total should equal completion only');
+console.log('  ✓ leaked wave receives completion but not perfect bonus');
 
 economy.reset();
 const lostLife = economy.loseLife(1);
@@ -156,7 +168,7 @@ assert(hasGameOver === true, 'Should have game over transaction');
 console.log('  ✓ Game Over detection');
 
 economy.reset();
-economy.spendForTower(650, 'Venus Flytower');
+economy.spendForTower(startingMoney, 'Venus Flytower');
 const spent2 = economy.spend(100, 'Something');
 assert(spent2 === false, 'Should not be able to spend when low on funds');
 console.log('  ✓ Spend correctly checks available funds');

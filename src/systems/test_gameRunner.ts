@@ -81,7 +81,7 @@ mixedWaveRemainingGame.update(mixedWaveStartTime);
 assertEqual(mixedWaveRemainingGame.getActiveEnemies().length, 1, 'Mixed wave should spawn its opening enemy');
 assertEqual(
   mixedWaveRemainingGame.getRemainingEnemies(),
-  14,
+  11,
   'Remaining enemies should count exact future group sizes in mixed waves'
 );
 

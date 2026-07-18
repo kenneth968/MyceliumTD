@@ -6,7 +6,7 @@ import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTow
 import { DamageOptions, DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
-import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
+import { GameEconomy, RoundBonusBreakdown, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
 import { TowerWithUpgrades, UpgradePath, createTowerWithUpgrades, applyUpgrade, getUpgradeCost, getUpgradeInfo, getTotalSellValue, getUpgradeSummary } from '../systems/upgrade';
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { applyHitEffects, getHitEffectsForTowerType, calculateAreaDamage } from './collision';
@@ -133,7 +133,7 @@ export enum GameState {
 }
 
 export interface GameEvent {
-  type: 'hit' | 'death' | 'area_hit' | 'layer_broken' | 'trait_broken';
+  type: 'hit' | 'death' | 'area_hit' | 'layer_broken' | 'trait_broken' | 'wave_started' | 'enemy_leaked' | 'wave_completed' | 'victory' | 'defeat';
   position: Vec2;
   towerType?: TowerType;
   enemyId?: number;
@@ -143,6 +143,10 @@ export interface GameEvent {
   radius?: number;
   effectType?: string;
   trait?: EnemyTrait;
+  waveNumber?: number;
+  completion?: number;
+  perfect?: number;
+  total?: number;
   timestamp?: number;
 }
 
@@ -252,6 +256,7 @@ export class GameRunner {
   private hero: Hero | null;
   private selectedHeroId: number | null;
   private eventQueue: GameEvent[];
+  private leaksThisWave: number;
 
   constructor(config: Partial<GameConfig> = {}) {
     this.config = { ...DEFAULT_GAME_CONFIG, ...config };
@@ -311,24 +316,55 @@ export class GameRunner {
     });
     this.roundManager.setEvents({
       onRoundStart: (roundNumber: number, wave: Wave) => {
+        this.leaksThisWave = 0;
+        this.eventQueue.push({
+          type: 'wave_started',
+          position: { ...this.path.getPointAtDistance(0).position },
+          waveNumber: wave.id,
+          timestamp: this.currentTime,
+        });
         startWaveAnnouncement(this.waveAnnouncementAnimator, wave.id, wave.name, this.currentTime);
         showWaveProgress(this.waveProgressAnimator, this.currentTime);
         showEnemyCountDisplay(this.enemyCountDisplayAnimator, this.currentTime);
       },
-      onRoundEnd: (roundNumber: number, bonus: number) => {
-        triggerWaveCompletion(this.waveAnnouncementAnimator, bonus, this.currentTime);
+      onRoundEnd: (roundNumber: number, bonus: RoundBonusBreakdown) => {
+        const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? roundNumber;
+        this.eventQueue.push({
+          type: 'wave_completed',
+          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
+          waveNumber,
+          completion: bonus.completion,
+          perfect: bonus.perfect,
+          total: bonus.total,
+          timestamp: this.currentTime,
+        });
+        triggerWaveCompletion(this.waveAnnouncementAnimator, bonus.total, this.currentTime);
         this.waveProgressAnimator.state = 'complete';
         hideEnemyCountDisplay(this.enemyCountDisplayAnimator, this.currentTime);
       },
       onIntermissionStart: (roundNumber: number) => {
       },
       onVictory: (finalRound: number) => {
+        const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? finalRound;
+        this.eventQueue.push({
+          type: 'victory',
+          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
+          waveNumber,
+          timestamp: this.currentTime,
+        });
         this.state = GameState.Victory;
         this.waveProgressAnimator.state = 'victory';
         const stats = this.getGameStats();
         showVictory(this.gameOverVictoryAnimator, stats.money + stats.towers * 100, stats.wave, this.currentTime);
       },
       onGameOver: (roundReached: number) => {
+        const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? roundReached;
+        this.eventQueue.push({
+          type: 'defeat',
+          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
+          waveNumber,
+          timestamp: this.currentTime,
+        });
         this.state = GameState.GameOver;
         this.waveProgressAnimator.state = 'game_over';
         const stats = this.getGameStats();
@@ -345,6 +381,7 @@ export class GameRunner {
     this.hero = null;
     this.selectedHeroId = null;
     this.eventQueue = [];
+    this.leaksThisWave = 0;
   }
 
   drainEvents(): GameEvent[] {
@@ -576,6 +613,7 @@ export class GameRunner {
     this.hero = null;
     this.selectedHeroId = null;
     this.eventQueue = [];
+    this.leaksThisWave = 0;
   }
 
   startWave(waveIndex?: number): boolean {
@@ -741,6 +779,15 @@ export class GameRunner {
       }
 
       if (enemy.hasReachedEnd) {
+        this.leaksThisWave++;
+        this.eventQueue.push({
+          type: 'enemy_leaked',
+          position: { ...enemy.position },
+          enemyId: enemy.id,
+          enemyType: enemy.enemyType,
+          waveNumber: this.waveSpawner.getCurrentWave()?.id ?? this.roundManager.getRoundNumber(),
+          timestamp: this.currentTime,
+        });
         this.economy.loseLife(1);
         this.activeEnemies.splice(i, 1);
         continue;
@@ -1134,27 +1181,12 @@ export class GameRunner {
   }
 
   private checkWaveCompletion(): void {
-    this.roundManager.checkRoundCompletion(this.activeEnemies.length);
+    this.roundManager.checkRoundCompletion(this.activeEnemies.length, this.leaksThisWave);
   }
 
   private checkGameOver(): void {
     if (this.economy.isGameOver()) {
-      this.state = GameState.GameOver;
-      this.waveProgressAnimator.state = 'game_over';
-      const stats = this.getGameStats();
-      showGameOver(this.gameOverVictoryAnimator, stats.money + stats.towers * 100, stats.wave, this.currentTime);
-    }
-  }
-
-  private checkVictory(): void {
-    const maxWaveIndex = RELEASE_TOTAL_WAVES - 1;
-    if (this.waveSpawner.getCurrentWaveIndex() >= maxWaveIndex &&
-        !this.waveSpawner.isWaveActive() &&
-        this.activeEnemies.length === 0) {
-      this.state = GameState.Victory;
-      this.waveProgressAnimator.state = 'victory';
-      const stats = this.getGameStats();
-      showVictory(this.gameOverVictoryAnimator, stats.money + stats.towers * 100, stats.wave, this.currentTime);
+      this.roundManager.triggerGameOver();
     }
   }
 
@@ -1213,9 +1245,10 @@ export class GameRunner {
     this.roundManager.update(this.currentTime);
 
     if (this.state === GameState.Playing) {
-      this.checkWaveCompletion();
       this.checkGameOver();
-      this.checkVictory();
+      if (this.state === GameState.Playing) {
+        this.checkWaveCompletion();
+      }
     }
   }
 
