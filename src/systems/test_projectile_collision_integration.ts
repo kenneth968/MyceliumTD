@@ -526,30 +526,30 @@ test('getProjectilesNeedingCleanup should return dead projectiles', () => {
 
 console.log('\n--- GameRunner + Projectile Collision Integration ---');
 
-test('GameRunner should emit one semantic layer_broken event per resolved hit', () => {
+test('GameRunner should aggregate multiple broken layers into one semantic event', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();
 
-  const target = createEnemy(1000, EnemyType.ShellBeetle, game.getPath());
+  const target = createEnemy(1000, EnemyType.BulwarkBeetle, game.getPath());
   game.getActiveEnemies().push(target);
   game.getActiveProjectiles().push({
     id: 1000,
     position: { ...target.position },
     targetId: target.id,
     speed: 0,
-    damage: 3,
-    towerType: TowerType.ThornSniper,
+    damage: 11,
+    towerType: TowerType.Puffball,
     alive: true,
   });
 
   game.update(16);
 
   const layerEvents = game.drainEvents().filter(event => event.type === 'layer_broken');
-  assert(layerEvents.length === 1, 'One resolved hit should emit one layer_broken event');
+  assert(layerEvents.length === 1, 'One resolved hit that breaks multiple layers should emit one layer_broken event');
   assert(layerEvents[0].enemyId === target.id, 'Layer event should identify the enemy');
   assert(layerEvents[0].enemyType === target.enemyType, 'Layer event should include the enemy type');
   assert(layerEvents[0].position.x === target.position.x && layerEvents[0].position.y === target.position.y, 'Layer event should use the enemy position');
-  assert(layerEvents[0].layersBroken === 1, 'Layer event should carry the number of layers broken by the hit');
+  assert(layerEvents[0].layersBroken === 2, 'Layer event should carry the aggregate number of layers broken by the hit');
 });
 
 test('GameRunner should spawn projectiles from towers', () => {

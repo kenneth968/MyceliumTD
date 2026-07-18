@@ -1,8 +1,8 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
-import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
+import { Enemy as TargetingEnemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
-import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getMarkedAdjustedDamage, getTraitAdjustedDamage } from './enemy';
+import { DamageOptions, DamageType, Enemy, applyDamageToEnemy } from './enemy';
 import { TOWER_DEFINITIONS, TowerType } from '../content/towerDefinitions';
 
 export { TowerDefinition as TowerStats, TowerType } from '../content/towerDefinitions';
@@ -75,13 +75,13 @@ export function getCooldownProgress(tower: Tower, currentTime: number): number {
 
 export function fireTower(
   tower: Tower,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   path: Path,
   currentTime: number,
   effectStrength?: number,
   effectDuration?: number,
   areaRadius?: number
-): { projectile: Projectile | null; target: Enemy | null } {
+): { projectile: Projectile | null; target: TargetingEnemy | null } {
   if (!canFire(tower, currentTime)) {
     return { projectile: null, target: null };
   }
@@ -114,7 +114,7 @@ let nextProjectileId = 1;
 
 export function fireTowerWithProjectile(
   tower: Tower,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   path: Path,
   currentTime: number,
   effectStrength?: number,
@@ -132,9 +132,9 @@ export function fireTowerWithProjectile(
 
 export function updateProjectile(
   projectile: Projectile,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   deltaTime: number
-): { hit: boolean; damage: number; target: Enemy | null } {
+): { hit: boolean; damage: number; target: TargetingEnemy | null } {
   if (!projectile.alive) {
     return { hit: false, damage: 0, target: null };
   }
@@ -176,25 +176,7 @@ export function updateProjectile(
 }
 
 export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
-  if (!enemy.alive || enemy.hp <= 0) {
-    return false;
-  }
-  if (consumeShieldBlock(enemy)) {
-    return false;
-  }
-  if (!canDamageEnemy(enemy, options)) {
-    return false;
-  }
-
-  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
-  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
-  if (enemy.hp <= 0) {
-    enemy.hp = 0;
-    enemy.alive = false;
-    return true;
-  }
-
-  return false;
+  return applyDamageToEnemy(enemy, damage, options);
 }
 
 export function getTowerDamageType(towerType: TowerType): DamageType {
@@ -206,7 +188,7 @@ export function getTowerDamageType(towerType: TowerType): DamageType {
   }
 }
 
-export function getKillReward(enemy: Enemy): number {
+export function getKillReward(enemy: TargetingEnemy): number {
   if (!enemy.enemyType) {
     return 0;
   }

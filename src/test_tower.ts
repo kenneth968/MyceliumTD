@@ -182,6 +182,9 @@ const armoredEnemy = createEnemy(400, EnemyType.BulwarkBeetle, path);
 const notKilled = applyDamage(armoredEnemy, 10, { damageType: 'explosive' });
 assert(notKilled === false, 'Partial explosive damage should not kill, HP reduced to 5');
 assert(armoredEnemy.hp === 5, 'HP should be reduced to 5');
+const remainingLayerHp = armoredEnemy.layers.reduce((total, layer) => total + layer.hp, 0);
+assert(armoredEnemy.hp === remainingLayerHp, 'Aggregate HP should equal the sum of remaining layer HP after tower damage');
+assert(armoredEnemy.currentLayerIndex === 2, 'Tower damage should advance past both broken layers');
 assert(armoredEnemy.alive === true, 'Enemy should still be alive');
 console.log('  ✓ applyDamage partial damage');
 
