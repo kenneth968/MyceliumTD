@@ -23,7 +23,7 @@ export interface AudioManagerConfig {
 const DEFAULT_CONFIG: AudioManagerConfig = {
   musicVolume: 0.4,
   crossfadeDuration: 2000,
-  basePath: 'assets/music',
+  basePath: './assets/music',
 };
 
 const TRACK_FILES: Record<MusicTrack, string> = {
@@ -31,6 +31,20 @@ const TRACK_FILES: Record<MusicTrack, string> = {
   [MusicTrack.LionsMane1]: 'the-lions-mane-1.mp3',
   [MusicTrack.LionsMane2]: 'the-lions-mane-2.mp3',
 };
+
+export function resolveMusicTrackUrl(basePath: string, track: MusicTrack): string {
+  return `${basePath.replace(/\/$/, '')}/${TRACK_FILES[track]}`;
+}
+
+export class AudioFailureRegistry {
+  private readonly failed = new Set<MusicTrack>();
+
+  record(track: MusicTrack): boolean {
+    if (this.failed.has(track)) return false;
+    this.failed.add(track);
+    return true;
+  }
+}
 
 export class AudioManager {
   private config: AudioManagerConfig;
@@ -41,6 +55,7 @@ export class AudioManager {
   private muted: boolean = false;
   private initialized: boolean = false;
   private pendingTrack: MusicTrack | null = null;
+  private readonly failures = new AudioFailureRegistry();
 
   constructor(config: Partial<AudioManagerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -55,7 +70,12 @@ export class AudioManager {
     this.initialized = true;
 
     for (const track of Object.values(MusicTrack)) {
-      const audio = new Audio(`${this.config.basePath}/${TRACK_FILES[track]}`);
+      const audio = new Audio(resolveMusicTrackUrl(this.config.basePath, track));
+      audio.addEventListener('error', () => {
+        if (this.failures.record(track)) {
+          console.warn(`Music unavailable: ${track}`);
+        }
+      });
       audio.loop = true;
       audio.volume = 0;
       audio.preload = 'auto';
