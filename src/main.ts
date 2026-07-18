@@ -22,6 +22,7 @@ import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
 import { AudioManager, createAudioManager, isBossWave } from './systems/audioManager';
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
+import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
@@ -565,6 +566,8 @@ class Game {
     }
 
     private onMouseMove(e: MouseEvent): void {
+        if (!canHandleGameplayInput(this.getUiGateState())) return;
+
         const world = this.screenToWorld(e.clientX, e.clientY);
         this.mouse.x = world.x;
         this.mouse.y = world.y;
@@ -577,31 +580,40 @@ class Game {
     private onMouseDown(e: MouseEvent): void {
         this.mouse.down = true;
 
-        if (this.showingMenu) {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
+        const screenY = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
+        const layer = getActiveUiLayer(this.getUiGateState());
+
+        if (layer === UiLayer.Menu) {
             this.startGame();
             return;
         }
+
+        if (layer === UiLayer.Terminal) {
+            if (e.button === 0) this.restartGame();
+            return;
+        }
+
+        if (layer === UiLayer.Pause) {
+            const btnId = this.getPauseButtonAtScreen(screenX, screenY);
+            if (btnId) {
+                if (btnId === 'resume') { this.game.resume(); this.audio.resume(); }
+                else if (btnId === 'restart') this.restartGame();
+                else if (btnId === 'quit') this.quitToMenu();
+                return;
+            }
+            // Settings controls in pause menu
+            if (this.handlePauseSettingsClick(screenX, screenY)) return;
+            return;
+        }
+
+        if (layer === UiLayer.Tutorial) return;
 
         if (e.button === 2) {
             this.game.cancelPlacement();
             this.game.deselectTower();
             return;
-        }
-        
-        const rect = this.canvas.getBoundingClientRect();
-        const screenX = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
-        const screenY = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
-        
-        if (this.game.getState() === GameState.Paused) {
-            const btnId = this.getPauseButtonAtScreen(screenX, screenY);
-            if (btnId) {
-                if (btnId === 'resume') { this.game.resume(); this.audio.resume(); }
-                else if (btnId === 'restart') { this.game.reset(); this.game.start(); this.lastTrackedWaveIndex = -1; this.audio.playNormalTrack(); this.particles.clear(); }
-                else if (btnId === 'quit') { this.showingMenu = true; this.game.reset(); this.lastTrackedWaveIndex = -1; this.audio.stop(); this.particles.clear(); this.drawMenu(); }
-                return;
-            }
-            // Settings controls in pause menu
-            if (this.handlePauseSettingsClick(screenX, screenY)) return;
         }
         
         const mapRenderData = this.game.getMapSelectionRenderData();
@@ -730,16 +742,6 @@ class Game {
     }
 
     private handleClick(x: number, y: number, leftClick: boolean): void {
-        const state = this.game.getState();
-        if (state === GameState.GameOver || state === GameState.Victory) {
-            this.game.reset();
-            this.game.start();
-            this.lastTrackedWaveIndex = -1;
-            this.audio.playNormalTrack();
-            this.particles.clear();
-            return;
-        }
-
         const placementState = this.game.getPlacementState();
 
         if (placementState === PlacementState.Placing) {
@@ -771,7 +773,9 @@ class Game {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
-        if (this.showingMenu) {
+        const layer = getActiveUiLayer(this.getUiGateState());
+
+        if (layer === UiLayer.Menu) {
             if (e.key === 'Enter' || e.key === ' ') {
                 this.startGame();
             }
@@ -780,6 +784,22 @@ class Game {
 
         const result = findHotkeyAction(e.key);
         const action = result ? result.action : null;
+
+        if (layer === UiLayer.Terminal) {
+            if (e.key === 'Enter' || e.key === ' ') this.restartGame();
+            else if (action === HotkeyAction.Cancel) this.quitToMenu();
+            return;
+        }
+
+        if (layer === UiLayer.Pause) {
+            if (action === HotkeyAction.Pause || action === HotkeyAction.Cancel) {
+                this.game.resume();
+                this.audio.resume();
+            }
+            return;
+        }
+
+        if (layer === UiLayer.Tutorial) return;
 
         if (RELEASE_FEATURES.mapSelection && action === HotkeyAction.SelectMap) {
             const mapState = this.game.getMapSelectionState();
@@ -792,13 +812,8 @@ class Game {
         }
 
         if (action === HotkeyAction.Pause) {
-            if (this.game.getState() === GameState.Playing) {
-                this.game.pause();
-                this.audio.pause();
-            } else if (this.game.getState() === GameState.Paused) {
-                this.game.resume();
-                this.audio.resume();
-            }
+            this.game.pause();
+            this.audio.pause();
             return;
         }
 
@@ -848,6 +863,32 @@ class Game {
                 this.game.startTowerPlacement(towerKeys[e.key]);
             }
         }
+    }
+
+    private getUiGateState(): UiGateState {
+        return {
+            gameState: this.game.getState(),
+            menuVisible: this.showingMenu,
+            pauseVisible: this.game.getPauseMenuRenderData().isVisible,
+            tutorialBlocking: false,
+        };
+    }
+
+    private restartGame(): void {
+        this.game.reset();
+        this.game.start();
+        this.lastTrackedWaveIndex = -1;
+        this.audio.playNormalTrack();
+        this.particles.clear();
+    }
+
+    private quitToMenu(): void {
+        this.showingMenu = true;
+        this.game.reset();
+        this.lastTrackedWaveIndex = -1;
+        this.audio.stop();
+        this.particles.clear();
+        this.drawMenu();
     }
 
     private render(renderData: GameFrameRenderData): void {
