@@ -1,5 +1,5 @@
 import { createGameRunner, GameRunner, GameState } from './gameRunner';
-import { WaveControls, createWaveControls, WaveControlState, WaveUIState } from './waveControls';
+import { WaveControls, createWaveControls, getStartWaveLabel, WaveControlState, WaveUIState } from './waveControls';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -14,6 +14,25 @@ function assertEqual(actual: any, expected: any, message: string) {
 }
 
 console.log('Testing WaveControls...');
+
+const base: WaveUIState = {
+  controlState: WaveControlState.Ready,
+  currentWave: 0,
+  totalWaves: 10,
+  isPaused: false,
+  canStartWave: true,
+  canPause: false,
+  canResume: false,
+  canFastForward: true,
+  isFastForward: false,
+  enemiesRemaining: 0,
+};
+
+assertEqual(getStartWaveLabel(base), 'Start Wave 1', 'first-wave label');
+assertEqual(getStartWaveLabel({ ...base, currentWave: 1 }), 'Next Wave 2', 'second-wave label');
+assertEqual(getStartWaveLabel({ ...base, currentWave: 9 }), 'Next Wave 10', 'final-wave label');
+assertEqual(getStartWaveLabel({ ...base, currentWave: 10 }), null, 'no label after final wave');
+console.log('  start wave label tests passed');
 
 let gameRunner: GameRunner;
 let waveControls: WaveControls;

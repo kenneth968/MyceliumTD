@@ -28,6 +28,14 @@ export interface WaveUIState {
   enemiesRemaining: number;
 }
 
+export function getStartWaveLabel(state: WaveUIState): string | null {
+  if (!state.canStartWave || state.currentWave >= state.totalWaves) return null;
+  const nextWave = state.currentWave + 1;
+  return state.currentWave === 0
+    ? `Start Wave ${nextWave}`
+    : `Next Wave ${nextWave}`;
+}
+
 export class WaveControls {
   private gameRunner: GameRunner;
   private isFastForward: boolean;

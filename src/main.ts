@@ -1,5 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
+import { createWaveControls, getStartWaveLabel, WaveControls } from './systems/waveControls';
 import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
@@ -419,6 +420,7 @@ class Game {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private game: GameRunner;
+    private waveControls: WaveControls;
     private renderer: GameRenderer;
     private loop: GameLoop;
     private mouse: MouseState;
@@ -435,6 +437,7 @@ class Game {
         this.ctx = this.canvas.getContext('2d')!;
 
         this.game = new GameRunner();
+        this.waveControls = createWaveControls(this.game);
         this.renderer = createGameRenderer();
         this.loop = createGameLoop(this.game, this.renderer);
 
@@ -1712,14 +1715,8 @@ class Game {
     private drawStartWaveButton(): void {
         if (!this.isWaveButtonVisible()) return;
 
-        const rm = this.game.getRoundManager();
-        const roundState = rm.getState();
-        const roundInfo = rm.getRoundInfo();
-        const isFirstWave = roundState === RoundState.Idle;
-        const nextWaveNumber = isFirstWave ? 1 : roundInfo.roundNumber + 1;
-        const label = isFirstWave
-            ? 'Start Wave 1  [Enter]'
-            : `Next Wave ${nextWaveNumber}  [Enter]`;
+        const label = getStartWaveLabel(this.waveControls.getWaveUIState());
+        if (label === null) return;
 
         const { x, y, w, h } = this.getStartWaveButtonRect();
 
@@ -1746,7 +1743,7 @@ class Game {
         this.ctx.font = 'bold 15px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(label, x + w / 2, y + h / 2);
+        this.ctx.fillText(`${label}  [Enter]`, x + w / 2, y + h / 2);
         this.ctx.restore();
     }
 
