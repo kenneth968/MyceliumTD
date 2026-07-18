@@ -77,6 +77,10 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   expectEqual(result.stats[1].label, 'Range', 'second stat is range');
   expectEqual(result.stats[2].label, 'Fire Rate', 'third stat is fire rate');
   expectEqual(result.upgrades.length, 4, 'has 4 upgrade paths');
+  expectEqual(result.upgrades[0].label, 'Spore Density', 'Puffball damage path has role label');
+  expectTrue(result.upgrades[0].description.includes('layer'), 'Puffball path explains effect');
+  expectEqual(result.upgrades[3].label, 'Lingering Field', 'Puffball special path has behavior label');
+  expectTrue(result.upgrades[3].isNetworkPath, 'special path is marked as network path');
   expectEqual(result.sellValue, 125, 'sell value is 70% of canonical base cost');
 }
 
@@ -89,7 +93,8 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
   
   expectEqual(result.towerName, 'Slimefungus', 'tower name for Slimefungus');
-  expectEqual(result.specialEffect?.type, 'slow', 'Orchid has slow effect');
+  expectEqual(result.specialEffect?.type, 'slow', 'Slimefungus has slow effect');
+  expectEqual(result.upgrades[3].label, 'Trait Disrupt', 'Slimefungus special path advertises trait disruption');
 }
 
 {
@@ -101,7 +106,7 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
   
   expectEqual(result.towerName, 'Thorn Sniper', 'tower name for Thorn Sniper');
-  expectEqual(result.specialEffect?.type, 'instakill', 'Venus has instakill effect');
+  expectEqual(result.specialEffect?.type, 'precision', 'Thorn Sniper has precision effect');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData with upgrades ---');
@@ -174,9 +179,8 @@ console.log('\n--- getTowerInfoPanelRenderData special effects ---');
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
   
   expectTrue(result.specialEffect !== null, 'has special effect');
-  expectEqual(result.specialEffect?.type, 'poison', 'Stinkhorn has poison effect');
-  expectEqual(result.specialEffect?.label, 'Poison', 'effect label is Poison');
-  expectTrue(result.specialEffect!.duration !== null, 'has duration');
+  expectEqual(result.specialEffect?.type, 'area_damage', 'Bulb Shooter has area damage effect');
+  expectEqual(result.specialEffect?.label, 'Area Damage', 'effect label is Area Damage');
 }
 
 {
@@ -185,7 +189,7 @@ console.log('\n--- getTowerInfoPanelRenderData special effects ---');
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
   
-  expectEqual(result.specialEffect?.type, 'reveal_camo', 'Bioluminescent has reveal_camo effect');
+  expectEqual(result.specialEffect?.type, 'reveal_camo', 'Lumen Oracle has reveal_camo effect');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData stats values ---');
@@ -302,8 +306,8 @@ console.log('\n--- getTowerInfoPanelSize ---');
 {
   const size = getTowerInfoPanelSize();
   
-  expectEqual(size.width, 200, 'width is 200');
-  expectEqual(size.height, 320, 'height is 320');
+  expectEqual(size.width, 300, 'width leaves room for upgrade role descriptions');
+  expectEqual(size.height, 350, 'height leaves room for four upgrade rows plus sell value');
 }
 
 console.log('\n--- getPanelColorConfig ---');
@@ -318,10 +322,10 @@ console.log('\n--- getPanelColorConfig ---');
 console.log('\n--- getTowerIcon ---');
 {
   expectEqual(getTowerIcon(TowerType.Puffball), '🌿', 'puffball icon');
-  expectEqual(getTowerIcon(TowerType.Slimefungus), '🌸', 'orchid icon');
-  expectEqual(getTowerIcon(TowerType.ThornSniper), '🌺', 'venus icon');
-  expectEqual(getTowerIcon(TowerType.LumenOracle), '✨', 'bioluminescent icon');
-  expectEqual(getTowerIcon(TowerType.BulbShooter), '📍', 'stinkhorn icon');
+  expectEqual(getTowerIcon(TowerType.Slimefungus), '🌸', 'slimefungus icon');
+  expectEqual(getTowerIcon(TowerType.ThornSniper), '🌺', 'thorn sniper icon');
+  expectEqual(getTowerIcon(TowerType.LumenOracle), '✨', 'lumen oracle icon');
+  expectEqual(getTowerIcon(TowerType.BulbShooter), '📍', 'bulb shooter icon');
 }
 
 console.log('\n--- getUpgradePathIcon ---');
@@ -338,6 +342,7 @@ console.log('\n--- getUpgradePathLabel ---');
   expectEqual(getUpgradePathLabel(UpgradePath.Range), 'Range', 'range label');
   expectEqual(getUpgradePathLabel(UpgradePath.FireRate), 'Fire Rate', 'fire rate label');
   expectEqual(getUpgradePathLabel(UpgradePath.Special), 'Special', 'special label');
+  expectEqual(getUpgradePathLabel(UpgradePath.Special, TowerType.LumenOracle), 'Network Reveal', 'tower-specific special label');
 }
 
 console.log('\n--- canUpgrade flag ---');

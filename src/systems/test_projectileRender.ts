@@ -66,6 +66,8 @@ assertEqual(getProjectileRenderData(createTestProjectile()).opacity, 1.0, 'opaci
 assertEqual(getProjectileRenderData(createTestProjectile()).towerType, TowerType.Puffball, 'towerType should be Puffball');
 assertEqual(getProjectileRenderData(createTestProjectile()).hasTrail, true, 'hasTrail should be true');
 assert(Array.isArray(getProjectileRenderData(createTestProjectile()).trailPoints), 'trailPoints should be array');
+assertEqual(getProjectileRenderData(createTestProjectile()).shape, 'cloud', 'Puffball projectile shape should be cloud');
+assertEqual(getProjectileRenderData(createTestProjectile()).trailStyle, 'spore', 'Puffball trail style should be spore');
 
 const prevPos = createVec2(90, 95);
 assertEqual(getProjectileRenderData(createTestProjectile(), prevPos).previousPosition, { x: 90, y: 95 }, 'previousPosition should be set when provided');
@@ -73,9 +75,23 @@ assertEqual(getProjectileRenderData(createTestProjectile()).previousPosition, { 
 
 const projectile1 = createTestProjectile({ towerType: TowerType.ThornSniper });
 const projectile2 = createTestProjectile({ towerType: TowerType.LumenOracle });
-assertEqual(getProjectileRenderData(projectile1).size, 12, 'Venus size should be 12');
-assertEqual(getProjectileRenderData(projectile2).size, 6, 'Biolum size should be 6');
+assertEqual(getProjectileRenderData(projectile1).size, 12, 'Thorn Sniper size should be 12');
+assertEqual(getProjectileRenderData(projectile2).size, 6, 'Lumen Oracle size should be 6');
+assertEqual(getProjectileRenderData(projectile1).shape, 'jaw', 'Thorn Sniper projectile shape should be jaw');
+assertEqual(getProjectileRenderData(projectile2).shape, 'bolt', 'Lumen Oracle shape should be bolt');
 console.log('  ProjectileRenderData tests passed');
+
+console.log('  Projectile style diversity tests...');
+const styleSet = new Set([
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.Puffball })).shape,
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.Slimefungus })).shape,
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.ThornSniper })).shape,
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.LumenOracle })).shape,
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.BulbShooter })).shape,
+  getProjectileRenderData(createTestProjectile({ towerType: TowerType.Sporecap })).shape,
+]);
+assert(styleSet.size >= 6, 'all six playable towers should have distinct projectile silhouettes');
+console.log('  Projectile style diversity tests passed');
 
 console.log('  TrailPoint tests...');
 assertEqual(createTrailPoint(createVec2(50, 50), 1000, 0.8).position, { x: 50, y: 50 }, 'position should be set');

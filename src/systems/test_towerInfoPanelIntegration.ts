@@ -172,10 +172,10 @@ console.log('\n--- info panel all tower types ---');
   const towerTypes = [
     { type: TowerType.Puffball, name: 'Puffball', effect: 'area_damage' },
     { type: TowerType.Slimefungus, name: 'Slimefungus', effect: 'slow' },
-    { type: TowerType.ThornSniper, name: 'Thorn Sniper', effect: 'instakill' },
+    { type: TowerType.ThornSniper, name: 'Thorn Sniper', effect: 'precision' },
     { type: TowerType.LumenOracle, name: 'Lumen Oracle', effect: 'reveal_camo' },
-    { type: TowerType.BulbShooter, name: 'Bulb Shooter', effect: 'poison' },
-    { type: TowerType.Sporecap, name: 'Sporecap', effect: 'network_buff' },
+    { type: TowerType.BulbShooter, name: 'Bulb Shooter', effect: 'area_damage' },
+    { type: TowerType.Sporecap, name: 'Sporecap', effect: undefined },
   ];
   
   for (const tt of towerTypes) {

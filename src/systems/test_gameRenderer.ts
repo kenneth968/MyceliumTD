@@ -112,8 +112,8 @@ const fieldTower = fieldGame.placeTower(TowerType.Puffball, 720, 250, TargetingM
 if (fieldTower) {
   fieldGame.upgradeTower(fieldTower.id, UpgradePath.Special);
   const fieldTarget = createEnemy(910, EnemyType.DartWasp, fieldGame.getPath());
-  fieldTarget.pathDistance = 1540;
-  fieldTarget.pathProgress = 1540;
+  fieldTarget.pathDistance = 1420;
+  fieldTarget.pathProgress = 1420;
   fieldTarget.position = { ...fieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
   fieldTarget.speed = 0;
   fieldTarget.baseSpeed = 0;
@@ -138,8 +138,8 @@ const seededTower = seededGame.placeTower(TowerType.BulbShooter, 720, 270, Targe
 if (seededTower) {
   seededGame.upgradeTower(seededTower.id, UpgradePath.Special);
   const seededTarget = createEnemy(911, EnemyType.BulwarkBeetle, seededGame.getPath());
-  seededTarget.pathDistance = 1520;
-  seededTarget.pathProgress = 1520;
+  seededTarget.pathDistance = 1420;
+  seededTarget.pathProgress = 1420;
   seededTarget.position = { ...seededGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
   seededTarget.speed = 0;
   seededTarget.baseSpeed = 0;

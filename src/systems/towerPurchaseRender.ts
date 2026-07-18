@@ -1,6 +1,5 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
-import { PlacementMode } from './input';
 
 export interface TowerPurchaseButton {
   towerType: TowerType;
@@ -12,6 +11,9 @@ export interface TowerPurchaseButton {
   hotkey: string;
   label: string;
   description: string;
+  role: string;
+  counterTags: string[];
+  tacticalHint: string;
 }
 
 export interface TowerPurchaseRenderData {
@@ -33,6 +35,33 @@ const TOWER_COLORS: Record<TowerType, { primary: string; secondary: string }> = 
   [TowerType.LumenOracle]: { primary: '#87CEEB', secondary: '#4169E1' },
   [TowerType.BulbShooter]: { primary: '#DEB887', secondary: '#D2691E' },
   [TowerType.Sporecap]: { primary: '#9B59B6', secondary: '#8E44AD' },
+};
+
+const TOWER_ROLES: Record<TowerType, string> = {
+  [TowerType.Puffball]: 'Splash',
+  [TowerType.Slimefungus]: 'Control',
+  [TowerType.ThornSniper]: 'Precision',
+  [TowerType.LumenOracle]: 'Reveal',
+  [TowerType.BulbShooter]: 'Burst',
+  [TowerType.Sporecap]: 'Generalist',
+};
+
+const TOWER_COUNTER_TAGS: Record<TowerType, string[]> = {
+  [TowerType.Puffball]: ['Swarm', 'Metal'],
+  [TowerType.Slimefungus]: ['Fast', 'Traits'],
+  [TowerType.ThornSniper]: ['Elite', 'Long Lane'],
+  [TowerType.LumenOracle]: ['Camo', 'Support'],
+  [TowerType.BulbShooter]: ['Swarm', 'Metal'],
+  [TowerType.Sporecap]: ['Starter', 'Flexible'],
+};
+
+const TOWER_TACTICAL_HINTS: Record<TowerType, string> = {
+  [TowerType.Puffball]: 'Best when clustered enemies bunch on bends.',
+  [TowerType.Slimefungus]: 'Slows fast threats and strips trait pressure.',
+  [TowerType.ThornSniper]: 'Covers long lanes and focuses durable priority targets.',
+  [TowerType.LumenOracle]: 'Reveals camo lanes so other towers can fire.',
+  [TowerType.BulbShooter]: 'Bursts clustered armored threats at choke points.',
+  [TowerType.Sporecap]: 'A dependable early tower for flexible lane coverage.',
 };
 
 const HOTKEYS: Record<TowerType, string> = {
@@ -79,6 +108,9 @@ export function getTowerPurchaseButton(
     hotkey: HOTKEYS[towerType],
     label: TOWER_STATS[towerType].displayName,
     description: TOWER_STATS[towerType].description,
+    role: TOWER_ROLES[towerType],
+    counterTags: [...TOWER_COUNTER_TAGS[towerType]],
+    tacticalHint: TOWER_TACTICAL_HINTS[towerType],
   };
 }
 
