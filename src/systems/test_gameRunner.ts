@@ -35,6 +35,21 @@ assertEqual(stats.enemies, 0, 'Should have 0 enemies');
 game.start();
 assert(game.getState() === GameState.Playing, 'After start, state should be Playing');
 
+const thornBesidePath = game.canPlaceTower(TowerType.ThornSniper, 100, 265);
+assert(thornBesidePath.canPlace === true, 'High-range Thorn Sniper should be placeable 35px from the path');
+
+const sporecapBesidePath = game.canPlaceTower(TowerType.Sporecap, 100, 265);
+assertEqual(
+  thornBesidePath.canPlace,
+  sporecapBesidePath.canPlace,
+  'High- and low-range towers should use the same physical path clearance'
+);
+
+const thornInsideClearance = game.canPlaceTower(TowerType.ThornSniper, 100, 275);
+const sporecapInsideClearance = game.canPlaceTower(TowerType.Sporecap, 100, 275);
+assert(thornInsideClearance.canPlace === false, 'High-range tower should be rejected inside 30px path clearance');
+assert(sporecapInsideClearance.canPlace === false, 'Low-range tower should be rejected inside 30px path clearance');
+
 const canPlace = game.canPlaceTower(TowerType.Puffball, 100, 100);
 assert(canPlace.canPlace === true, 'Should be able to place Puffball Fungus');
 

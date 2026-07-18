@@ -43,6 +43,8 @@ export interface TowerPlacerConfig {
   minDistanceFromTower?: number;
 }
 
+export const DEFAULT_TOWER_PATH_CLEARANCE = 30;
+
 export class TowerPlacer {
   private mode: PlacementMode;
   private selectedTowerType: TowerType | null;
@@ -58,7 +60,7 @@ export class TowerPlacer {
     this.mode = PlacementMode.None;
     this.selectedTowerType = null;
     this.placementPosition = null;
-    this.minDistanceFromPath = config.minDistanceFromPath ?? 30;
+    this.minDistanceFromPath = config.minDistanceFromPath ?? DEFAULT_TOWER_PATH_CLEARANCE;
     this.minDistanceFromTower = config.minDistanceFromTower ?? 40;
     this.selectedTargetingMode = TargetingMode.First;
     this.selectedTowerId = null;
@@ -123,7 +125,7 @@ export class TowerPlacer {
       return { canPlace: false, reason: 'Invalid tower type' };
     }
 
-    const tooCloseToPath = this.isTooCloseToPath(x, y, towerType);
+    const tooCloseToPath = this.isTooCloseToPath(x, y);
     if (tooCloseToPath) {
       return { canPlace: false, reason: 'Too close to path' };
     }
@@ -133,22 +135,16 @@ export class TowerPlacer {
       return { canPlace: false, reason: 'Too close to another tower' };
     }
 
-    const range = TOWER_STATS[towerType].range;
-    if (this.blocksPath(x, y, range)) {
-      return { canPlace: false, reason: 'Tower would block the path' };
-    }
-
     return { canPlace: true };
   }
 
-  private isTooCloseToPath(x: number, y: number, towerType: TowerType): boolean {
-    const range = TOWER_STATS[towerType].range;
-    const checkDistance = Math.max(range * 0.3, this.minDistanceFromPath);
-
-    for (let d = 0; d <= this.config.path.getTotalLength(); d += 10) {
-      const point = this.config.path.getPointAtDistance(d);
-      const dist = vec2Distance({ x, y }, point.position);
-      if (dist < checkDistance) {
+  private isTooCloseToPath(x: number, y: number): boolean {
+    const pathPoints = this.config.path.getPoints();
+    for (let i = 0; i < pathPoints.length - 1; i++) {
+      const p1 = pathPoints[i];
+      const p2 = pathPoints[i + 1];
+      const dist = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+      if (dist < this.minDistanceFromPath) {
         return true;
       }
     }
@@ -159,19 +155,6 @@ export class TowerPlacer {
     for (const placed of this.config.placedTowers) {
       const dist = vec2Distance({ x, y }, { x: placed.x, y: placed.y });
       if (dist < this.minDistanceFromTower) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private blocksPath(x: number, y: number, range: number): boolean {
-    const pathPoints = this.config.path.getPoints();
-    for (let i = 0; i < pathPoints.length - 1; i++) {
-      const p1 = pathPoints[i];
-      const p2 = pathPoints[i + 1];
-      const dist = this.pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-      if (dist < range * 0.5) {
         return true;
       }
     }

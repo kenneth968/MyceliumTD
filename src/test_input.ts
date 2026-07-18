@@ -85,6 +85,23 @@ test('validatePlacement accepts valid position', () => {
   return result.canPlace === true;
 });
 
+test('validatePlacement accepts a high-range Thorn Sniper 35px from the path', () => {
+  const result = placer.validatePlacement(100, 265, TowerType.ThornSniper);
+  return result.canPlace === true;
+});
+
+test('validatePlacement uses the same physical path clearance for low- and high-range towers', () => {
+  const thornBesidePath = placer.validatePlacement(100, 265, TowerType.ThornSniper);
+  const sporecapBesidePath = placer.validatePlacement(100, 265, TowerType.Sporecap);
+  const thornInsideClearance = placer.validatePlacement(100, 275, TowerType.ThornSniper);
+  const sporecapInsideClearance = placer.validatePlacement(100, 275, TowerType.Sporecap);
+
+  return thornBesidePath.canPlace === true &&
+    sporecapBesidePath.canPlace === true &&
+    thornInsideClearance.canPlace === false &&
+    sporecapInsideClearance.canPlace === false;
+});
+
 test('confirmPlacement returns tower type when placement is valid', () => {
   placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
