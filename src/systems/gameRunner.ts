@@ -2017,7 +2017,7 @@ export class GameRunner {
       abilityIndex,
       targetPosition,
       this.activeEnemies,
-      (enemy, damage) => this.applyEnemyDamageWithFreshTraits(enemy, damage).killed
+      (enemy, damage) => this.applyEnemyDamageWithFreshTraits(enemy, damage)
     );
     return {
       used: result.used,

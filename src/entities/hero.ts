@@ -1,5 +1,5 @@
 import { Vec2, vec2Distance, vec2Normalize, vec2Scale, vec2Add } from '../utils/vec2';
-import { Enemy, applyDamageToEnemy, StatusEffectType, applyStatusEffect } from './enemy';
+import { DamageResolution, Enemy, applyDamageToEnemy, StatusEffectType, applyStatusEffect } from './enemy';
 import { Path } from '../systems/path';
 
 export enum HeroAbilityType {
@@ -181,7 +181,7 @@ export function useAbility(
   abilityIndex: number,
   targetPosition: Vec2 | null,
   enemies: Enemy[],
-  damageEnemy: (target: Enemy, damage: number) => boolean = applyDamageToEnemy
+  damageEnemy: (target: Enemy, damage: number) => boolean | DamageResolution = applyDamageToEnemy
 ): { used: boolean; damage: number; enemiesHit: Enemy[] } {
   if (!canUseAbility(hero, abilityIndex)) {
     return { used: false, damage: 0, enemiesHit: [] };
@@ -197,10 +197,12 @@ export function useAbility(
       const target = targetPosition || hero.position;
       for (const enemy of enemies) {
         if (vec2Distance(enemy.position, target) <= ability.radius && enemy.alive) {
-          const killed = damageEnemy(enemy, hero.damage);
+          const damageResult = damageEnemy(enemy, hero.damage);
           result.damage += hero.damage;
           result.enemiesHit.push(enemy);
-          applyStatusEffect(enemy, StatusEffectType.Slow, ability.duration, ability.strength);
+          if (typeof damageResult === 'boolean' || !damageResult.shieldConsumed) {
+            applyStatusEffect(enemy, StatusEffectType.Slow, ability.duration, ability.strength);
+          }
         }
       }
       break;

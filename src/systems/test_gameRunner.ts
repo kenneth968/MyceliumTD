@@ -265,6 +265,10 @@ assert(firstAbility.used, 'Damaging hero ability should be used');
 assert(abilityHero!.abilities[0].currentCooldown > 0, 'Damaging hero ability should retain its cooldown behavior');
 assertEqual(heroAbilityShieldTarget.shieldCharges, 0, 'Hero ability should consume the shield');
 assertEqual(heroAbilityShieldTarget.hp, heroAbilityShieldTarget.maxHp, 'Shield should absorb the first hero ability hit');
+assert(
+  !heroAbilityShieldTarget.statusEffects.some(effect => effect.type === StatusEffectType.Slow),
+  'Shield should consume the hero ability Slow status'
+);
 assertEqual(
   heroAbilityShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
   1,
