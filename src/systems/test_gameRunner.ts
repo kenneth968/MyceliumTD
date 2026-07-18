@@ -222,6 +222,95 @@ assertEqual(
   'Shielded enemy shield should break after blocking a hit'
 );
 
+const heroShieldGame = createGameRunner({ startingLives: 20 });
+heroShieldGame.start();
+const heroShieldTarget = createEnemy(920, EnemyType.WardMoth, heroShieldGame.getPath());
+heroShieldTarget.position = { ...heroShieldGame.getPath().getPointAtDistance(0).position };
+heroShieldTarget.speed = 0;
+heroShieldTarget.baseSpeed = 0;
+heroShieldGame.getActiveEnemies().push(heroShieldTarget);
+const shieldHero = heroShieldGame.spawnHero(heroShieldTarget.position.x, heroShieldTarget.position.y);
+assert(shieldHero !== null, 'Should spawn hero for shield-event regression');
+
+heroShieldGame.update(1000);
+const firstHeroShieldEvents = heroShieldGame.drainEvents().filter(event => event.type === 'trait_broken');
+assertEqual(heroShieldTarget.shieldCharges, 0, 'Hero attack should consume the shield');
+assertEqual(heroShieldTarget.hp, heroShieldTarget.maxHp, 'Shield should absorb the first hero attack');
+assertEqual(firstHeroShieldEvents.length, 1, 'Hero shield consumption should emit exactly one trait_broken');
+assertEqual(firstHeroShieldEvents[0].trait, EnemyTrait.Shielded, 'Hero shield event should identify Shielded');
+
+heroShieldGame.update(1001);
+assert(heroShieldTarget.hp < heroShieldTarget.maxHp, 'Next hero attack should damage HP');
+assertEqual(
+  heroShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next hero attack should not duplicate the shield event'
+);
+
+const heroAbilityShieldGame = createGameRunner({ startingLives: 20 });
+heroAbilityShieldGame.start();
+const heroAbilityShieldTarget = createEnemy(922, EnemyType.WardMoth, heroAbilityShieldGame.getPath());
+heroAbilityShieldTarget.position = { ...heroAbilityShieldGame.getPath().getPointAtDistance(0).position };
+heroAbilityShieldTarget.speed = 0;
+heroAbilityShieldTarget.baseSpeed = 0;
+heroAbilityShieldGame.getActiveEnemies().push(heroAbilityShieldTarget);
+const abilityHero = heroAbilityShieldGame.spawnHero(
+  heroAbilityShieldTarget.position.x,
+  heroAbilityShieldTarget.position.y
+);
+assert(abilityHero !== null, 'Should spawn hero for ability shield-event regression');
+
+const firstAbility = heroAbilityShieldGame.useHeroAbility(0, heroAbilityShieldTarget.position);
+assert(firstAbility.used, 'Damaging hero ability should be used');
+assert(abilityHero!.abilities[0].currentCooldown > 0, 'Damaging hero ability should retain its cooldown behavior');
+assertEqual(heroAbilityShieldTarget.shieldCharges, 0, 'Hero ability should consume the shield');
+assertEqual(heroAbilityShieldTarget.hp, heroAbilityShieldTarget.maxHp, 'Shield should absorb the first hero ability hit');
+assertEqual(
+  heroAbilityShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  1,
+  'Hero ability shield consumption should emit exactly one trait_broken'
+);
+
+abilityHero!.abilities[0].currentCooldown = 0;
+heroAbilityShieldGame.useHeroAbility(0, heroAbilityShieldTarget.position);
+assert(heroAbilityShieldTarget.hp < heroAbilityShieldTarget.maxHp, 'Next hero ability hit should damage HP');
+assertEqual(
+  heroAbilityShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next hero ability hit should not duplicate the shield event'
+);
+
+const poisonShieldGame = createGameRunner({ startingLives: 20 });
+poisonShieldGame.start();
+const poisonShieldTarget = createEnemy(921, EnemyType.WardMoth, poisonShieldGame.getPath());
+poisonShieldTarget.position = { ...poisonShieldGame.getPath().getPointAtDistance(0).position };
+poisonShieldTarget.speed = 0;
+poisonShieldTarget.baseSpeed = 0;
+poisonShieldTarget.statusEffects.push({
+  type: StatusEffectType.Poison,
+  duration: 5000,
+  remaining: 5000,
+  strength: 1,
+});
+poisonShieldGame.getActiveEnemies().push(poisonShieldTarget);
+
+poisonShieldGame.update(0);
+poisonShieldGame.drainEvents();
+poisonShieldGame.update(1000);
+const firstPoisonShieldEvents = poisonShieldGame.drainEvents().filter(event => event.type === 'trait_broken');
+assertEqual(poisonShieldTarget.shieldCharges, 0, 'First poison tick should consume the shield');
+assertEqual(poisonShieldTarget.hp, poisonShieldTarget.maxHp, 'Shield should absorb the first poison tick');
+assertEqual(firstPoisonShieldEvents.length, 1, 'Poison shield consumption should emit exactly one trait_broken');
+assertEqual(firstPoisonShieldEvents[0].trait, EnemyTrait.Shielded, 'Poison shield event should identify Shielded');
+
+poisonShieldGame.update(2000);
+assert(poisonShieldTarget.hp < poisonShieldTarget.maxHp, 'Next poison tick should damage HP');
+assertEqual(
+  poisonShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next poison tick should not duplicate the shield event'
+);
+
 const isolatedSwarmGame = createGameRunner({ startingLives: 20 });
 isolatedSwarmGame.start();
 const isolatedSwarmEnemy = createEnemy(904, EnemyType.SwarmWasp, isolatedSwarmGame.getPath());

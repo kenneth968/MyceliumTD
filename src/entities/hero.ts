@@ -180,7 +180,8 @@ export function useAbility(
   hero: Hero,
   abilityIndex: number,
   targetPosition: Vec2 | null,
-  enemies: Enemy[]
+  enemies: Enemy[],
+  damageEnemy: (target: Enemy, damage: number) => boolean = applyDamageToEnemy
 ): { used: boolean; damage: number; enemiesHit: Enemy[] } {
   if (!canUseAbility(hero, abilityIndex)) {
     return { used: false, damage: 0, enemiesHit: [] };
@@ -196,7 +197,7 @@ export function useAbility(
       const target = targetPosition || hero.position;
       for (const enemy of enemies) {
         if (vec2Distance(enemy.position, target) <= ability.radius && enemy.alive) {
-          const killed = applyDamageToEnemy(enemy, hero.damage);
+          const killed = damageEnemy(enemy, hero.damage);
           result.damage += hero.damage;
           result.enemiesHit.push(enemy);
           applyStatusEffect(enemy, StatusEffectType.Slow, ability.duration, ability.strength);
@@ -241,10 +242,14 @@ export function getEnemiesInHeroRange(hero: Hero, enemies: Enemy[]): Enemy[] {
   return enemies.filter(e => e.alive && vec2Distance(hero.position, e.position) <= hero.range);
 }
 
-export function heroAttackEnemy(hero: Hero, enemy: Enemy): boolean {
+export function heroAttackEnemy(
+  hero: Hero,
+  enemy: Enemy,
+  damageEnemy: (target: Enemy, damage: number) => boolean = applyDamageToEnemy
+): boolean {
   if (!hero.alive || !enemy.alive) return false;
   if (vec2Distance(hero.position, enemy.position) > hero.range) return false;
-  return applyDamageToEnemy(enemy, hero.damage);
+  return damageEnemy(enemy, hero.damage);
 }
 
 export function respawnHero(hero: Hero, x: number, y: number): void {

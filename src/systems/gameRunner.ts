@@ -3,7 +3,7 @@ import { MapInfo, getMapById, createDefaultMapSelectionState, GameMapSelectionSt
 import { TargetingMode, getTarget, getEnemiesInRange, Tower as BaseTower } from '../systems/targeting';
 import { WaveSpawner, Wave, createDefaultWaves, EnemyType, ENEMY_STATS } from '../systems/wave';
 import { TowerType, Tower, Projectile, TOWER_STATS, createTower as createBaseTower, fireTowerWithProjectile, updateProjectile, getKillReward, canFire, getTowerDamageType } from '../entities/tower';
-import { DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, applyDamageToEnemy, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
+import { DamageOptions, DamageResolution, Enemy, EnemyTrait, StatusEffectType, DamageType, MARK_DURATION, TRAIT_DISRUPTION_DURATION, createEnemy as createBaseEnemy, updateEnemyPosition, updateStatusEffects, applyStatusEffect, resolveDamage, getReward, refreshSwarmLinkStates, getSwarmLinkedSpeedMultiplier, disruptEnemyTrait, markEnemy, isMarked, consumeShieldBlock } from '../entities/enemy';
 import { Hero, createHero, updateHeroPosition, moveHeroTo, stopHero, updateHeroAbilities, heroAttackEnemy, useAbility } from '../entities/hero';
 import { getHeroRenderData, HeroRenderData } from '../systems/heroRender';
 import { GameEconomy, createEconomy, DEFAULT_ECONOMY_CONFIG } from '../systems/economy';
@@ -737,7 +737,7 @@ export class GameRunner {
       }
 
       if (statusResult.poisonDamage > 0) {
-        applyDamageToEnemy(enemy, statusResult.poisonDamage, { applyMarkBonus: false });
+        this.applyEnemyDamageWithFreshTraits(enemy, statusResult.poisonDamage, { applyMarkBonus: false });
       }
 
       if (enemy.hasReachedEnd) {
@@ -772,7 +772,7 @@ export class GameRunner {
     });
   }
 
-  private applyTowerDamageWithFreshTraits(enemy: Enemy, damage: number, options: { damageType?: DamageType | `${DamageType}` } = {}): DamageResolution {
+  private applyEnemyDamageWithFreshTraits(enemy: Enemy, damage: number, options: DamageOptions = {}): DamageResolution {
     this.refreshEnemyTraitStates();
     const resolution = resolveDamage(enemy, damage, options);
 
@@ -863,7 +863,7 @@ export class GameRunner {
       return true;
     }
 
-    this.applyTowerDamageWithFreshTraits(enemy, Number.MAX_SAFE_INTEGER, { damageType: DamageType.Explosive });
+    this.applyEnemyDamageWithFreshTraits(enemy, Number.MAX_SAFE_INTEGER, { damageType: DamageType.Explosive });
     return true;
   }
 
@@ -917,7 +917,7 @@ export class GameRunner {
       }
 
       if (vec2Distance(enemy.position, payload.position) <= payload.radius) {
-        this.applyTowerDamageWithFreshTraits(enemy, payload.damage, { damageType: DamageType.Explosive });
+        this.applyEnemyDamageWithFreshTraits(enemy, payload.damage, { damageType: DamageType.Explosive });
       }
     }
   }
@@ -991,7 +991,7 @@ export class GameRunner {
         const executeHandled = this.applyExecuteFromProjectile(projectile, result.target as Enemy);
         if (!executeHandled) {
           const enemy = result.target as Enemy;
-          const resolution = this.applyTowerDamageWithFreshTraits(enemy, projectile.damage, {
+          const resolution = this.applyEnemyDamageWithFreshTraits(enemy, projectile.damage, {
             damageType: getTowerDamageType(projectile.towerType),
           });
           applyHitEffects(enemy, effects, deltaTime, resolution.shieldConsumed);
@@ -1027,7 +1027,7 @@ export class GameRunner {
 
           for (const areaEnemy of areaResult.enemiesHit) {
             if (areaEnemy.id !== result.target.id) {
-              this.applyTowerDamageWithFreshTraits(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
+              this.applyEnemyDamageWithFreshTraits(areaEnemy, areaResult.totalDamage / areaResult.enemiesHit.length, { damageType: DamageType.Explosive });
             }
           }
 
@@ -1122,7 +1122,11 @@ export class GameRunner {
 
     if (enemiesInRange.length > 0) {
       const target = enemiesInRange[0];
-      const killed = heroAttackEnemy(this.hero, target);
+      const killed = heroAttackEnemy(
+        this.hero,
+        target,
+        (enemy, damage) => this.applyEnemyDamageWithFreshTraits(enemy, damage).killed
+      );
       if (killed) {
         this.economy.addKillReward(getReward(target), `Hero killed ${target.enemyType}`);
       }
@@ -2008,7 +2012,13 @@ export class GameRunner {
       return { used: false, damage: 0, enemiesHit: 0 };
     }
 
-    const result = useAbility(this.hero, abilityIndex, targetPosition, this.activeEnemies);
+    const result = useAbility(
+      this.hero,
+      abilityIndex,
+      targetPosition,
+      this.activeEnemies,
+      (enemy, damage) => this.applyEnemyDamageWithFreshTraits(enemy, damage).killed
+    );
     return {
       used: result.used,
       damage: result.damage,

@@ -22,6 +22,7 @@ export interface SerializedEnemy {
   layers?: Array<{ hp: number; maxHp: number }>;
   currentLayerIndex?: number;
   variant?: EnemyVariant;
+  isBoss?: boolean;
   pathProgress: number;
   pathDistance: number;
   speed: number;
@@ -136,6 +137,7 @@ export function serializeEnemy(enemy: Enemy): SerializedEnemy {
     layers: enemy.layers.map(layer => ({ ...layer })),
     currentLayerIndex: enemy.currentLayerIndex,
     variant: enemy.variant,
+    isBoss: enemy.isBoss,
     pathProgress: enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     speed: enemy.speed,
@@ -298,6 +300,7 @@ export function deserializeEnemy(data: SerializedEnemy): Enemy {
     layers: (data.layers ?? [{ hp: data.hp, maxHp: data.maxHp }]).map(layer => ({ ...layer })),
     currentLayerIndex: data.currentLayerIndex ?? 0,
     variant: data.variant ?? EnemyVariant.Normal,
+    isBoss: data.isBoss ?? data.variant === EnemyVariant.Boss,
     pathProgress: data.pathProgress,
     pathDistance: data.pathDistance,
     speed: data.speed,

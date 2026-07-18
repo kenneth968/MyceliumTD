@@ -9,7 +9,6 @@ import {
   resolveDamage,
 } from '../entities/enemy';
 import { TowerType } from '../entities/tower';
-import { calculateAreaDamage } from './collision';
 import { createGameRunner } from './gameRunner';
 import { createDefaultPath } from './path';
 import { TargetingMode, canTarget, createTower } from './targeting';
@@ -169,15 +168,66 @@ test('Defensive suppression emits trait_broken only when it first takes effect',
   );
 });
 
-test('Camo rejects direct targeting without detection but accepts untargeted area damage', () => {
+test('GameRunner poison shield consumption emits trait_broken exactly once', () => {
+  const game = createGameRunner({ startingLives: 20 });
+  game.start();
+  const enemy = createEnemy(25, EnemyType.WardMoth, game.getPath());
+  enemy.position = { ...game.getPath().getPointAtDistance(0).position };
+  enemy.speed = 0;
+  enemy.baseSpeed = 0;
+  enemy.statusEffects.push({
+    type: StatusEffectType.Poison,
+    duration: 5000,
+    remaining: 5000,
+    strength: 1,
+  });
+  game.getActiveEnemies().push(enemy);
+
+  game.update(0);
+  game.drainEvents();
+  game.update(1000);
+  assertEqual(enemy.shieldCharges, 0, 'first poison tick should consume the shield');
+  assertEqual(enemy.hp, enemy.maxHp, 'shield should absorb the first poison tick');
+  assertEqual(drainTraitBrokenEvents(game).length, 1, 'first poison tick should emit once');
+
+  game.update(2000);
+  assert(enemy.hp < enemy.maxHp, 'next poison tick should damage HP');
+  assertEqual(drainTraitBrokenEvents(game).length, 0, 'next poison tick should not duplicate the event');
+});
+
+test('Camo rejects direct targeting without detection but takes exact production area damage', () => {
   const enemy = createEnemy(30, ENEMY_DEFINITIONS[EnemyType.VeilWasp].type, path);
   enemy.position = { x: 10, y: 0 };
   const tower = createTower(1, 0, 0, 100, TargetingMode.First);
   assertEqual(canTarget(tower, enemy), false, 'ordinary tower should not directly target Camo');
 
-  const areaResult = calculateAreaDamage({ x: 0, y: 0 }, [enemy], 10, 40);
-  assertEqual(areaResult.enemiesHit.length, 1, 'untargeted area damage should include Camo');
-  assert(areaResult.totalDamage > 0, 'untargeted area damage should calculate positive damage');
+  const game = createGameRunner({ startingLives: 20 });
+  game.start();
+  const visibleTarget = createEnemy(31, EnemyType.ScoutBeetle, game.getPath());
+  const camoAreaTarget = createEnemy(32, EnemyType.PaleMoth, game.getPath());
+  visibleTarget.position = { ...game.getPath().getPointAtDistance(0).position };
+  camoAreaTarget.position = { ...visibleTarget.position };
+  visibleTarget.speed = 0;
+  visibleTarget.baseSpeed = 0;
+  camoAreaTarget.speed = 0;
+  camoAreaTarget.baseSpeed = 0;
+  const camoStartingHp = camoAreaTarget.hp;
+  game.getActiveEnemies().push(visibleTarget, camoAreaTarget);
+  game.getActiveProjectiles().push({
+    id: 300,
+    position: { ...visibleTarget.position },
+    targetId: visibleTarget.id,
+    speed: 0,
+    damage: 4,
+    towerType: TowerType.Puffball,
+    areaRadius: 40,
+    alive: true,
+  });
+
+  game.update(1000);
+  assertEqual(camoAreaTarget.maxHp, 6, 'Pale Moth should use the exact definition HP');
+  assertEqual(camoStartingHp - camoAreaTarget.hp, 4, 'production area transaction should apply exactly 4 damage');
+  assertEqual(camoAreaTarget.hp, 2, 'untargeted production area hit should apply exactly 4 damage to Camo');
 });
 
 test('Two nearby Swarm Wasps receive 1.2x speed while one isolated Wasp does not', () => {

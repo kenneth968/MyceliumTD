@@ -1,6 +1,6 @@
 const { createGameRunner, GameSpeed, PlacedTower } = require('./gameRunner');
 const { TowerType } = require('../entities/tower');
-const { EnemyType } = require('./wave');
+const { EnemyType, EnemyVariant } = require('./wave');
 const { createDefaultPath } = require('./path');
 const { UpgradePath } = require('./upgrade');
 const {
@@ -170,6 +170,20 @@ console.log('\nserializeEnemy with trait disruption status:');
   assertEqual(serialized.statusEffects[0].type, StatusEffectType.TraitDisrupted, 'disruption status is serialized');
   assertEqual(serialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait is serialized');
   assertEqual(deserialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait survives deserialize');
+}
+
+console.log('\nBoss isBoss round trip:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, applyEnemyVariant } = require('../entities/enemy');
+  const boss = createEnemy(2, EnemyType.WardMoth, path);
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+
+  const serialized = serializeEnemy(boss);
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(Reflect.get(serialized, 'isBoss'), true, 'serialized Boss records isBoss');
+  assertEqual(deserialized.isBoss, true, 'deserialized Boss retains isBoss');
 }
 
 console.log('\nserializeProjectile:');
