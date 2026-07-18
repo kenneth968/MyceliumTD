@@ -333,16 +333,13 @@ test('Tower info panel integrates with game runner selection', () => {
   game.deselectTower();
 });
 
-test('Map selection state can be entered and map selected', () => {
+test('Release run stays on Garden Path and blocks map selection entry', () => {
   const game = createGameRunner();
-  
+
   game.startMapSelection();
   const mapState = game.getMapSelectionState();
-  assert(mapState.isSelecting === true, 'Map selection should be active');
-  
-  game.endMapSelection();
-  const mapStateAfter = game.getMapSelectionState();
-  assert(mapStateAfter.isSelecting === false, 'Map selection should be inactive after end');
+  assert(mapState.isSelecting === false, 'Map selection should remain inactive');
+  assert(game.getCurrentMap()?.id === 'garden_path', 'Release run should remain on Garden Path');
 });
 
 test('Round manager tracks wave progression correctly', () => {

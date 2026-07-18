@@ -475,4 +475,11 @@ assertEqual(
   'Round should enter intermission after the wave spawner is inactive and no enemies remain'
 );
 
+const releaseMapGame = createGameRunner();
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'runner defaults to Garden Path');
+releaseMapGame.startMapSelection();
+assertEqual(releaseMapGame.getMapSelectionState().isSelecting, false, 'release scope blocks map selection');
+releaseMapGame.reset();
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'reset preserves Garden Path');
+
 console.log('All GameRunner tests passed!');

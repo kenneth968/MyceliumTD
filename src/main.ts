@@ -20,6 +20,7 @@ import { TowerPurchaseRenderData } from './systems/towerPurchaseRender';
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
 import { AudioManager, createAudioManager, isBossWave } from './systems/audioManager';
+import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
@@ -433,7 +434,7 @@ class Game {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
         this.ctx = this.canvas.getContext('2d')!;
 
-        this.game = new GameRunner({ mapId: 'garden_path' });
+        this.game = new GameRunner();
         this.renderer = createGameRenderer();
         this.loop = createGameLoop(this.game, this.renderer);
 
@@ -476,7 +477,7 @@ class Game {
 
             ctx.fillStyle = '#4ade80';
             ctx.font = 'bold 64px sans-serif';
-            ctx.fillText('Mycomed TD', CANVAS_WIDTH / 2, titleY);
+            ctx.fillText('Mycelium TD', CANVAS_WIDTH / 2, titleY);
 
             ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
             ctx.font = '18px sans-serif';
@@ -515,13 +516,21 @@ class Game {
 
     private startGame(): void {
         if (!this.showingMenu) return;
-        this.showingMenu = false;
+        this.startReleaseRun();
         this.audio.ensureInitialized();
         this.audio.playNormalTrack();
-        this.game.start();
         this.loop.start();
         this.loop.setRenderCallback(this.render.bind(this));
         // Player places towers first, then clicks "Start Wave"
+    }
+
+    private startReleaseRun(): void {
+        this.game.reset();
+        if (!this.game.setMap(RELEASE_MAP_ID)) {
+            throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
+        }
+        this.game.start();
+        this.showingMenu = false;
     }
 
     private startNextWave(): boolean {
@@ -593,7 +602,7 @@ class Game {
         }
         
         const mapRenderData = this.game.getMapSelectionRenderData();
-        if (mapRenderData && mapRenderData.isVisible) {
+        if (RELEASE_FEATURES.mapSelection && mapRenderData && mapRenderData.isVisible) {
             const mapId = getMapSelectionButtonAtPosition(screenX, screenY, mapRenderData);
             if (mapId) {
                 this.game.selectMap(mapId);
@@ -769,7 +778,7 @@ class Game {
         const result = findHotkeyAction(e.key);
         const action = result ? result.action : null;
 
-        if (action === HotkeyAction.SelectMap) {
+        if (RELEASE_FEATURES.mapSelection && action === HotkeyAction.SelectMap) {
             const mapState = this.game.getMapSelectionState();
             if (mapState.isSelecting) {
                 this.game.hideMapSelectionUI();
@@ -1674,7 +1683,9 @@ class Game {
     }
 
     private drawHUD(renderData: GameFrameRenderData): void {
-        this.drawMapSelection(renderData.mapSelection);
+        if (RELEASE_FEATURES.mapSelection) {
+            this.drawMapSelection(renderData.mapSelection);
+        }
         this.drawWaveAnnouncement(renderData.waveAnnouncement);
         this.drawPauseMenu(renderData.pauseMenu);
         this.drawWaveProgress(renderData.waveProgress);

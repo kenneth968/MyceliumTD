@@ -110,6 +110,7 @@ import {
   showMapSelection,
   hideMapSelection,
 } from './mapSelectionRender';
+import { RELEASE_FEATURES, RELEASE_MAP_ID } from './releaseScope';
 
 export enum GameSpeed {
   Normal = 1,
@@ -250,24 +251,17 @@ export class GameRunner {
 
   constructor(config: Partial<GameConfig> = {}) {
     this.config = { ...DEFAULT_GAME_CONFIG, ...config };
-    
-    this.currentMap = this.config.mapId ? getMapById(this.config.mapId) ?? null : null;
-    if (this.currentMap) {
-      this.path = this.currentMap.path;
-    } else {
-      this.path = createDefaultPath();
-    }
+
+    this.currentMap = null;
+    this.path = createDefaultPath();
+    const releaseMap = this.applyReleaseMap();
     
     this.waveSpawner = new WaveSpawner(this.path, createDefaultWaves());
     
     const baseStartingMoney = this.config.startingMoney !== undefined ? this.config.startingMoney : 650;
     const baseStartingLives = this.config.startingLives !== undefined ? this.config.startingLives : 20;
-    const startingMoney = this.currentMap
-      ? Math.floor(baseStartingMoney * this.currentMap.startingMoneyModifier)
-      : baseStartingMoney;
-    const startingLives = this.currentMap
-      ? Math.floor(baseStartingLives * this.currentMap.startingLivesModifier)
-      : baseStartingLives;
+    const startingMoney = Math.floor(baseStartingMoney * releaseMap.startingMoneyModifier);
+    const startingLives = Math.floor(baseStartingLives * releaseMap.startingLivesModifier);
     
     this.economy = createEconomy({
       startingMoney,
@@ -305,7 +299,7 @@ export class GameRunner {
     this.livesMoneyDisplayAnimator = createLivesMoneyDisplayAnimator();
     this.enemyCountDisplayAnimator = createEnemyCountDisplayAnimator();
     this.mapSelectionAnimator = createMapSelectionAnimator();
-    const maxWaves = this.currentMap?.maxWaves ?? this.config.maxWaves ?? 10;
+    const maxWaves = releaseMap.maxWaves;
     this.roundManager = createRoundManager(this.waveSpawner, this.economy, {
       maxRounds: maxWaves,
       intermissionDuration: Infinity,
@@ -367,6 +361,16 @@ export class GameRunner {
     return this.currentMap;
   }
 
+  private applyReleaseMap(): MapInfo {
+    const releaseMap = getMapById(RELEASE_MAP_ID);
+    if (!releaseMap) {
+      throw new Error(`Release map not found: ${RELEASE_MAP_ID}`);
+    }
+    this.currentMap = releaseMap;
+    this.path = releaseMap.path;
+    return releaseMap;
+  }
+
   setMap(mapId: string): boolean {
     const map = getMapById(mapId);
     if (!map) {
@@ -404,6 +408,7 @@ export class GameRunner {
   }
 
   showMapSelectionUI(): void {
+    if (!RELEASE_FEATURES.mapSelection) return;
     showMapSelection(this.mapSelectionAnimator);
     this.mapSelectionState.isSelecting = true;
   }
@@ -414,6 +419,7 @@ export class GameRunner {
   }
 
   startMapSelection(): void {
+    if (!RELEASE_FEATURES.mapSelection) return;
     this.mapSelectionState.isSelecting = true;
   }
 
@@ -511,6 +517,7 @@ export class GameRunner {
 
   reset(): void {
     this.state = GameState.Idle;
+    this.applyReleaseMap();
     this.waveSpawner.reset();
     this.economy.reset();
     this.placedTowers = [];
@@ -1140,7 +1147,9 @@ export class GameRunner {
     updateTowerInfoPanel(this.towerInfoPanelAnimator, deltaTime);
     updateLivesMoneyDisplay(this.livesMoneyDisplayAnimator, deltaTime, this.currentTime);
     updateEnemyCountDisplay(this.enemyCountDisplayAnimator, deltaTime, this.currentTime);
-    updateMapSelection(this.mapSelectionAnimator, deltaTime, this.mapSelectionState.isSelecting);
+    if (RELEASE_FEATURES.mapSelection) {
+      updateMapSelection(this.mapSelectionAnimator, deltaTime, this.mapSelectionState.isSelecting);
+    }
     
     if (this.state === GameState.Playing) {
       this.economy.update(this.currentTime);
