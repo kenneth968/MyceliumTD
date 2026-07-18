@@ -1,6 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
+import { ENEMY_DEFINITIONS, EnemyFamily, EnemyVariant } from '../content/enemyDefinitions';
 
 export interface EnemyRenderData {
   id: number;
@@ -16,6 +17,11 @@ export interface EnemyRenderData {
   pathProgress: number;
   pathDistance: number;
   isAlive: boolean;
+  layersRemaining: number;
+  totalLayers: number;
+  family: EnemyFamily;
+  isBoss: boolean;
+  showHealthBar: boolean;
   isCamo: boolean;
   isMetal: boolean;
   isShielded: boolean;
@@ -23,7 +29,7 @@ export interface EnemyRenderData {
   isSwarmLinked: boolean;
   swarmLinkedActive: boolean;
   swarmLinkCount: number;
-  traits: EnemyTrait[];
+  traits: readonly EnemyTrait[];
   armorColor: string | null;
   shieldColor: string | null;
   swarmLinkColor: string | null;
@@ -312,6 +318,7 @@ export function getEnemyRenderData(
   const shieldActive = hasActiveShield({ ...traitCarrier, shieldCharges: enemy.shieldCharges });
   const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
   const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
+  const isBoss = enemy.variant === EnemyVariant.Boss;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -329,6 +336,11 @@ export function getEnemyRenderData(
     pathProgress: options?.pathProgress ?? enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     isAlive: enemy.alive,
+    layersRemaining: Math.max(0, enemy.layers.length - enemy.currentLayerIndex),
+    totalLayers: enemy.layers.length,
+    family: ENEMY_DEFINITIONS[enemy.enemyType].family,
+    isBoss,
+    showHealthBar: isBoss,
     isCamo: hasEnemyTrait(traitCarrier, EnemyTrait.Camo),
     isMetal,
     isShielded,

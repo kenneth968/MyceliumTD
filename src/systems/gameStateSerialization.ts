@@ -291,16 +291,19 @@ function reconcileEnemyTraits(enemyType: string, traits?: string[]): EnemyTrait[
 }
 
 export function deserializeEnemy(data: SerializedEnemy): Enemy {
+  const layers = (data.layers ?? [{ hp: data.hp, maxHp: data.maxHp }]).map(layer => ({ ...layer }));
+  const variant = data.variant ?? (data.isBoss ? EnemyVariant.Boss : EnemyVariant.Normal);
+
   return {
     id: data.id,
     enemyType: data.enemyType as EnemyType,
     position: { x: data.position.x, y: data.position.y },
-    hp: data.hp,
-    maxHp: data.maxHp,
-    layers: (data.layers ?? [{ hp: data.hp, maxHp: data.maxHp }]).map(layer => ({ ...layer })),
+    hp: layers.reduce((total, layer) => total + layer.hp, 0),
+    maxHp: layers.reduce((total, layer) => total + layer.maxHp, 0),
+    layers,
     currentLayerIndex: data.currentLayerIndex ?? 0,
-    variant: data.variant ?? EnemyVariant.Normal,
-    isBoss: data.isBoss ?? data.variant === EnemyVariant.Boss,
+    variant,
+    isBoss: variant === EnemyVariant.Boss,
     pathProgress: data.pathProgress,
     pathDistance: data.pathDistance,
     speed: data.speed,

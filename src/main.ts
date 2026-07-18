@@ -1528,6 +1528,16 @@ class Game {
                     this.ctx.globalAlpha = 1;
                 }
             }
+
+            if (!enemy.showHealthBar && enemy.totalLayers > 1) {
+                const indicatorY = enemy.position.y + radius + 7;
+                const indicatorWidth = 12;
+                const remainingRatio = enemy.layersRemaining / enemy.totalLayers;
+                this.ctx.fillStyle = 'rgba(18, 24, 31, 0.8)';
+                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth, 3);
+                this.ctx.fillStyle = enemy.secondaryColor;
+                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth * remainingRatio, 3);
+            }
             
             this.ctx.restore();
         }

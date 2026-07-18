@@ -1,6 +1,7 @@
-import { createEnemy, applyStatusEffect, StatusEffectType, Enemy } from '../entities/enemy';
+import { createEnemy, applyEnemyVariant, applyStatusEffect, StatusEffectType, Enemy } from '../entities/enemy';
 import { Path, createDefaultPath } from './path';
 import { EnemyType, ENEMY_STATS } from './wave';
+import { EnemyFamily, EnemyTrait, EnemyVariant } from '../content/enemyDefinitions';
 import {
   EnemyRenderData,
   EnemyStatusEffectRender,
@@ -164,6 +165,24 @@ runTest('getEnemyRenderData sets isCamo true for Veil Wasp and Pale Moth', () =>
   const paleMothRender = getEnemyRenderData(paleMoth);
   assert(veilWaspRender.isCamo === true, 'Veil Wasp should be camo');
   assert(paleMothRender.isCamo === true, 'Pale Moth should be camo');
+});
+
+runTest('getEnemyRenderData exposes canonical layers, family, traits, and boss health-bar visibility', () => {
+  const shell = createEnemy(7000, EnemyType.ShellBeetle, createDefaultPath());
+  const shellRender = getEnemyRenderData(shell);
+  assertEqual(shellRender.layersRemaining, 2, 'renderer receives layer count');
+  assertEqual(shellRender.totalLayers, 2, 'renderer receives total layers');
+  assertEqual(shellRender.family, EnemyFamily.Beetle, 'renderer receives canonical family');
+  assertEqual(shellRender.traits, [] as EnemyTrait[], 'renderer receives canonical traits');
+  assertEqual(shellRender.isBoss, false, 'regular enemy is not a boss');
+  assertEqual(shellRender.showHealthBar, false, 'regular enemy has no health bar');
+
+  const boss = createEnemy(7001, EnemyType.WardMoth, createDefaultPath());
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  const bossRender = getEnemyRenderData(boss);
+  assertEqual(bossRender.isBoss, true, 'Boss variant is marked as boss');
+  assertEqual(bossRender.showHealthBar, true, 'boss has health bar');
+  assert(bossRender.traits.includes(EnemyTrait.Shielded), 'boss retains canonical traits');
 });
 
 runTest('getEnemyRenderData exposes Metal armor trait for Bulwark Beetle and Iron Caterpillar', () => {

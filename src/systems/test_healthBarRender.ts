@@ -17,7 +17,8 @@ import {
   AnimatedHealthBarData,
 } from './healthBarRender';
 
-import { Enemy, createEnemy, applyStatusEffect, StatusEffectType } from '../entities/enemy';
+import { Enemy, createEnemy, applyEnemyVariant, applyStatusEffect, StatusEffectType } from '../entities/enemy';
+import { EnemyVariant } from '../content/enemyDefinitions';
 import { EnemyType } from './wave';
 import { Path } from './path';
 
@@ -190,13 +191,16 @@ function shouldShowHealthBarTests() {
   assertEqual(shouldShowHealthBar(createMockEnemy({ alive: false }), true), false, 'dead enemy always');
   
   assertEqual(shouldShowHealthBar(createMockEnemy({ hp: 100, maxHp: 100, statusEffects: [] }), false), false, 'full health no effects');
-  assertEqual(shouldShowHealthBar(createMockEnemy({ hp: 100, maxHp: 100, statusEffects: [] }), true), true, 'full health always');
-  
-  assertEqual(shouldShowHealthBar(createMockEnemy({ hp: 50, maxHp: 100, statusEffects: [] }), false), true, 'damaged enemy');
+  assertEqual(shouldShowHealthBar(createMockEnemy({ hp: 100, maxHp: 100, statusEffects: [] }), true), false, 'regular enemy stays hidden even when showAlways is requested');
+  assertEqual(shouldShowHealthBar(createMockEnemy({ hp: 50, maxHp: 100, statusEffects: [] }), false), false, 'damaged regular enemy stays hidden');
   
   const enemyWithEffect = createMockEnemy({ hp: 100, maxHp: 100, statusEffects: [] });
   applyStatusEffect(enemyWithEffect, StatusEffectType.Slow, 5000, 0.3);
-  assertEqual(shouldShowHealthBar(enemyWithEffect, false), true, 'enemy with effect');
+  assertEqual(shouldShowHealthBar(enemyWithEffect, false), false, 'regular enemy with effect stays hidden');
+
+  const boss = createEnemy(2, EnemyType.WardMoth, createMockPath());
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  assertEqual(shouldShowHealthBar(boss, false), true, 'boss health bar is visible at full health');
   
   passed++;
 }
@@ -209,24 +213,31 @@ function getHealthBarRenderDataTests() {
   assertEqual(data.width, 0, 'dead width');
   assertEqual(data.height, 0, 'dead height');
   
-  data = getHealthBarRenderData(createMockEnemy({ hp: 30, maxHp: 100 }));
+  const boss = createEnemy(2, EnemyType.WardMoth, createMockPath());
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  boss.hp = 30;
+  boss.maxHp = 100;
+  data = getHealthBarRenderData(boss);
   assertEqual(data.isVisible, true, 'damaged visible');
-  assertEqual(data.enemyId, 1, 'enemy id');
+  assertEqual(data.enemyId, 2, 'enemy id');
   assertEqual(data.currentHp, 30, 'current hp');
   assertEqual(data.maxHp, 100, 'max hp');
   assertEqual(data.healthPercent, 0.3, 'health percent');
   assertEqual(data.healthState, HealthState.Damaged, 'damaged state');
   assertEqual(data.fillColor, '#FFC107', 'damaged color');
   
-  data = getHealthBarRenderData(createMockEnemy({ hp: 10, maxHp: 100 }));
+  boss.hp = 10;
+  data = getHealthBarRenderData(boss);
   assertEqual(data.healthState, HealthState.Critical, 'critical state');
   assertEqual(data.fillColor, '#F44336', 'critical color');
   
-  data = getHealthBarRenderData(createMockEnemy({ hp: 100, maxHp: 100 }), { showAlways: true });
+  boss.hp = 100;
+  data = getHealthBarRenderData(boss, { showAlways: true });
   assertEqual(data.healthState, HealthState.Full, 'full state');
   assertEqual(data.fillColor, '#4CAF50', 'full color');
   
-  data = getHealthBarRenderData(createMockEnemy({ hp: 50, maxHp: 100 }), {
+  boss.hp = 50;
+  data = getHealthBarRenderData(boss, {
     customWidth: 50,
     customHeight: 8,
     customOffsetY: -20,
@@ -235,7 +246,10 @@ function getHealthBarRenderDataTests() {
   assertEqual(data.height, 8, 'custom height');
   assertEqual(data.offsetY, -20, 'custom offset');
   
-  const enemyWithStun = createMockEnemy({ hp: 50, maxHp: 100 });
+  const enemyWithStun = createEnemy(3, EnemyType.WardMoth, createMockPath());
+  applyEnemyVariant(enemyWithStun, EnemyVariant.Boss);
+  enemyWithStun.hp = 50;
+  enemyWithStun.maxHp = 100;
   applyStatusEffect(enemyWithStun, StatusEffectType.Stun, 2000, 1);
   data = getHealthBarRenderData(enemyWithStun);
   assertEqual(data.statusEffectIndicators.length, 1, 'stun indicator');
@@ -259,11 +273,16 @@ function getHealthBarsRenderDataTests() {
   ];
   
   result = getHealthBarsRenderData(enemies);
-  assertEqual(result.totalVisible, 1, 'filtered visible');
-  assertEqual(result.healthBars[0].enemyId, 2, 'filtered id');
+  assertEqual(result.totalVisible, 0, 'regular enemies are filtered even when damaged');
+
+  const boss = createEnemy(4, EnemyType.WardMoth, createMockPath());
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  result = getHealthBarsRenderData([...enemies, boss]);
+  assertEqual(result.totalVisible, 1, 'only boss health bar is visible');
+  assertEqual(result.healthBars[0].enemyId, 4, 'boss id');
   
   result = getHealthBarsRenderData(enemies, { showAlways: true });
-  assertEqual(result.totalVisible, 2, 'always visible');
+  assertEqual(result.totalVisible, 0, 'showAlways does not expose regular enemy health bars');
   
   passed++;
 }

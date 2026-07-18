@@ -1,6 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { Enemy, StatusEffectType } from '../entities/enemy';
 import { EnemyType } from './wave';
+import { EnemyVariant } from '../content/enemyDefinitions';
 
 export interface HealthBarRenderData {
   enemyId: number;
@@ -134,15 +135,8 @@ export function getHealthBarColors(state: HealthState): { background: string; fi
   return HEALTH_BAR_COLORS[state];
 }
 
-export function shouldShowHealthBar(enemy: Enemy, showAlways: boolean = false): boolean {
-  if (!enemy.alive) {
-    return false;
-  }
-  if (showAlways) {
-    return true;
-  }
-  const healthPercent = enemy.hp / enemy.maxHp;
-  return healthPercent < 1.0 || enemy.statusEffects.length > 0;
+export function shouldShowHealthBar(enemy: Enemy, _showAlways: boolean = false): boolean {
+  return enemy.alive && enemy.variant === EnemyVariant.Boss;
 }
 
 export function getHealthBarRenderData(

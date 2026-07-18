@@ -1,6 +1,8 @@
 import { GameRunner, GameState, createGameRunner } from './gameRunner';
 import { TowerType, TOWER_STATS } from '../entities/tower';
-import { EnemyType, ENEMY_STATS } from './wave';
+import { EnemyType, EnemyVariant, ENEMY_STATS } from './wave';
+import { applyEnemyVariant, createEnemy } from '../entities/enemy';
+import { createDefaultPath } from './path';
 import { TargetingMode } from './targeting';
 import { UpgradePath } from './upgrade';
 
@@ -31,6 +33,18 @@ function assertApprox(actual: number, expected: number, tolerance: number, messa
 }
 
 console.log('=== End-to-End Gameplay Integration Tests ===\n');
+
+test('Combat presentation only renders the boss health bar', () => {
+  const game = createGameRunner();
+  const shell = createEnemy(7003, EnemyType.ShellBeetle, createDefaultPath());
+  const boss = createEnemy(7004, EnemyType.WardMoth, createDefaultPath());
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  Reflect.set(game, 'activeEnemies', [shell, boss]);
+
+  const frame = game.getHealthBarsRenderData();
+  assert(frame.healthBars.length === 1, `Expected one boss health bar, got ${frame.healthBars.length}`);
+  assert(frame.healthBars[0].enemyId === boss.id, 'Only the boss receives a health bar');
+});
 
 test('Full game session: start -> place towers -> play wave -> verify economy tracking', () => {
   const game = createGameRunner({ startingMoney: 650, startingLives: 20, maxWaves: 10 });

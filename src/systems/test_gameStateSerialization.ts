@@ -186,6 +186,32 @@ console.log('\nBoss isBoss round trip:');
   assertEqual(deserialized.isBoss, true, 'deserialized Boss retains isBoss');
 }
 
+console.log('\nlayer HP, current layer, and Boss variant round trip:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, applyEnemyVariant } = require('../entities/enemy');
+  const boss = createEnemy(7002, EnemyType.WardMoth, path);
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  boss.layers[0].hp = 0;
+  boss.layers[1].hp = 11;
+  boss.currentLayerIndex = 1;
+  boss.hp = 11;
+
+  const serialized = serializeEnemy(boss);
+  serialized.hp = 999;
+  serialized.maxHp = 999;
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(serialized.variant, EnemyVariant.Boss, 'serialized enemy records Boss variant');
+  assertEqual(deserialized.variant, EnemyVariant.Boss, 'Boss variant survives deserialize');
+  assertEqual(deserialized.isBoss, true, 'Boss state derives from the restored variant');
+  assertEqual(deserialized.currentLayerIndex, 1, 'current layer index survives deserialize');
+  assertEqual(deserialized.layers[0].hp, 0, 'broken layer HP survives deserialize');
+  assertEqual(deserialized.layers[1].hp, 11, 'active layer HP survives deserialize');
+  assertEqual(deserialized.hp, 11, 'aggregate HP is recomputed from restored layer HP');
+  assertEqual(deserialized.maxHp, 48, 'aggregate max HP is recomputed from restored layer max HP');
+}
+
 console.log('\nserializeProjectile:');
 {
   const projectile = {

@@ -55,13 +55,13 @@ function getLivesMoneyDisplayRenderDataTests() {
   assertEqual(data.lives.currentLives, 20, 'initial lives should be 20');
   assertEqual(data.lives.maxLives, 20, 'max lives should be 20');
   
-  assertEqual(data.money.currentMoney, 650, 'initial money should be 650');
+  assertEqual(data.money.currentMoney, 500, 'initial money should be 500');
   
   game.start();
   game.placeTower(TowerType.Puffball, 200, 200);
   
   data = game.getLivesMoneyDisplayRenderData();
-  assert(data.money.currentMoney < 650, 'money should decrease after purchase');
+  assert(data.money.currentMoney < 500, 'money should decrease after purchase');
   
   const initialLives = data.lives.currentLives;
   const economy = game.getEconomy();
@@ -109,7 +109,7 @@ function resetBehaviorTests() {
   
   const data = game.getLivesMoneyDisplayRenderData();
   assertEqual(data.lives.currentLives, 20, 'lives should be 20 after reset');
-  assertEqual(data.money.currentMoney, 650, 'money should be 650 after reset');
+  assertEqual(data.money.currentMoney, 500, 'money should be 500 after reset');
   
   console.log('  PASS');
   passed++;
