@@ -477,9 +477,31 @@ assertEqual(
 
 const releaseMapGame = createGameRunner();
 assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'runner defaults to Garden Path');
+const releaseWaveSpawner = releaseMapGame.getWaveSpawner();
+const releaseRoundManager = releaseMapGame.getRoundManager();
+assertEqual(releaseMapGame.setMap('garden_path'), true, 'setting Garden Path remains successful');
+assert(
+  releaseMapGame.getWaveSpawner() === releaseWaveSpawner,
+  'setting Garden Path preserves the WaveSpawner used by RoundManager'
+);
+assert(
+  releaseMapGame.getRoundManager() === releaseRoundManager,
+  'setting Garden Path preserves the existing RoundManager'
+);
+assertEqual(releaseMapGame.setMap('forest_loop'), false, 'release scope rejects alternate maps');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map set preserves Garden Path');
+assertEqual(releaseMapGame.selectMap('forest_loop'), false, 'release scope rejects alternate map selection');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map selection preserves Garden Path');
+releaseMapGame.getMapSelectionState().selectedMapId = 'forest_loop';
+assertEqual(releaseMapGame.confirmMapSelection(), false, 'release scope rejects alternate map confirmation');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map confirmation preserves Garden Path');
 releaseMapGame.startMapSelection();
 assertEqual(releaseMapGame.getMapSelectionState().isSelecting, false, 'release scope blocks map selection');
 releaseMapGame.reset();
 assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'reset preserves Garden Path');
+assert(
+  releaseMapGame.getWaveSpawner() === releaseWaveSpawner,
+  'reset preserves the WaveSpawner used by RoundManager'
+);
 
 console.log('All GameRunner tests passed!');

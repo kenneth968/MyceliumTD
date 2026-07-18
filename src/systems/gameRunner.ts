@@ -372,6 +372,14 @@ export class GameRunner {
   }
 
   setMap(mapId: string): boolean {
+    if (!RELEASE_FEATURES.mapSelection) {
+      if (mapId !== RELEASE_MAP_ID) {
+        return false;
+      }
+      this.applyReleaseMap();
+      this.mapSelectionState.selectedMapId = RELEASE_MAP_ID;
+      return true;
+    }
     const map = getMapById(mapId);
     if (!map) {
       return false;
@@ -428,6 +436,7 @@ export class GameRunner {
   }
 
   selectMap(mapId: string): boolean {
+    if (!RELEASE_FEATURES.mapSelection) return false;
     const map = getMapById(mapId);
     if (!map || map.unlockRequirement) {
       return false;
@@ -441,6 +450,7 @@ export class GameRunner {
   }
 
   confirmMapSelection(): boolean {
+    if (!RELEASE_FEATURES.mapSelection) return false;
     if (!this.mapSelectionState.selectedMapId) {
       return false;
     }
