@@ -84,9 +84,9 @@ test('network connections are defined', () => Array.isArray(renderData.networkCo
 
 const networkGame = new GameRunner({ startingMoney: 5000 });
 networkGame.start();
-const kernelConnectedTower = networkGame.placeTower(TowerType.PuffballFungus, 720, 180, TargetingMode.First);
-const chainedTower = networkGame.placeTower(TowerType.OrchidTrap, 600, 180, TargetingMode.First);
-const farTower = networkGame.placeTower(TowerType.StinkhornLine, 100, 100, TargetingMode.First);
+const kernelConnectedTower = networkGame.placeTower(TowerType.Puffball, 720, 180, TargetingMode.First);
+const chainedTower = networkGame.placeTower(TowerType.Slimefungus, 600, 180, TargetingMode.First);
+const farTower = networkGame.placeTower(TowerType.BulbShooter, 100, 100, TargetingMode.First);
 const networkRenderData = renderer.render(networkGame);
 test('kernel-connected tower has a network line', () =>
   kernelConnectedTower !== null &&
@@ -108,10 +108,10 @@ test('unconnected tower does not get a network line', () =>
 
 const fieldGame = new GameRunner({ startingMoney: 5000 });
 fieldGame.start();
-const fieldTower = fieldGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const fieldTower = fieldGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 if (fieldTower) {
   fieldGame.upgradeTower(fieldTower.id, UpgradePath.Special);
-  const fieldTarget = createEnemy(910, EnemyType.BlueBeetle, fieldGame.getPath());
+  const fieldTarget = createEnemy(910, EnemyType.DartWasp, fieldGame.getPath());
   fieldTarget.pathDistance = 1420;
   fieldTarget.pathProgress = 1420;
   fieldTarget.position = { ...fieldGame.getPath().getPointAtDistance(fieldTarget.pathDistance).position };
@@ -128,29 +128,31 @@ test('active lingering fungal field appears in frame render data', () =>
 );
 test('lingering fungal field render data is visible and timed', () =>
   renderedFields?.[0]?.radius === 50 &&
-  renderedFields?.[0]?.duration === 8000 &&
+  renderedFields?.[0]?.duration === 6000 &&
   renderedFields?.[0]?.color === 'rgba(136, 216, 90, 0.22)'
 );
 
 const seededGame = new GameRunner({ startingMoney: 5000 });
 seededGame.start();
-const seededTower = seededGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+const seededTower = seededGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 if (seededTower) {
   seededGame.upgradeTower(seededTower.id, UpgradePath.Special);
-  const seededTarget = createEnemy(911, EnemyType.ArmoredBeetle, seededGame.getPath());
+  const seededTarget = createEnemy(911, EnemyType.BulwarkBeetle, seededGame.getPath());
   seededTarget.pathDistance = 1420;
   seededTarget.pathProgress = 1420;
   seededTarget.position = { ...seededGame.getPath().getPointAtDistance(seededTarget.pathDistance).position };
   seededTarget.speed = 0;
   seededTarget.baseSpeed = 0;
   seededGame.getActiveEnemies().push(seededTarget);
-  seededGame.update(1000);
-  seededGame.update(1300);
+  seededGame.update(1200);
+  seededGame.update(2400);
+  seededGame.update(3600);
+  seededGame.update(4800);
 }
 const seededRenderData = renderer.render(seededGame);
 const renderedPayloads = seededRenderData.seededPayloads;
 test('active seeded payloads appear in frame render data', () =>
-  Array.isArray(renderedPayloads) && renderedPayloads.length === 3
+  Array.isArray(renderedPayloads) && renderedPayloads.length === 1
 );
 test('seeded payload render data is visible and delayed', () =>
   renderedPayloads?.[0]?.radius === 35 &&
@@ -160,7 +162,7 @@ test('seeded payload render data is visible and delayed', () =>
 
 // Targeting mode buttons when placing
 console.log('\nPlacement preview tests:');
-game.startTowerPlacement(TowerType.PuffballFungus);
+game.startTowerPlacement(TowerType.Puffball);
 game.updatePlacementPosition(700, 100);
 
 const placementRenderData = renderer.render(game);

@@ -1,5 +1,5 @@
 import { WaveSpawner, Wave } from './wave';
-import { GameEconomy } from './economy';
+import { GameEconomy, RoundBonusBreakdown } from './economy';
 
 export enum RoundState {
   Idle = 'idle',
@@ -33,7 +33,7 @@ export interface RoundInfo {
 
 export interface RoundManagerEvents {
   onRoundStart?: (roundNumber: number, wave: Wave) => void;
-  onRoundEnd?: (roundNumber: number, bonus: number) => void;
+  onRoundEnd?: (roundNumber: number, bonus: RoundBonusBreakdown) => void;
   onIntermissionStart?: (roundNumber: number) => void;
   onVictory?: (finalRound: number) => void;
   onGameOver?: (roundReached: number) => void;
@@ -180,7 +180,7 @@ export class RoundManager {
     }
   }
 
-  private endRound(bonus: number): void {
+  private endRound(bonus: RoundBonusBreakdown): void {
     this.state = RoundState.RoundEnd;
     this.stateStartTime = Date.now();
     
@@ -189,7 +189,7 @@ export class RoundManager {
     }
   }
 
-  checkRoundCompletion(activeEnemiesCount: number): RoundState {
+  checkRoundCompletion(activeEnemiesCount: number, leaks: number = 0): RoundState {
     if (this.state === RoundState.GameOver || this.state === RoundState.Victory) {
       return this.state;
     }
@@ -210,7 +210,8 @@ export class RoundManager {
       return this.state;
     }
 
-    const bonus = this.economy.addRoundBonus();
+    const completionBonus = this.waveSpawner.getCurrentWave()?.completionBonus;
+    const bonus = this.economy.addRoundBonus(leaks, completionBonus);
     this.endRound(bonus);
 
     if (this.roundNumber >= this.config.maxRounds) {

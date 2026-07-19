@@ -45,7 +45,7 @@ assertEqual(game.getGameSpeed(), GameSpeed.Normal, 'Speed should reset to Normal
 
 game.start();
 
-const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
 assert(tower !== null, 'Should place tower');
 
 game.startWave(0);
@@ -81,7 +81,7 @@ fastSpawnGame.startWave(0);
 const fastSpawnStartTime = Date.now();
 fastSpawnGame.update(fastSpawnStartTime);
 assertEqual(fastSpawnGame.getActiveEnemies().length, 1, 'Fast-forward wave starts with one spawned enemy');
-fastSpawnGame.update(fastSpawnStartTime + 200);
+fastSpawnGame.update(fastSpawnStartTime + 250);
 assertEqual(
   fastSpawnGame.getActiveEnemies().length,
   2,
@@ -91,16 +91,16 @@ assertEqual(
 const fastTowerGame = createGameRunner({ startingMoney: 1000 });
 fastTowerGame.start();
 fastTowerGame.setGameSpeed(GameSpeed.Faster);
-const fastTower = fastTowerGame.placeTower(TowerType.PuffballFungus, 40, 300, TargetingMode.First);
+const fastTower = fastTowerGame.placeTower(TowerType.Puffball, 40, 300, TargetingMode.First);
 assert(fastTower !== null, 'Should place fast-forward cooldown test tower');
-const armoredEnemy = createEnemy(999, EnemyType.ArmoredBeetle, fastTowerGame.getPath());
+const armoredEnemy = createEnemy(999, EnemyType.BulwarkBeetle, fastTowerGame.getPath());
 fastTowerGame.getActiveEnemies().push(armoredEnemy);
 const fastTowerStartTime = Date.now();
 fastTowerGame.update(fastTowerStartTime);
 assertEqual(fastTower!.lastFireTime, fastTowerStartTime, 'Tower fires immediately on the first update');
-fastTowerGame.update(fastTowerStartTime + 200);
+fastTowerGame.update(fastTowerStartTime + 300);
 assert(
-  fastTower!.lastFireTime >= fastTowerStartTime + 500,
+  fastTower!.lastFireTime >= fastTowerStartTime + 900,
   'Fast-forward should advance tower cooldown timers by the speed multiplier'
 );
 

@@ -43,15 +43,16 @@ export interface TowerPlacerConfig {
   minDistanceFromTower?: number;
 }
 
+export const DEFAULT_TOWER_PATH_CLEARANCE = 30;
 const PATH_SAMPLE_STEP = 8;
 
 const TOWER_FOOTPRINT_RADIUS: Record<TowerType, number> = {
-  [TowerType.PuffballFungus]: 18,
-  [TowerType.OrchidTrap]: 18,
-  [TowerType.VenusFlytower]: 20,
-  [TowerType.BioluminescentShroom]: 16,
-  [TowerType.StinkhornLine]: 18,
-  [TowerType.MyceliumNetwork]: 20,
+  [TowerType.Puffball]: 18,
+  [TowerType.Slimefungus]: 18,
+  [TowerType.ThornSniper]: 20,
+  [TowerType.LumenOracle]: 16,
+  [TowerType.BulbShooter]: 18,
+  [TowerType.Sporecap]: 20,
 };
 
 export function getTowerPathClearance(towerType: TowerType): number {
@@ -73,7 +74,7 @@ export class TowerPlacer {
     this.mode = PlacementMode.None;
     this.selectedTowerType = null;
     this.placementPosition = null;
-    this.minDistanceFromPath = config.minDistanceFromPath ?? 20;
+    this.minDistanceFromPath = config.minDistanceFromPath ?? DEFAULT_TOWER_PATH_CLEARANCE;
     this.minDistanceFromTower = config.minDistanceFromTower ?? 40;
     this.selectedTargetingMode = TargetingMode.First;
     this.selectedTowerId = null;

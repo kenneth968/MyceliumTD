@@ -110,13 +110,13 @@ function test(name: string, fn: () => void): void {
 }
 
 describe('HOTKEY_MAPPINGS', () => {
-  test('should have 14 hotkey mappings (5 towers + 2 cancel + 2 pause + 3 speed + 2 map)', () => {
-    expect(HOTKEY_MAPPINGS.length).toBe(14);
+  test('should have 15 hotkey mappings (6 towers + 2 cancel + 2 pause + 3 speed + 2 map)', () => {
+    expect(HOTKEY_MAPPINGS.length).toBe(15);
   });
 
-  test('should have tower hotkeys for keys 1-5', () => {
+  test('should have tower hotkeys for keys 1-6', () => {
     const towerMappings = HOTKEY_MAPPINGS.filter(m => m.towerType !== undefined);
-    expect(towerMappings.length).toBe(5);
+    expect(towerMappings.length).toBe(6);
   });
 
   test('should have cancel mappings for Escape', () => {
@@ -124,51 +124,60 @@ describe('HOTKEY_MAPPINGS', () => {
     expect(cancelMappings.length).toBe(2);
   });
 
-  test('should map key 1 to PuffballFungus', () => {
+  test('should map key 1 to Puffball', () => {
     const mapping = HOTKEY_MAPPINGS.find(m => m.key === '1');
-    expect(mapping?.towerType).toEqual(TowerType.PuffballFungus);
+    expect(mapping?.towerType).toEqual(TowerType.Puffball);
   });
 
-  test('should map key 2 to OrchidTrap', () => {
+  test('should map key 2 to Slimefungus', () => {
     const mapping = HOTKEY_MAPPINGS.find(m => m.key === '2');
-    expect(mapping?.towerType).toEqual(TowerType.OrchidTrap);
+    expect(mapping?.towerType).toEqual(TowerType.Slimefungus);
   });
 
-  test('should map key 3 to VenusFlytower', () => {
+  test('should map key 3 to ThornSniper', () => {
     const mapping = HOTKEY_MAPPINGS.find(m => m.key === '3');
-    expect(mapping?.towerType).toEqual(TowerType.VenusFlytower);
+    expect(mapping?.towerType).toEqual(TowerType.ThornSniper);
   });
 
-  test('should map key 4 to BioluminescentShroom', () => {
+  test('should map key 4 to LumenOracle', () => {
     const mapping = HOTKEY_MAPPINGS.find(m => m.key === '4');
-    expect(mapping?.towerType).toEqual(TowerType.BioluminescentShroom);
+    expect(mapping?.towerType).toEqual(TowerType.LumenOracle);
   });
 
-  test('should map key 5 to StinkhornLine', () => {
+  test('should map key 5 to BulbShooter', () => {
     const mapping = HOTKEY_MAPPINGS.find(m => m.key === '5');
-    expect(mapping?.towerType).toEqual(TowerType.StinkhornLine);
+    expect(mapping?.towerType).toEqual(TowerType.BulbShooter);
+  });
+
+  test('should map key 6 to Sporecap', () => {
+    const mapping = HOTKEY_MAPPINGS.find(m => m.key === '6');
+    expect(mapping?.towerType).toEqual(TowerType.Sporecap);
   });
 });
 
 describe('getTowerTypeForHotkey', () => {
-  test('should return PuffballFungus for SelectTower1', () => {
-    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower1)).toEqual(TowerType.PuffballFungus);
+  test('should return Puffball for SelectTower1', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower1)).toEqual(TowerType.Puffball);
   });
 
-  test('should return OrchidTrap for SelectTower2', () => {
-    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower2)).toEqual(TowerType.OrchidTrap);
+  test('should return Slimefungus for SelectTower2', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower2)).toEqual(TowerType.Slimefungus);
   });
 
-  test('should return VenusFlytower for SelectTower3', () => {
-    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower3)).toEqual(TowerType.VenusFlytower);
+  test('should return ThornSniper for SelectTower3', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower3)).toEqual(TowerType.ThornSniper);
   });
 
-  test('should return BioluminescentShroom for SelectTower4', () => {
-    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower4)).toEqual(TowerType.BioluminescentShroom);
+  test('should return LumenOracle for SelectTower4', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower4)).toEqual(TowerType.LumenOracle);
   });
 
-  test('should return StinkhornLine for SelectTower5', () => {
-    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower5)).toEqual(TowerType.StinkhornLine);
+  test('should return BulbShooter for SelectTower5', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower5)).toEqual(TowerType.BulbShooter);
+  });
+
+  test('should return Sporecap for SelectTower6', () => {
+    expect(getTowerTypeForHotkey(HotkeyAction.SelectTower6)).toEqual(TowerType.Sporecap);
   });
 
   test('should return undefined for Cancel', () => {
@@ -186,7 +195,7 @@ describe('findHotkeyAction', () => {
   test('should find SelectTower1 for key "1"', () => {
     const result = findHotkeyAction('1');
     expect(result?.action).toEqual(HotkeyAction.SelectTower1);
-    expect(result?.towerType).toEqual(TowerType.PuffballFungus);
+    expect(result?.towerType).toEqual(TowerType.Puffball);
   });
 
   test('should find SelectTower2 for key "2"', () => {
@@ -207,6 +216,11 @@ describe('findHotkeyAction', () => {
   test('should find SelectTower5 for key "5"', () => {
     const result = findHotkeyAction('5');
     expect(result?.action).toEqual(HotkeyAction.SelectTower5);
+  });
+
+  test('should find SelectTower6 for key "6"', () => {
+    const result = findHotkeyAction('6');
+    expect(result?.action).toEqual(HotkeyAction.SelectTower6);
   });
 
   test('should find Cancel for key "Escape"', () => {
@@ -350,6 +364,10 @@ describe('isTowerHotkey', () => {
     expect(isTowerHotkey(HotkeyAction.SelectTower5)).toBeTruthy();
   });
 
+  test('should return true for SelectTower6', () => {
+    expect(isTowerHotkey(HotkeyAction.SelectTower6)).toBeTruthy();
+  });
+
   test('should return false for Cancel', () => {
     expect(isTowerHotkey(HotkeyAction.Cancel)).toBeFalsy();
   });
@@ -408,6 +426,10 @@ describe('getHotkeyLabel', () => {
     expect(getHotkeyLabel(HotkeyAction.SelectTower5)).toBe('5');
   });
 
+  test('should return "6" for SelectTower6', () => {
+    expect(getHotkeyLabel(HotkeyAction.SelectTower6)).toBe('6');
+  });
+
   test('should return "Esc" for Cancel', () => {
     expect(getHotkeyLabel(HotkeyAction.Cancel)).toBe('Esc');
   });
@@ -419,23 +441,27 @@ describe('getHotkeyLabel', () => {
 
 describe('getHotkeyDescription', () => {
   test('should return correct description for SelectTower1', () => {
-    expect(getHotkeyDescription(HotkeyAction.SelectTower1)).toBe('Select Puffball Fungus');
+    expect(getHotkeyDescription(HotkeyAction.SelectTower1)).toBe('Select Puffball');
   });
 
   test('should return correct description for SelectTower2', () => {
-    expect(getHotkeyDescription(HotkeyAction.SelectTower2)).toBe('Select Orchid Trap');
+    expect(getHotkeyDescription(HotkeyAction.SelectTower2)).toBe('Select Slimefungus');
   });
 
   test('should return correct description for SelectTower3', () => {
-    expect(getHotkeyDescription(HotkeyAction.SelectTower3)).toBe('Select Venus Flytower');
+    expect(getHotkeyDescription(HotkeyAction.SelectTower3)).toBe('Select Thorn Sniper');
   });
 
   test('should return correct description for SelectTower4', () => {
-    expect(getHotkeyDescription(HotkeyAction.SelectTower4)).toBe('Select Bioluminescent Shroom');
+    expect(getHotkeyDescription(HotkeyAction.SelectTower4)).toBe('Select Lumen Oracle');
   });
 
   test('should return correct description for SelectTower5', () => {
-    expect(getHotkeyDescription(HotkeyAction.SelectTower5)).toBe('Select Stinkhorn Line');
+    expect(getHotkeyDescription(HotkeyAction.SelectTower5)).toBe('Select Bulb Shooter');
+  });
+
+  test('should return correct description for SelectTower6', () => {
+    expect(getHotkeyDescription(HotkeyAction.SelectTower6)).toBe('Select Sporecap');
   });
 
   test('should return "Cancel" for Cancel', () => {

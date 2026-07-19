@@ -94,11 +94,11 @@ console.log('\n=== placementPreview tests ===\n');
 console.log('--- getPlacementGhostRenderData ---');
 {
   const position: Vec2 = { x: 100, y: 200 };
-  const result = getPlacementGhostRenderData(position, TowerType.PuffballFungus, true);
+  const result = getPlacementGhostRenderData(position, TowerType.Puffball, true);
   expect(result.position, position, 'returns correct position');
-  expect(result.towerType, TowerType.PuffballFungus, 'returns correct tower type');
+  expect(result.towerType, TowerType.Puffball, 'returns correct tower type');
   expect(result.isValid, true, 'isValid is true when passed true');
-  expect(result.range, 80, 'returns correct range from tower stats');
+  expect(result.range, 95, 'returns correct Puffball range from tower stats');
   expect(result.color, '#4CAF50', 'uses valid color');
   expect(result.glowColor, '#81C784', 'uses valid glow color');
   expect(result.size, 20, 'returns correct size for Puffball');
@@ -106,28 +106,28 @@ console.log('--- getPlacementGhostRenderData ---');
 
 {
   const position: Vec2 = { x: 100, y: 200 };
-  const result = getPlacementGhostRenderData(position, TowerType.VenusFlytower, false);
+  const result = getPlacementGhostRenderData(position, TowerType.ThornSniper, false);
   expect(result.position, position, 'returns correct position for invalid');
-  expect(result.towerType, TowerType.VenusFlytower, 'returns correct tower type for invalid');
+  expect(result.towerType, TowerType.ThornSniper, 'returns correct tower type for invalid');
   expect(result.isValid, false, 'isValid is false when passed false');
-  expect(result.range, 50, 'returns correct range for Venus');
+  expect(result.range, 190, 'returns correct range for Thorn Sniper');
   expect(result.color, '#F44336', 'uses invalid color');
   expect(result.glowColor, '#EF5350', 'uses invalid glow color');
-  expect(result.size, 24, 'returns correct size for Venus');
+  expect(result.size, 24, 'returns correct size for Thorn Sniper');
 }
 
 {
   const position: Vec2 = { x: 0, y: 0 };
-  const puffball = getPlacementGhostRenderData(position, TowerType.PuffballFungus, true);
-  const orchid = getPlacementGhostRenderData(position, TowerType.OrchidTrap, true);
-  const venus = getPlacementGhostRenderData(position, TowerType.VenusFlytower, true);
-  const bio = getPlacementGhostRenderData(position, TowerType.BioluminescentShroom, true);
-  const stinkhorn = getPlacementGhostRenderData(position, TowerType.StinkhornLine, true);
+  const puffball = getPlacementGhostRenderData(position, TowerType.Puffball, true);
+  const orchid = getPlacementGhostRenderData(position, TowerType.Slimefungus, true);
+  const venus = getPlacementGhostRenderData(position, TowerType.ThornSniper, true);
+  const bio = getPlacementGhostRenderData(position, TowerType.LumenOracle, true);
+  const stinkhorn = getPlacementGhostRenderData(position, TowerType.BulbShooter, true);
   expect(puffball.size, 20, 'Puffball size');
-  expect(orchid.size, 18, 'Orchid size');
-  expect(venus.size, 24, 'Venus size');
-  expect(bio.size, 16, 'Bio size');
-  expect(stinkhorn.size, 22, 'Stinkhorn size');
+  expect(orchid.size, 18, 'Slimefungus size');
+  expect(venus.size, 24, 'Thorn Sniper size');
+  expect(bio.size, 16, 'Lumen Oracle size');
+  expect(stinkhorn.size, 22, 'Bulb Shooter size');
 }
 
 console.log('\n--- getRangeCircleRenderData ---');
@@ -215,7 +215,7 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 {
   const result = getPlacementPreviewRenderData(
     { x: 100, y: 100 },
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     PlacementMode.None,
     null,
     null
@@ -229,7 +229,7 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 {
   const result = getPlacementPreviewRenderData(
     { x: 100, y: 100 },
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     PlacementMode.Selecting,
     null,
     null
@@ -240,7 +240,7 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 {
   const result = getPlacementPreviewRenderData(
     null,
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     PlacementMode.Placing,
     null,
     null
@@ -254,14 +254,14 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 
   const result = getPlacementPreviewRenderData(
     { x: 100, y: 100 },
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     PlacementMode.Placing,
     rangePreview,
     pathPreview
   );
   expect(result.isPlacing, true, 'isPlacing is true in placing mode');
   expectTrue(result.ghost !== null, 'ghost is populated');
-  expect(result.ghost!.towerType, TowerType.PuffballFungus, 'ghost has correct tower type');
+  expect(result.ghost!.towerType, TowerType.Puffball, 'ghost has correct tower type');
   expect(result.ghost!.isValid, true, 'ghost is valid');
   expectTrue(result.rangeCircle !== null, 'rangeCircle is populated');
   expectTrue(result.pathCoverage !== null, 'pathCoverage is populated');
@@ -273,7 +273,7 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 
   const resultValid = getPlacementPreviewRenderData(
     { x: 100, y: 100 },
-    TowerType.OrchidTrap,
+    TowerType.Slimefungus,
     PlacementMode.Placing,
     rangePreviewValid,
     null
@@ -281,7 +281,7 @@ console.log('\n--- getPlacementPreviewRenderData ---');
 
   const resultInvalid = getPlacementPreviewRenderData(
     { x: 100, y: 100 },
-    TowerType.OrchidTrap,
+    TowerType.Slimefungus,
     PlacementMode.Placing,
     rangePreviewInvalid,
     null
@@ -295,39 +295,39 @@ console.log('\n--- getTowerPlacementIndicator ---');
 {
   const time = 1000;
 
-  const puffball = getTowerPlacementIndicator(TowerType.PuffballFungus, time, true);
-  const orchid = getTowerPlacementIndicator(TowerType.OrchidTrap, time, true);
-  const venus = getTowerPlacementIndicator(TowerType.VenusFlytower, time, true);
-  const bio = getTowerPlacementIndicator(TowerType.BioluminescentShroom, time, true);
-  const stinkhorn = getTowerPlacementIndicator(TowerType.StinkhornLine, time, true);
+  const puffball = getTowerPlacementIndicator(TowerType.Puffball, time, true);
+  const orchid = getTowerPlacementIndicator(TowerType.Slimefungus, time, true);
+  const venus = getTowerPlacementIndicator(TowerType.ThornSniper, time, true);
+  const bio = getTowerPlacementIndicator(TowerType.LumenOracle, time, true);
+  const stinkhorn = getTowerPlacementIndicator(TowerType.BulbShooter, time, true);
 
   expect(puffball.type, 'circle', 'Puffball type is circle');
-  expect(orchid.type, 'diamond', 'Orchid type is diamond');
-  expect(venus.type, 'square', 'Venus type is square');
-  expect(bio.type, 'circle', 'Bio type is circle');
-  expect(stinkhorn.type, 'diamond', 'Stinkhorn type is diamond');
+  expect(orchid.type, 'diamond', 'Slimefungus type is diamond');
+  expect(venus.type, 'square', 'Thorn Sniper type is square');
+  expect(bio.type, 'circle', 'Lumen Oracle type is circle');
+  expect(stinkhorn.type, 'diamond', 'Bulb Shooter type is diamond');
 }
 
 {
-  const resultValid = getTowerPlacementIndicator(TowerType.PuffballFungus, 1000, true);
-  const resultInvalid = getTowerPlacementIndicator(TowerType.PuffballFungus, 1000, false);
+  const resultValid = getTowerPlacementIndicator(TowerType.Puffball, 1000, true);
+  const resultInvalid = getTowerPlacementIndicator(TowerType.Puffball, 1000, false);
 
   expect(resultValid.color, '#4CAF50', 'valid placement uses valid color');
   expect(resultInvalid.color, '#F44336', 'invalid placement uses invalid color');
 }
 
 {
-  const venus = getTowerPlacementIndicator(TowerType.VenusFlytower, 1000, true);
-  const bio = getTowerPlacementIndicator(TowerType.BioluminescentShroom, 1000, true);
+  const venus = getTowerPlacementIndicator(TowerType.ThornSniper, 1000, true);
+  const bio = getTowerPlacementIndicator(TowerType.LumenOracle, 1000, true);
 
-  expect(venus.size, 24, 'Venus size');
-  expect(bio.size, 16, 'Bio size');
+  expect(venus.size, 24, 'Thorn Sniper size');
+  expect(bio.size, 16, 'Lumen Oracle size');
 }
 
 {
-  const result1 = getTowerPlacementIndicator(TowerType.PuffballFungus, 0, true);
-  const result2 = getTowerPlacementIndicator(TowerType.PuffballFungus, 1000, true);
-  const result3 = getTowerPlacementIndicator(TowerType.PuffballFungus, 2000, true);
+  const result1 = getTowerPlacementIndicator(TowerType.Puffball, 0, true);
+  const result2 = getTowerPlacementIndicator(TowerType.Puffball, 1000, true);
+  const result3 = getTowerPlacementIndicator(TowerType.Puffball, 2000, true);
 
   expectTrue(result2.pulsePhase > result1.pulsePhase, 'pulse phase increases with time');
   expectTrue(result3.pulsePhase > result2.pulsePhase, 'pulse phase continues increasing');

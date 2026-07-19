@@ -1,6 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
+import { ENEMY_DEFINITIONS, EnemyFamily, EnemyVariant } from '../content/enemyDefinitions';
 
 export interface EnemyRenderData {
   id: number;
@@ -16,6 +17,11 @@ export interface EnemyRenderData {
   pathProgress: number;
   pathDistance: number;
   isAlive: boolean;
+  layersRemaining: number;
+  totalLayers: number;
+  family: EnemyFamily;
+  isBoss: boolean;
+  showHealthBar: boolean;
   isCamo: boolean;
   isMetal: boolean;
   isShielded: boolean;
@@ -23,7 +29,7 @@ export interface EnemyRenderData {
   isSwarmLinked: boolean;
   swarmLinkedActive: boolean;
   swarmLinkCount: number;
-  traits: EnemyTrait[];
+  traits: readonly EnemyTrait[];
   armorColor: string | null;
   shieldColor: string | null;
   swarmLinkColor: string | null;
@@ -70,7 +76,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
   hasShell: boolean;
   hasWings: boolean;
 }> = {
-  [EnemyType.RedMushroom]: {
+  [EnemyType.ScoutBeetle]: {
     primary: '#E74C3C',
     secondary: '#C0392B',
     accent: '#FADBD8',
@@ -81,7 +87,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: false,
   },
-  [EnemyType.BlueBeetle]: {
+  [EnemyType.DartWasp]: {
     primary: '#3498DB',
     secondary: '#2980B9',
     accent: '#AED6F1',
@@ -92,7 +98,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: true,
     hasWings: false,
   },
-  [EnemyType.GreenCaterpillar]: {
+  [EnemyType.ShellBeetle]: {
     primary: '#27AE60',
     secondary: '#1E8449',
     accent: '#A9DFBF',
@@ -103,7 +109,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: false,
   },
-  [EnemyType.YellowWasp]: {
+  [EnemyType.CrawlerCaterpillar]: {
     primary: '#F1C40F',
     secondary: '#D4AC0D',
     accent: '#FCF3CF',
@@ -114,7 +120,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: true,
   },
-  [EnemyType.PinkLadybug]: {
+  [EnemyType.SwarmWasp]: {
     primary: '#E91E63',
     secondary: '#C2185B',
     accent: '#F8BBD0',
@@ -125,7 +131,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: true,
     hasWings: false,
   },
-  [EnemyType.BlackWidow]: {
+  [EnemyType.IronCaterpillar]: {
     primary: '#1C1C1C',
     secondary: '#000000',
     accent: '#E74C3C',
@@ -136,7 +142,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: false,
   },
-  [EnemyType.WhiteMoth]: {
+  [EnemyType.VeilWasp]: {
     primary: '#ECF0F1',
     secondary: '#BDC3C7',
     accent: '#FDFEFE',
@@ -147,7 +153,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: true,
   },
-  [EnemyType.ArmoredBeetle]: {
+  [EnemyType.BulwarkBeetle]: {
     primary: '#5D6D7E',
     secondary: '#34495E',
     accent: '#85929E',
@@ -158,7 +164,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: true,
     hasWings: false,
   },
-  [EnemyType.RainbowStag]: {
+  [EnemyType.WardMoth]: {
     primary: '#E74C3C',
     secondary: '#3498DB',
     accent: '#F39C12',
@@ -169,7 +175,7 @@ const ENEMY_VISUAL_CONFIGS: Record<EnemyType, {
     hasShell: false,
     hasWings: false,
   },
-  [EnemyType.ShelledSnail]: {
+  [EnemyType.PaleMoth]: {
     primary: '#8D6E63',
     secondary: '#5D4037',
     accent: '#BCAAA4',
@@ -220,7 +226,7 @@ const STATUS_EFFECT_VISUALS: Record<StatusEffectType, {
 };
 
 export function getEnemyVisualConfig(enemyType: EnemyType) {
-  return ENEMY_VISUAL_CONFIGS[enemyType] || ENEMY_VISUAL_CONFIGS[EnemyType.RedMushroom];
+  return ENEMY_VISUAL_CONFIGS[enemyType] || ENEMY_VISUAL_CONFIGS[EnemyType.ScoutBeetle];
 }
 
 export function getEnemyColors(enemyType: EnemyType): { primary: string; secondary: string; accent: string; glow: string } {
@@ -312,6 +318,7 @@ export function getEnemyRenderData(
   const shieldActive = hasActiveShield({ ...traitCarrier, shieldCharges: enemy.shieldCharges });
   const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
   const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
+  const isBoss = enemy.variant === EnemyVariant.Boss;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -329,6 +336,11 @@ export function getEnemyRenderData(
     pathProgress: options?.pathProgress ?? enemy.pathProgress,
     pathDistance: enemy.pathDistance,
     isAlive: enemy.alive,
+    layersRemaining: Math.max(0, enemy.layers.length - enemy.currentLayerIndex),
+    totalLayers: enemy.layers.length,
+    family: ENEMY_DEFINITIONS[enemy.enemyType].family,
+    isBoss,
+    showHealthBar: isBoss,
     isCamo: hasEnemyTrait(traitCarrier, EnemyTrait.Camo),
     isMetal,
     isShielded,
@@ -386,7 +398,7 @@ export function getEnemiesRenderData(
       bodyShape: getEnemyBodyShape(enemy.enemyType),
       decorations: getEnemyDecorations(enemy.enemyType),
       statusEffectAuras: getStatusEffectAuras(enemy, Date.now()),
-      camoRevealColor: enemy.enemyType === EnemyType.WhiteMoth || enemy.enemyType === EnemyType.BlackWidow ? '#F1C40F' : '#FFFFFF',
+      camoRevealColor: enemy.enemyType === EnemyType.VeilWasp || enemy.enemyType === EnemyType.IronCaterpillar ? '#F1C40F' : '#FFFFFF',
     });
     
     return renderData;
@@ -523,20 +535,20 @@ export function getEnemyDecorations(enemyType: EnemyType): EnemyDecoration[] {
   }
 
   switch (enemyType) {
-    case EnemyType.GreenCaterpillar:
+    case EnemyType.ShellBeetle:
       decorations.push(
         { type: 'antenna', color: config.primary, size: 3, offsetX: -2, offsetY: -config.bodyRadius, rotation: -0.3 },
         { type: 'antenna', color: config.primary, size: 3, offsetX: 2, offsetY: -config.bodyRadius, rotation: 0.3 },
         { type: 'tail', color: config.secondary, size: 4, offsetX: 0, offsetY: config.bodyRadius, rotation: 0 }
       );
       break;
-    case EnemyType.BlackWidow:
+    case EnemyType.IronCaterpillar:
       decorations.push(
         { type: 'antenna', color: config.primary, size: 4, offsetX: -3, offsetY: -config.bodyRadius * 0.8, rotation: -0.5 },
         { type: 'antenna', color: config.primary, size: 4, offsetX: 3, offsetY: -config.bodyRadius * 0.8, rotation: 0.5 }
       );
       break;
-    case EnemyType.ShelledSnail:
+    case EnemyType.PaleMoth:
       decorations.push({
         type: 'shell',
         color: config.secondary,
@@ -613,57 +625,57 @@ export interface EnemyTypeInfo {
 
 export function getEnemyTypeInfo(enemyType: EnemyType): EnemyTypeInfo {
   const info: Record<EnemyType, EnemyTypeInfo> = {
-    [EnemyType.RedMushroom]: {
+    [EnemyType.ScoutBeetle]: {
       name: 'Red Mushroom',
       description: 'Basic enemy, slow but numerous',
       difficulty: 1,
     },
-    [EnemyType.BlueBeetle]: {
+    [EnemyType.DartWasp]: {
       name: 'Blue Beetle',
       description: 'Armored shell, moderate speed',
       difficulty: 2,
     },
-    [EnemyType.GreenCaterpillar]: {
+    [EnemyType.ShellBeetle]: {
       name: 'Green Caterpillar',
       description: 'Long body,蠕动的 movement',
       difficulty: 3,
     },
-    [EnemyType.YellowWasp]: {
+    [EnemyType.CrawlerCaterpillar]: {
       name: 'Yellow Wasp',
       description: 'Fast and agile, flies over obstacles',
       difficulty: 4,
     },
-    [EnemyType.PinkLadybug]: {
+    [EnemyType.SwarmWasp]: {
       name: 'Pink Ladybug',
       description: 'Quick with moderate HP',
       difficulty: 5,
     },
-    [EnemyType.BlackWidow]: {
+    [EnemyType.IronCaterpillar]: {
       name: 'Black Widow',
       description: 'Camo detection, deadly venom',
       difficulty: 6,
     },
-    [EnemyType.WhiteMoth]: {
+    [EnemyType.VeilWasp]: {
       name: 'White Moth',
       description: 'Camo and very fast',
       difficulty: 7,
     },
-    [EnemyType.ArmoredBeetle]: {
+    [EnemyType.BulwarkBeetle]: {
       name: 'Armored Beetle',
       description: 'Metal shell, very slow, needs explosive damage',
       difficulty: 8,
     },
-    [EnemyType.RainbowStag]: {
+    [EnemyType.WardMoth]: {
       name: 'Rainbow Stag',
       description: 'Colorful and dangerous, moderate speed',
       difficulty: 9,
     },
-    [EnemyType.ShelledSnail]: {
+    [EnemyType.PaleMoth]: {
       name: 'Shelled Snail',
       description: 'Metal shell, slow but extremely tanky',
       difficulty: 10,
     },
   };
 
-  return info[enemyType] || info[EnemyType.RedMushroom];
+  return info[enemyType] || info[EnemyType.ScoutBeetle];
 }

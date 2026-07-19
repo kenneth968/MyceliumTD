@@ -57,7 +57,7 @@ console.log('\n--- selectTowerAtPosition when no towers ---');
 console.log('\n--- Place a tower and test selection ---');
 {
   game.start();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   const tower = game.confirmPlacement(TargetingMode.First);
   expectTrue(tower !== null, 'Tower was placed successfully');
@@ -93,7 +93,7 @@ console.log('\n--- selectTowerAtPosition does nothing in Placing state ---');
   game.cancelPlacement();
   expectEqual(game.getPlacementState(), PlacementState.None, 'State is None before starting placement');
   
-  game.startTowerPlacement(TowerType.OrchidTrap);
+  game.startTowerPlacement(TowerType.Slimefungus);
   expectEqual(game.getPlacementState(), PlacementState.Placing, 'Started placement');
   
   const result = game.selectTowerAtPosition(100, 100);
@@ -105,7 +105,7 @@ console.log('\n--- selectTowerAtPosition does nothing in Placing state ---');
 
 console.log('\n--- Right-click cancel during placement ---');
 {
-  game.startTowerPlacement(TowerType.VenusFlytower);
+  game.startTowerPlacement(TowerType.ThornSniper);
   expectEqual(game.getPlacementState(), PlacementState.Placing, 'Started placement');
   game.cancelPlacement();
   expectEqual(game.getPlacementState(), PlacementState.None, 'Cancel returns to None');

@@ -30,6 +30,7 @@ export interface Tower {
   targetingMode: TargetingMode;
   towerType?: string;
   specialEffect?: string;
+  prioritizeMarked?: boolean;
 }
 
 export interface TargetingResult {
@@ -48,7 +49,7 @@ export function getTarget(
     return { target: null, distance: Infinity };
   }
 
-  if (tower.specialEffect === 'instakill') {
+  if (tower.specialEffect === 'instakill' || tower.prioritizeMarked === true) {
     const markedTargets = inRange.filter(e => isMarked(e));
     if (markedTargets.length > 0) {
       const target = findFirst(markedTargets);
@@ -126,7 +127,7 @@ function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
     return true;
   }
 
-  if (tower.towerType === 'bioluminescent_shroom' || tower.specialEffect === 'reveal_camo') {
+  if (tower.towerType === 'lumen_oracle' || tower.specialEffect === 'reveal_camo') {
     return true;
   }
 

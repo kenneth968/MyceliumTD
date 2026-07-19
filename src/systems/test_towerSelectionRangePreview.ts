@@ -40,7 +40,7 @@ function expectNotNull(actual: any, testName: string): void {
   }
 }
 
-function createMockTower(towerType: TowerType = TowerType.PuffballFungus): TowerWithUpgrades {
+function createMockTower(towerType: TowerType = TowerType.Puffball): TowerWithUpgrades {
   return createTowerWithUpgrades(1, 100, 100, towerType, TargetingMode.First);
 }
 
@@ -65,11 +65,11 @@ console.log('--- getTowerSelectionRangePreview ---');
 console.log('\n--- getTowerSelectionRangePreview for different tower types ---');
 {
   const towerTypes = [
-    TowerType.PuffballFungus,
-    TowerType.OrchidTrap,
-    TowerType.VenusFlytower,
-    TowerType.BioluminescentShroom,
-    TowerType.StinkhornLine,
+    TowerType.Puffball,
+    TowerType.Slimefungus,
+    TowerType.ThornSniper,
+    TowerType.LumenOracle,
+    TowerType.BulbShooter,
   ];
   
   for (const type of towerTypes) {
@@ -87,7 +87,7 @@ console.log('\n--- getTowerSelectionRangePreview for different tower types ---')
 
 console.log('\n--- getTowerSelectionRangePreview with upgraded tower ---');
 {
-  const tower = createMockTower(TowerType.OrchidTrap);
+  const tower = createMockTower(TowerType.Slimefungus);
   const originalRange = tower.range;
   
   tower.upgradeLevels[UpgradePath.Range] = 1;
@@ -222,7 +222,7 @@ console.log('\n--- getTowerSelectionPreviewRenderData has all expected fields --
 
 console.log('\n--- getTowerSelectionPreviewRenderData with fully upgraded tower ---');
 {
-  const tower = createMockTower(TowerType.VenusFlytower);
+  const tower = createMockTower(TowerType.ThornSniper);
   
   tower.upgradeLevels[UpgradePath.Damage] = 3;
   tower.upgradeLevels[UpgradePath.Range] = 3;

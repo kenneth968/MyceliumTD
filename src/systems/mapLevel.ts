@@ -111,7 +111,14 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 1.0,
     startingLivesModifier: 1.0,
     maxWaves: 10,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom],
+    availableTowers: [
+      TowerType.Puffball,
+      TowerType.Slimefungus,
+      TowerType.ThornSniper,
+      TowerType.LumenOracle,
+      TowerType.BulbShooter,
+      TowerType.Sporecap,
+    ],
   },
   {
     id: 'forest_loop',
@@ -133,7 +140,7 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 1.0,
     startingLivesModifier: 1.0,
     maxWaves: 10,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom, TowerType.StinkhornLine],
+    availableTowers: [TowerType.Puffball, TowerType.Slimefungus, TowerType.LumenOracle, TowerType.BulbShooter],
   },
   {
     id: 'cave蜿蜒',
@@ -157,7 +164,7 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 0.9,
     startingLivesModifier: 0.8,
     maxWaves: 15,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom, TowerType.StinkhornLine, TowerType.VenusFlytower],
+    availableTowers: [TowerType.Puffball, TowerType.Slimefungus, TowerType.LumenOracle, TowerType.BulbShooter, TowerType.ThornSniper],
   },
   {
     id: 'swamp_cross',
@@ -179,7 +186,7 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 0.85,
     startingLivesModifier: 0.8,
     maxWaves: 15,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom, TowerType.StinkhornLine, TowerType.VenusFlytower],
+    availableTowers: [TowerType.Puffball, TowerType.Slimefungus, TowerType.LumenOracle, TowerType.BulbShooter, TowerType.ThornSniper],
   },
   {
     id: 'mountain_spire',
@@ -203,7 +210,7 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 0.8,
     startingLivesModifier: 0.7,
     maxWaves: 20,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom, TowerType.StinkhornLine, TowerType.VenusFlytower],
+    availableTowers: [TowerType.Puffball, TowerType.Slimefungus, TowerType.LumenOracle, TowerType.BulbShooter, TowerType.ThornSniper],
   },
   {
     id: 'expert_zigzag',
@@ -227,7 +234,7 @@ export const MAP_CONFIGS: MapConfig[] = [
     startingMoneyModifier: 0.75,
     startingLivesModifier: 0.6,
     maxWaves: 25,
-    availableTowers: [TowerType.PuffballFungus, TowerType.OrchidTrap, TowerType.BioluminescentShroom, TowerType.StinkhornLine, TowerType.VenusFlytower],
+    availableTowers: [TowerType.Puffball, TowerType.Slimefungus, TowerType.LumenOracle, TowerType.BulbShooter, TowerType.ThornSniper],
   },
 ];
 

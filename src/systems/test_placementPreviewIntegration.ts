@@ -53,25 +53,25 @@ console.log('--- Initial Placement State ---');
 console.log('\n--- Start Tower Placement ---');
 {
   const game = createGameRunner();
-  const result = game.startTowerPlacement(TowerType.PuffballFungus);
+  const result = game.startTowerPlacement(TowerType.Puffball);
   expectTrue(result === true, 'startTowerPlacement returns true');
   expect(game.getPlacementState(), PlacementState.Placing, 'Placement state is Placing');
-  expect(game.getSelectedTowerType(), TowerType.PuffballFungus, 'Selected tower type is Puffball');
+  expect(game.getSelectedTowerType(), TowerType.Puffball, 'Selected tower type is Puffball');
   expect(game.getPlacementPosition(), null, 'Placement position starts as null');
 }
 
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.OrchidTrap);
-  const result2 = game.startTowerPlacement(TowerType.VenusFlytower);
+  game.startTowerPlacement(TowerType.Slimefungus);
+  const result2 = game.startTowerPlacement(TowerType.ThornSniper);
   expectTrue(result2 === false, 'Cannot start placement while already placing');
-  expect(game.getSelectedTowerType(), TowerType.OrchidTrap, 'Selected tower remains Orchid');
+  expect(game.getSelectedTowerType(), TowerType.Slimefungus, 'Selected tower remains Orchid');
 }
 
 console.log('\n--- Update Placement Position ---');
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 200);
   const pos = game.getPlacementPosition();
   expectTrue(pos !== null, 'Position is not null after update');
@@ -88,7 +88,7 @@ console.log('\n--- Update Placement Position ---');
 console.log('\n--- Cancel Placement ---');
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 200);
   game.cancelPlacement();
   expect(game.getPlacementState(), PlacementState.None, 'State is None after cancel');
@@ -99,7 +99,7 @@ console.log('\n--- Cancel Placement ---');
 console.log('\n--- Confirm Placement ---');
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 200);
   const tower = game.confirmPlacement(TargetingMode.First);
   expectTrue(tower !== null, 'Tower is placed');
@@ -110,7 +110,7 @@ console.log('\n--- Confirm Placement ---');
 
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.VenusFlytower);
+  game.startTowerPlacement(TowerType.ThornSniper);
   game.updatePlacementPosition(100, 200);
   const tower = game.confirmPlacement(TargetingMode.Close);
   expectTrue(tower !== null, 'Venus Flytower is placed');
@@ -120,7 +120,7 @@ console.log('\n--- Confirm Placement ---');
 console.log('\n--- Select Tower ---');
 {
   const game = createGameRunner();
-  const placed = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const placed = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   expectTrue(placed !== null, 'Tower placed');
   
   const result = game.selectTower(placed!.id);
@@ -139,7 +139,7 @@ console.log('\n--- Select Tower ---');
 console.log('\n--- Deselect Tower ---');
 {
   const game = createGameRunner();
-  const placed = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const placed = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   game.selectTower(placed!.id);
   game.deselectTower();
   expect(game.getPlacementState(), PlacementState.None, 'State is None after deselect');
@@ -158,7 +158,7 @@ console.log('\n--- Placement Preview Render Data ---');
 
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 100);
   
   const previewData = game.getPlacementPreviewRenderData(1000);
@@ -166,23 +166,23 @@ console.log('\n--- Placement Preview Render Data ---');
   expectTrue(previewData.ghost !== null, 'ghost is populated');
   expectTrue(previewData.rangeCircle !== null, 'rangeCircle is populated');
   expectTrue(previewData.pathCoverage !== null, 'pathCoverage is populated');
-  expect(previewData.ghost!.towerType, TowerType.PuffballFungus, 'ghost has correct tower type');
+  expect(previewData.ghost!.towerType, TowerType.Puffball, 'ghost has correct tower type');
 }
 
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.OrchidTrap);
+  game.startTowerPlacement(TowerType.Slimefungus);
   game.updatePlacementPosition(500, 500);
   
   const previewData = game.getPlacementPreviewRenderData(1000);
   expectTrue(previewData.ghost !== null, 'ghost is populated for Orchid');
-  expect(previewData.ghost!.towerType, TowerType.OrchidTrap, 'ghost has Orchid type');
+  expect(previewData.ghost!.towerType, TowerType.Slimefungus, 'ghost has Orchid type');
 }
 
 console.log('\n--- Reset Clears Placement State ---');
 {
   const game = createGameRunner();
-  game.startTowerPlacement(TowerType.PuffballFungus);
+  game.startTowerPlacement(TowerType.Puffball);
   game.updatePlacementPosition(100, 200);
   game.reset();
   expect(game.getPlacementState(), PlacementState.None, 'Placement state is None after reset');
@@ -194,7 +194,7 @@ console.log('\n--- Game Loop Integration ---');
 {
   const game = createGameRunner();
   game.start();
-  game.startTowerPlacement(TowerType.BioluminescentShroom);
+  game.startTowerPlacement(TowerType.LumenOracle);
   game.updatePlacementPosition(200, 200);
   
   game.update();
@@ -208,7 +208,7 @@ console.log('\n--- Game Loop Integration ---');
   game.start();
   game.startWave(0);
   
-  game.startTowerPlacement(TowerType.BioluminescentShroom);
+  game.startTowerPlacement(TowerType.LumenOracle);
   game.updatePlacementPosition(300, 300);
   const previewData = game.getPlacementPreviewRenderData(1000);
   expectTrue(previewData.isPlacing === true, 'Placement works while wave is active');

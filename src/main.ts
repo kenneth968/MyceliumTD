@@ -1,5 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
+import { createWaveControls, getStartWaveLabel, WaveControls } from './systems/waveControls';
 import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
@@ -14,12 +15,18 @@ import { PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
 import { GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
 import { TowerInfoPanelRenderData } from './systems/towerInfoPanel';
-import { LivesMoneyDisplayRenderData } from './systems/livesMoneyDisplayRender';
+import { LivesMoneyDisplayRenderData, formatNutrients } from './systems/livesMoneyDisplayRender';
 import { EnemyCountDisplayRenderData } from './systems/enemyCountDisplayRender';
-import { TowerPurchaseRenderData } from './systems/towerPurchaseRender';
+import {
+    TowerPurchaseRenderData,
+    getTowerPurchaseButtonAtPosition as getTowerPurchaseButtonFromRenderData,
+    getTowerPurchaseRenderData,
+} from './systems/towerPurchaseRender';
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
 import { AudioManager, createAudioManager, isBossWave } from './systems/audioManager';
+import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
+import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
@@ -46,16 +53,16 @@ interface Particle {
 
 // Enemy type -> color for death splats
 const ENEMY_COLORS: Record<string, string> = {
-    red_mushroom: '#E74C3C',
-    blue_beetle: '#3498DB',
-    green_caterpillar: '#27AE60',
-    yellow_wasp: '#F1C40F',
-    pink_ladybug: '#E91E90',
-    black_widow: '#2C3E50',
-    white_moth: '#ECF0F1',
-    armored_beetle: '#7F8C8D',
-    rainbow_stag: '#9B59B6',
-    shelled_snail: '#E67E22',
+    scout_beetle: '#E74C3C',
+    dart_wasp: '#3498DB',
+    shell_beetle: '#27AE60',
+    crawler_caterpillar: '#F1C40F',
+    swarm_wasp: '#E91E90',
+    iron_caterpillar: '#2C3E50',
+    veil_wasp: '#ECF0F1',
+    bulwark_beetle: '#7F8C8D',
+    ward_moth: '#9B59B6',
+    pale_moth: '#E67E22',
 };
 
 class ParticleSystem {
@@ -139,7 +146,7 @@ class ParticleSystem {
         }
     }
 
-    /** Orchid slow hit - ice crystal shards */
+    /** Slimefungus slow hit - ice crystal shards */
     spawnSlowHit(x: number, y: number): void {
         const count = 6;
         for (let i = 0; i < count; i++) {
@@ -171,7 +178,7 @@ class ParticleSystem {
         });
     }
 
-    /** Stinkhorn poison hit - lingering toxic wisps */
+    /** Bulb Shooter poison hit - lingering toxic wisps */
     spawnPoisonHit(x: number, y: number): void {
         const count = 5;
         for (let i = 0; i < count; i++) {
@@ -193,7 +200,7 @@ class ParticleSystem {
         }
     }
 
-    /** Venus Flytower instakill - red snap/chomp flash */
+    /** Thorn Sniper instakill - red snap/chomp flash */
     spawnInstakillHit(x: number, y: number): void {
         // Bright chomp flash
         this.spawn({
@@ -236,7 +243,7 @@ class ParticleSystem {
         }
     }
 
-    /** Bioluminescent reveal - cyan expanding pulse */
+    /** Lumen Oracle reveal - cyan expanding pulse */
     spawnRevealHit(x: number, y: number): void {
         this.spawn({
             x, y,
@@ -418,6 +425,7 @@ class Game {
     private canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private game: GameRunner;
+    private waveControls: WaveControls;
     private renderer: GameRenderer;
     private loop: GameLoop;
     private mouse: MouseState;
@@ -433,7 +441,8 @@ class Game {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
         this.ctx = this.canvas.getContext('2d')!;
 
-        this.game = new GameRunner({ mapId: 'garden_path' });
+        this.game = new GameRunner();
+        this.waveControls = createWaveControls(this.game);
         this.renderer = createGameRenderer();
         this.loop = createGameLoop(this.game, this.renderer);
 
@@ -476,7 +485,7 @@ class Game {
 
             ctx.fillStyle = '#4ade80';
             ctx.font = 'bold 64px sans-serif';
-            ctx.fillText('Mycomed TD', CANVAS_WIDTH / 2, titleY);
+            ctx.fillText('Mycelium TD', CANVAS_WIDTH / 2, titleY);
 
             ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
             ctx.font = '18px sans-serif';
@@ -515,13 +524,21 @@ class Game {
 
     private startGame(): void {
         if (!this.showingMenu) return;
-        this.showingMenu = false;
+        this.startReleaseRun();
         this.audio.ensureInitialized();
         this.audio.playNormalTrack();
-        this.game.start();
         this.loop.start();
         this.loop.setRenderCallback(this.render.bind(this));
         // Player places towers first, then clicks "Start Wave"
+    }
+
+    private startReleaseRun(): void {
+        this.game.reset();
+        if (!this.game.setMap(RELEASE_MAP_ID)) {
+            throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
+        }
+        this.game.start();
+        this.showingMenu = false;
     }
 
     private startNextWave(): boolean {
@@ -553,6 +570,8 @@ class Game {
     }
 
     private onMouseMove(e: MouseEvent): void {
+        if (!canHandleGameplayInput(this.getUiGateState())) return;
+
         const world = this.screenToWorld(e.clientX, e.clientY);
         this.mouse.x = world.x;
         this.mouse.y = world.y;
@@ -565,10 +584,35 @@ class Game {
     private onMouseDown(e: MouseEvent): void {
         this.mouse.down = true;
 
-        if (this.showingMenu) {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
+        const screenY = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
+        const layer = getActiveUiLayer(this.getUiGateState());
+
+        if (layer === UiLayer.Menu) {
             this.startGame();
             return;
         }
+
+        if (layer === UiLayer.Terminal) {
+            if (e.button === 0) this.restartGame();
+            return;
+        }
+
+        if (layer === UiLayer.Pause) {
+            const btnId = this.getPauseButtonAtScreen(screenX, screenY);
+            if (btnId) {
+                if (btnId === 'resume') { this.game.resume(); this.audio.resume(); }
+                else if (btnId === 'restart') this.restartGame();
+                else if (btnId === 'quit') this.quitToMenu();
+                return;
+            }
+            // Settings controls in pause menu
+            if (this.handlePauseSettingsClick(screenX, screenY)) return;
+            return;
+        }
+
+        if (layer === UiLayer.Tutorial) return;
 
         if (e.button === 2) {
             this.game.cancelPlacement();
@@ -576,24 +620,8 @@ class Game {
             return;
         }
         
-        const rect = this.canvas.getBoundingClientRect();
-        const screenX = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
-        const screenY = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
-        
-        if (this.game.getState() === GameState.Paused) {
-            const btnId = this.getPauseButtonAtScreen(screenX, screenY);
-            if (btnId) {
-                if (btnId === 'resume') { this.game.resume(); this.audio.resume(); }
-                else if (btnId === 'restart') { this.game.reset(); this.game.start(); this.lastTrackedWaveIndex = -1; this.audio.playNormalTrack(); this.particles.clear(); }
-                else if (btnId === 'quit') { this.showingMenu = true; this.game.reset(); this.lastTrackedWaveIndex = -1; this.audio.stop(); this.particles.clear(); this.drawMenu(); }
-                return;
-            }
-            // Settings controls in pause menu
-            if (this.handlePauseSettingsClick(screenX, screenY)) return;
-        }
-        
         const mapRenderData = this.game.getMapSelectionRenderData();
-        if (mapRenderData && mapRenderData.isVisible) {
+        if (RELEASE_FEATURES.mapSelection && mapRenderData && mapRenderData.isVisible) {
             const mapId = getMapSelectionButtonAtPosition(screenX, screenY, mapRenderData);
             if (mapId) {
                 this.game.selectMap(mapId);
@@ -683,34 +711,14 @@ class Game {
     }
 
     private getTowerPurchaseButtonAtPosition(screenX: number, screenY: number): TowerType | null {
-        const BUTTON_WIDTH = 120;
-        const BUTTON_HEIGHT = 80;
-        const BUTTON_SPACING = 10;
-        const BUTTON_COUNT = 5;
-        
-        const totalWidth = BUTTON_COUNT * BUTTON_WIDTH + (BUTTON_COUNT - 1) * BUTTON_SPACING;
-        const startX = CANVAS_WIDTH / 2 - totalWidth / 2;
-        const startY = CANVAS_HEIGHT - BUTTON_HEIGHT - 20;
-        
-        if (screenY < startY || screenY > startY + BUTTON_HEIGHT) {
-            return null;
-        }
-        
-        for (let i = 0; i < BUTTON_COUNT; i++) {
-            const buttonX = startX + i * (BUTTON_WIDTH + BUTTON_SPACING);
-            if (screenX >= buttonX && screenX <= buttonX + BUTTON_WIDTH) {
-                const TOWER_TYPES = [
-                    TowerType.PuffballFungus,
-                    TowerType.OrchidTrap,
-                    TowerType.VenusFlytower,
-                    TowerType.BioluminescentShroom,
-                    TowerType.StinkhornLine,
-                ];
-                return TOWER_TYPES[i];
-            }
-        }
-        
-        return null;
+        const economy = this.game.getEconomy();
+        const purchase = getTowerPurchaseRenderData(
+            false,
+            this.game.getSelectedTowerType(),
+            economy.getMoney(),
+            towerType => economy.canAfford(TOWER_STATS[towerType].cost),
+        );
+        return getTowerPurchaseButtonFromRenderData(purchase.buttons, screenX, screenY);
     }
 
     private onMouseUp(_e: MouseEvent): void {
@@ -718,16 +726,6 @@ class Game {
     }
 
     private handleClick(x: number, y: number, leftClick: boolean): void {
-        const state = this.game.getState();
-        if (state === GameState.GameOver || state === GameState.Victory) {
-            this.game.reset();
-            this.game.start();
-            this.lastTrackedWaveIndex = -1;
-            this.audio.playNormalTrack();
-            this.particles.clear();
-            return;
-        }
-
         const placementState = this.game.getPlacementState();
 
         if (placementState === PlacementState.Placing) {
@@ -759,7 +757,9 @@ class Game {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
-        if (this.showingMenu) {
+        const layer = getActiveUiLayer(this.getUiGateState());
+
+        if (layer === UiLayer.Menu) {
             if (e.key === 'Enter' || e.key === ' ') {
                 this.startGame();
             }
@@ -769,7 +769,23 @@ class Game {
         const result = findHotkeyAction(e.key);
         const action = result ? result.action : null;
 
-        if (action === HotkeyAction.SelectMap) {
+        if (layer === UiLayer.Terminal) {
+            if (e.key === 'Enter' || e.key === ' ') this.restartGame();
+            else if (action === HotkeyAction.Cancel) this.quitToMenu();
+            return;
+        }
+
+        if (layer === UiLayer.Pause) {
+            if (action === HotkeyAction.Pause || action === HotkeyAction.Cancel) {
+                this.game.resume();
+                this.audio.resume();
+            }
+            return;
+        }
+
+        if (layer === UiLayer.Tutorial) return;
+
+        if (RELEASE_FEATURES.mapSelection && action === HotkeyAction.SelectMap) {
             const mapState = this.game.getMapSelectionState();
             if (mapState.isSelecting) {
                 this.game.hideMapSelectionUI();
@@ -780,13 +796,8 @@ class Game {
         }
 
         if (action === HotkeyAction.Pause) {
-            if (this.game.getState() === GameState.Playing) {
-                this.game.pause();
-                this.audio.pause();
-            } else if (this.game.getState() === GameState.Paused) {
-                this.game.resume();
-                this.audio.resume();
-            }
+            this.game.pause();
+            this.audio.pause();
             return;
         }
 
@@ -824,11 +835,12 @@ class Game {
         }
 
         const towerKeys: Record<string, TowerType> = {
-            '1': TowerType.PuffballFungus,
-            '2': TowerType.OrchidTrap,
-            '3': TowerType.VenusFlytower,
-            '4': TowerType.BioluminescentShroom,
-            '5': TowerType.StinkhornLine,
+            '1': TowerType.Puffball,
+            '2': TowerType.Slimefungus,
+            '3': TowerType.ThornSniper,
+            '4': TowerType.LumenOracle,
+            '5': TowerType.BulbShooter,
+            '6': TowerType.Sporecap,
         };
 
         if (towerKeys[e.key]) {
@@ -836,6 +848,32 @@ class Game {
                 this.game.startTowerPlacement(towerKeys[e.key]);
             }
         }
+    }
+
+    private getUiGateState(): UiGateState {
+        return {
+            gameState: this.game.getState(),
+            menuVisible: this.showingMenu,
+            pauseVisible: this.game.getPauseMenuRenderData().isVisible,
+            tutorialBlocking: false,
+        };
+    }
+
+    private restartGame(): void {
+        this.game.reset();
+        this.game.start();
+        this.lastTrackedWaveIndex = -1;
+        this.audio.playNormalTrack();
+        this.particles.clear();
+    }
+
+    private quitToMenu(): void {
+        this.showingMenu = true;
+        this.game.reset();
+        this.lastTrackedWaveIndex = -1;
+        this.audio.stop();
+        this.particles.clear();
+        this.drawMenu();
     }
 
     private render(renderData: GameFrameRenderData): void {
@@ -953,12 +991,12 @@ class Game {
         this.ctx.lineWidth = 2;
         
         const typeMap: Record<TowerType, 'circle' | 'square' | 'diamond'> = {
-            [TowerType.PuffballFungus]: 'circle',
-            [TowerType.OrchidTrap]: 'diamond',
-            [TowerType.VenusFlytower]: 'square',
-            [TowerType.BioluminescentShroom]: 'circle',
-            [TowerType.StinkhornLine]: 'diamond',
-            [TowerType.MyceliumNetwork]: 'circle',
+            [TowerType.Puffball]: 'circle',
+            [TowerType.Slimefungus]: 'diamond',
+            [TowerType.ThornSniper]: 'square',
+            [TowerType.LumenOracle]: 'circle',
+            [TowerType.BulbShooter]: 'diamond',
+            [TowerType.Sporecap]: 'circle',
         };
         const shapeType = typeMap[ghost.towerType] || 'circle';
         
@@ -1302,7 +1340,7 @@ class Game {
 
     private isEnemyRevealed(ex: number, ey: number): boolean {
         for (const placed of this.game.getPlacedTowers()) {
-            if (placed.tower.towerType === TowerType.BioluminescentShroom) {
+            if (placed.tower.towerType === TowerType.LumenOracle) {
                 const dx = ex - placed.tower.position.x;
                 const dy = ey - placed.tower.position.y;
                 if (dx * dx + dy * dy <= placed.tower.range * placed.tower.range) {
@@ -1319,7 +1357,7 @@ class Game {
 
             const radius = enemy.bodyRadius;
 
-            // Camo enemies: semi-transparent unless revealed by Bioluminescent Shroom
+            // Camo enemies: semi-transparent unless revealed by Lumen Oracle
             let camoRevealed = false;
             if (enemy.isCamo) {
                 camoRevealed = this.isEnemyRevealed(enemy.position.x, enemy.position.y);
@@ -1472,6 +1510,16 @@ class Game {
                     this.ctx.fill();
                     this.ctx.globalAlpha = 1;
                 }
+            }
+
+            if (!enemy.showHealthBar && enemy.totalLayers > 1) {
+                const indicatorY = enemy.position.y + radius + 7;
+                const indicatorWidth = 12;
+                const remainingRatio = enemy.layersRemaining / enemy.totalLayers;
+                this.ctx.fillStyle = 'rgba(18, 24, 31, 0.8)';
+                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth, 3);
+                this.ctx.fillStyle = enemy.secondaryColor;
+                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth * remainingRatio, 3);
             }
             
             this.ctx.restore();
@@ -1762,11 +1810,13 @@ class Game {
         this.ctx.font = 'bold 14px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`Sell $${button.sellValue}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
+        this.ctx.fillText(`Sell ${formatNutrients(button.sellValue)}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
     }
 
     private drawHUD(renderData: GameFrameRenderData): void {
-        this.drawMapSelection(renderData.mapSelection);
+        if (RELEASE_FEATURES.mapSelection) {
+            this.drawMapSelection(renderData.mapSelection);
+        }
         this.drawWaveAnnouncement(renderData.waveAnnouncement);
         this.drawPauseMenu(renderData.pauseMenu);
         this.drawWaveProgress(renderData.waveProgress);
@@ -1793,14 +1843,8 @@ class Game {
     private drawStartWaveButton(): void {
         if (!this.isWaveButtonVisible()) return;
 
-        const rm = this.game.getRoundManager();
-        const roundState = rm.getState();
-        const roundInfo = rm.getRoundInfo();
-        const isFirstWave = roundState === RoundState.Idle;
-        const nextWaveNumber = isFirstWave ? 1 : roundInfo.roundNumber + 1;
-        const label = isFirstWave
-            ? 'Start Wave 1  [Enter]'
-            : `Next Wave ${nextWaveNumber}  [Enter]`;
+        const label = getStartWaveLabel(this.waveControls.getWaveUIState());
+        if (label === null) return;
 
         const { x, y, w, h } = this.getStartWaveButtonRect();
 
@@ -1827,7 +1871,7 @@ class Game {
         this.ctx.font = 'bold 15px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(label, x + w / 2, y + h / 2);
+        this.ctx.fillText(`${label}  [Enter]`, x + w / 2, y + h / 2);
         this.ctx.restore();
     }
 
@@ -1874,7 +1918,7 @@ class Game {
             this.ctx.font = '10px sans-serif';
             this.ctx.fillText(`Waves: ${card.maxWaves}`, x + w / 2, y + 70);
             this.ctx.fillText(`Towers: ${card.towerCount}`, x + w / 2, y + 84);
-            this.ctx.fillText(`$${card.startingMoneyLabel}`, x + w / 2, y + 98);
+            this.ctx.fillText(formatNutrients(card.startingMoneyLabel), x + w / 2, y + 98);
             this.ctx.fillText(`♥${card.startingLivesLabel}`, x + w / 2, y + 112);
 
             if (card.isLocked) {
@@ -2188,7 +2232,7 @@ class Game {
         this.ctx.fillText(`♥ ${lm.lives.currentLives}/${lm.lives.maxLives}`, 20, 30);
 
         this.ctx.fillStyle = '#FFD700';
-        this.ctx.fillText(`$ ${lm.money.currentMoney}`, 170, 30);
+        this.ctx.fillText(lm.money.moneyText, 170, 30);
     }
 
     private drawEnemyCount(ec: EnemyCountDisplayRenderData): void {

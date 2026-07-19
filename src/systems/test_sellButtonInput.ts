@@ -30,7 +30,7 @@ function expectTrue(actual: boolean, testName: string): void {
 }
 
 function createMockTower(id: number = 1): TowerWithUpgrades {
-  return createTowerWithUpgrades(id, 100, 100, TowerType.PuffballFungus, TargetingMode.First);
+  return createTowerWithUpgrades(id, 100, 100, TowerType.Puffball, TargetingMode.First);
 }
 
 console.log('\n=== sell button input handling tests ===\n');

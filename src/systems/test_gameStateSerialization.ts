@@ -1,6 +1,6 @@
 const { createGameRunner, GameSpeed, PlacedTower } = require('./gameRunner');
 const { TowerType } = require('../entities/tower');
-const { EnemyType } = require('./wave');
+const { EnemyType, EnemyVariant } = require('./wave');
 const { createDefaultPath } = require('./path');
 const { UpgradePath } = require('./upgrade');
 const {
@@ -66,14 +66,14 @@ console.log('serializeEnemy:');
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
   const { StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   
   const serialized = serializeEnemy(enemy);
   assertEqual(serialized.id, 1, 'id is 1');
-  assertEqual(serialized.enemyType, 'red_mushroom', 'enemyType is red_mushroom');
+  assertEqual(serialized.enemyType, 'scout_beetle', 'enemyType is scout_beetle');
   assertEqual(serialized.hp, 1, 'hp is 1');
   assertEqual(serialized.maxHp, 1, 'maxHp is 1');
-  assertEqual(serialized.speed, 50, 'speed is 50');
+  assertEqual(serialized.speed, 45, 'speed is 45');
   assertEqual(serialized.alive, true, 'alive is true');
 }
 
@@ -81,7 +81,7 @@ console.log('\nserializeEnemy with traits:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(2, EnemyType.ArmoredBeetle, path);
+  const enemy = createEnemy(2, EnemyType.BulwarkBeetle, path);
 
   const serialized = serializeEnemy(enemy);
   assertTruthy(Array.isArray(serialized.traits), 'traits are serialized');
@@ -92,7 +92,7 @@ console.log('\nserializeEnemy with shield state:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(3, EnemyType.RainbowStag, path);
+  const enemy = createEnemy(3, EnemyType.WardMoth, path);
 
   const serialized = serializeEnemy(enemy);
   assertTruthy(serialized.traits.includes('shielded'), 'Shielded trait is serialized');
@@ -103,7 +103,7 @@ console.log('\nserializeEnemy with swarm-link state:');
 {
   const path = createDefaultPath();
   const { createEnemy } = require('../entities/enemy');
-  const enemy = createEnemy(4, EnemyType.PinkLadybug, path);
+  const enemy = createEnemy(4, EnemyType.SwarmWasp, path);
   enemy.swarmLinkedActive = true;
   enemy.swarmLinkCount = 3;
 
@@ -117,7 +117,7 @@ console.log('\ndeserializeEnemy reconciles older swarm saves:');
 {
   const deserialized = deserializeEnemy({
     id: 44,
-    enemyType: 'pink_ladybug',
+    enemyType: 'swarm_wasp',
     position: { x: 120, y: 300 },
     hp: 5,
     maxHp: 5,
@@ -142,7 +142,7 @@ console.log('\nserializeEnemy with status effects:');
 {
   const path = createDefaultPath();
   const { createEnemy, StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.BlueBeetle, path);
+  const enemy = createEnemy(1, EnemyType.DartWasp, path);
   enemy.statusEffects.push({
     type: StatusEffectType.Slow,
     duration: 1000,
@@ -160,7 +160,7 @@ console.log('\nserializeEnemy with trait disruption status:');
 {
   const path = createDefaultPath();
   const { createEnemy, disruptEnemyTrait, EnemyTrait, StatusEffectType } = require('../entities/enemy');
-  const enemy = createEnemy(1, EnemyType.ArmoredBeetle, path);
+  const enemy = createEnemy(1, EnemyType.BulwarkBeetle, path);
   const disruptedTrait = disruptEnemyTrait(enemy, 1234);
 
   const serialized = serializeEnemy(enemy);
@@ -172,6 +172,46 @@ console.log('\nserializeEnemy with trait disruption status:');
   assertEqual(deserialized.statusEffects[0].disruptedTrait, EnemyTrait.Metal, 'disrupted trait survives deserialize');
 }
 
+console.log('\nBoss isBoss round trip:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, applyEnemyVariant } = require('../entities/enemy');
+  const boss = createEnemy(2, EnemyType.WardMoth, path);
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+
+  const serialized = serializeEnemy(boss);
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(Reflect.get(serialized, 'isBoss'), true, 'serialized Boss records isBoss');
+  assertEqual(deserialized.isBoss, true, 'deserialized Boss retains isBoss');
+}
+
+console.log('\nlayer HP, current layer, and Boss variant round trip:');
+{
+  const path = createDefaultPath();
+  const { createEnemy, applyEnemyVariant } = require('../entities/enemy');
+  const boss = createEnemy(7002, EnemyType.WardMoth, path);
+  applyEnemyVariant(boss, EnemyVariant.Boss);
+  boss.layers[0].hp = 0;
+  boss.layers[1].hp = 11;
+  boss.currentLayerIndex = 1;
+  boss.hp = 11;
+
+  const serialized = serializeEnemy(boss);
+  serialized.hp = 999;
+  serialized.maxHp = 999;
+  const deserialized = deserializeEnemy(serialized);
+
+  assertEqual(serialized.variant, EnemyVariant.Boss, 'serialized enemy records Boss variant');
+  assertEqual(deserialized.variant, EnemyVariant.Boss, 'Boss variant survives deserialize');
+  assertEqual(deserialized.isBoss, true, 'Boss state derives from the restored variant');
+  assertEqual(deserialized.currentLayerIndex, 1, 'current layer index survives deserialize');
+  assertEqual(deserialized.layers[0].hp, 0, 'broken layer HP survives deserialize');
+  assertEqual(deserialized.layers[1].hp, 11, 'active layer HP survives deserialize');
+  assertEqual(deserialized.hp, 11, 'aggregate HP is recomputed from restored layer HP');
+  assertEqual(deserialized.maxHp, 48, 'aggregate max HP is recomputed from restored layer max HP');
+}
+
 console.log('\nserializeProjectile:');
 {
   const projectile = {
@@ -180,7 +220,7 @@ console.log('\nserializeProjectile:');
     targetId: 5,
     speed: 150,
     damage: 2,
-    towerType: TowerType.OrchidTrap,
+    towerType: TowerType.Slimefungus,
     alive: true,
   };
   
@@ -188,7 +228,7 @@ console.log('\nserializeProjectile:');
   assertEqual(serialized.id, 1, 'id is 1');
   assertEqual(serialized.position.x, 100, 'position.x is 100');
   assertEqual(serialized.targetId, 5, 'targetId is 5');
-  assertEqual(serialized.towerType, 'orchid_trap', 'towerType is orchid_trap');
+  assertEqual(serialized.towerType, 'slimefungus', 'towerType is slimefungus');
 }
 
 console.log('\nserializeProjectile with effect upgrades:');
@@ -199,7 +239,7 @@ console.log('\nserializeProjectile with effect upgrades:');
     targetId: 10,
     speed: 200,
     damage: 3,
-    towerType: TowerType.PuffballFungus,
+    towerType: TowerType.Puffball,
     alive: true,
     effectStrength: 0.75,
     effectDuration: 500,
@@ -243,7 +283,7 @@ console.log('\nserializePlacedTower:');
       position: { x: 100, y: 200 },
       range: 80,
       targetingMode: TargetingMode.First,
-      towerType: TowerType.PuffballFungus,
+      towerType: TowerType.Puffball,
       damage: 1,
       fireRate: 500,
       fireTimer: 0,
@@ -277,7 +317,7 @@ console.log('\nserializePlacedTower:');
   };
   
   const serialized = serializePlacedTower(placedTower);
-  assertEqual(serialized.tower.towerType, 'puffball_fungus', 'towerType is puffball_fungus');
+  assertEqual(serialized.tower.towerType, 'puffball', 'towerType is puffball');
   assertEqual(serialized.tower.upgrades.damage, 1, 'upgrade damage is 1');
   assertEqual(serialized.x, 150, 'x is 150');
   assertEqual(serialized.y, 250, 'y is 250');
@@ -330,11 +370,11 @@ console.log('\nserializeGameState (full game state):');
 console.log('\nserializeGameState after placing towers:');
 {
   const game = createTestGame();
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.Puffball, 100, 100);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 placed tower');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'tower type is puffball_fungus');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'tower type is puffball');
 }
 
 console.log('\nserializeGameState with different game speeds:');
@@ -374,7 +414,7 @@ console.log('\ngetSerializedGameStateSize with towers:');
   
   const sizeBefore = getSerializedGameStateSize(game);
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
+  game.placeTower(TowerType.Puffball, 100, 100);
   
   const sizeAfter = getSerializedGameStateSize(game);
   assertGreaterThan(sizeAfter, sizeBefore, 'size increased after adding tower');
@@ -421,15 +461,15 @@ console.log('\nserialize game with multiple towers:');
   const game = createTestGame();
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 100, 100);
-  game.placeTower(TowerType.OrchidTrap, 200, 200);
-  game.placeTower(TowerType.VenusFlytower, 300, 300);
+  game.placeTower(TowerType.Puffball, 100, 100);
+  game.placeTower(TowerType.Slimefungus, 200, 200);
+  game.placeTower(TowerType.ThornSniper, 300, 300);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 3, 'has 3 towers');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'first is puffball');
-  assertEqual(serialized.placedTowers[1].tower.towerType, 'orchid_trap', 'second is orchid');
-  assertEqual(serialized.placedTowers[2].tower.towerType, 'venus_flytower', 'third is venus');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'first is puffball');
+  assertEqual(serialized.placedTowers[1].tower.towerType, 'slimefungus', 'second is orchid');
+  assertEqual(serialized.placedTowers[2].tower.towerType, 'thorn_sniper', 'third is venus');
 }
 
 console.log('\nserialize game with tower (upgrade may not apply in test context):');
@@ -437,11 +477,11 @@ console.log('\nserialize game with tower (upgrade may not apply in test context)
   const game = createTestGame();
   game.start();
   
-  game.placeTower(TowerType.PuffballFungus, 150, 150);
+  game.placeTower(TowerType.Puffball, 150, 150);
   
   const serialized = serializeGameState(game);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 tower');
-  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball_fungus', 'tower type is puffball');
+  assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'tower type is puffball');
   assertEqual(typeof serialized.placedTowers[0].tower.upgrades.damage, 'number', 'damage upgrade is a number');
 }
 

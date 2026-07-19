@@ -1,6 +1,6 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
-import { TowerWithUpgrades, UpgradePath, getUpgradeInfo, getSpecialEffectInfo, getTotalSellValue, SPECIAL_EFFECT_UPGRADES, SpecialEffectType } from './upgrade';
+import { TowerWithUpgrades, UpgradePath, getUpgradeInfo, getTotalSellValue, SpecialEffectType } from './upgrade';
 import { TargetingMode } from './targeting';
 
 export interface TowerStatDisplay {
@@ -57,22 +57,13 @@ export interface TowerInfoPanelRenderData {
   scale: number;
 }
 
-const TOWER_NAMES: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Puffball Fungus',
-  [TowerType.OrchidTrap]: 'Orchid Trap',
-  [TowerType.VenusFlytower]: 'Venus Flytower',
-  [TowerType.BioluminescentShroom]: 'Bioluminescent Shroom',
-  [TowerType.StinkhornLine]: 'Stinkhorn Line',
-  [TowerType.MyceliumNetwork]: 'Mycelium Network',
-};
-
 const TOWER_ICONS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: '🌿',
-  [TowerType.OrchidTrap]: '🌸',
-  [TowerType.VenusFlytower]: '🌺',
-  [TowerType.BioluminescentShroom]: '✨',
-  [TowerType.StinkhornLine]: '📍',
-  [TowerType.MyceliumNetwork]: '🔮',
+  [TowerType.Puffball]: '🌿',
+  [TowerType.Slimefungus]: '🌸',
+  [TowerType.ThornSniper]: '🌺',
+  [TowerType.LumenOracle]: '✨',
+  [TowerType.BulbShooter]: '📍',
+  [TowerType.Sporecap]: '🔮',
 };
 
 interface UpgradePathInfo {
@@ -110,7 +101,7 @@ const UPGRADE_PATH_INFO: Record<UpgradePath, UpgradePathInfo> = {
 };
 
 const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradePath, UpgradePathInfo>>>> = {
-  [TowerType.PuffballFungus]: {
+  [TowerType.Puffball]: {
     [UpgradePath.Damage]: {
       label: 'Spore Density',
       icon: '⚔️',
@@ -136,7 +127,7 @@ const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradeP
       description: 'Network path: leaves a wider fungal field after impact.',
     },
   },
-  [TowerType.OrchidTrap]: {
+  [TowerType.Slimefungus]: {
     [UpgradePath.Damage]: {
       label: 'Pollen Bite',
       icon: '⚔️',
@@ -162,7 +153,7 @@ const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradeP
       description: 'Network path: weakens dangerous enemy traits after slow hits.',
     },
   },
-  [TowerType.VenusFlytower]: {
+  [TowerType.ThornSniper]: {
     [UpgradePath.Damage]: {
       label: 'Bigger Snap',
       icon: '⚔️',
@@ -188,7 +179,7 @@ const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradeP
       description: 'Network path: prioritizes marked or weakened prey.',
     },
   },
-  [TowerType.BioluminescentShroom]: {
+  [TowerType.LumenOracle]: {
     [UpgradePath.Damage]: {
       label: 'Lumen Bolt',
       icon: '⚔️',
@@ -214,44 +205,56 @@ const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradeP
       description: 'Network path: shares reveal windows with nearby towers.',
     },
   },
-  [TowerType.StinkhornLine]: {
+  [TowerType.BulbShooter]: {
     [UpgradePath.Damage]: {
-      label: 'Toxin Dose',
+      label: 'Siege Charge',
       icon: '⚔️',
-      shortLabel: 'TOXIN',
-      description: 'Adds stronger upfront poison payloads.',
+      shortLabel: 'SIEGE',
+      description: 'Packs more damage into each explosive bulb.',
     },
     [UpgradePath.Range]: {
-      label: 'Stench Drift',
+      label: 'Long Lob',
       icon: '🎯',
-      shortLabel: 'DRIFT',
-      description: 'Lets fumes reach more of the lane.',
+      shortLabel: 'LOB',
+      description: 'Lobs bulbs across more bends and choke points.',
     },
     [UpgradePath.FireRate]: {
-      label: 'Spore Vent',
+      label: 'Quick Loader',
       icon: '⚡',
-      shortLabel: 'VENT',
-      description: 'Applies poison stacks more frequently.',
+      shortLabel: 'LOAD',
+      description: 'Launches explosive bulbs more frequently.',
     },
     [UpgradePath.Special]: {
-      label: 'Rot Bloom',
+      label: 'Seeded Payload',
       icon: '✨',
-      shortLabel: 'ROT',
-      description: 'Network path: extends poison uptime on durable enemies.',
+      shortLabel: 'SEED',
+      description: 'Network path: primes enemies for a delayed connected detonation.',
     },
   },
-  [TowerType.MyceliumNetwork]: {
+  [TowerType.Sporecap]: {
+    [UpgradePath.Damage]: {
+      label: 'Sharper Spores',
+      icon: '⚔️',
+      shortLabel: 'SHARP',
+      description: 'Improves dependable direct damage against early layers.',
+    },
     [UpgradePath.Range]: {
-      label: 'Hyphae Reach',
+      label: 'Cap Reach',
       icon: '🎯',
-      shortLabel: 'HYPHAE',
-      description: 'Extends connection range for nearby towers.',
+      shortLabel: 'REACH',
+      description: 'Covers more of the road with fast spore darts.',
+    },
+    [UpgradePath.FireRate]: {
+      label: 'Rapid Spores',
+      icon: '⚡',
+      shortLabel: 'RAPID',
+      description: 'Fires dependable spore darts more frequently.',
     },
     [UpgradePath.Special]: {
-      label: 'Symbiosis Boost',
+      label: 'Signal Cap',
       icon: '✨',
-      shortLabel: 'BOOST',
-      description: 'Network path: amplifies connected tower effects.',
+      shortLabel: 'MARK',
+      description: 'Network path: marks enemies for stronger connected hits.',
     },
   },
 };
@@ -263,6 +266,7 @@ const SPECIAL_EFFECT_DESCRIPTIONS: Record<string, string> = {
   [SpecialEffectType.Stun]: 'Stuns enemies, temporarily freezing them',
   [SpecialEffectType.Instakill]: 'Instantly defeats enemies below HP threshold',
   [SpecialEffectType.RevealCamo]: 'Reveals hidden camo enemies in range',
+  precision: 'Delivers deliberate high-impact hits against priority targets',
 };
 
 const PANEL_COLORS = {
@@ -299,7 +303,7 @@ export function getTowerInfoPanelRenderData(
       isVisible: false,
       towerId: 0,
       towerName: '',
-      towerType: TowerType.PuffballFungus,
+      towerType: TowerType.Puffball,
       position: { x: 0, y: 0 },
       size: { ...PANEL_SIZE },
       stats: [],
@@ -378,18 +382,15 @@ export function getTowerInfoPanelRenderData(
     };
   });
 
-  const specialEffectInfo = getSpecialEffectInfo(tower);
-  const specialEffectParams = SPECIAL_EFFECT_UPGRADES[tower.towerType];
-
   let specialEffect: TowerSpecialEffectDisplay | null = null;
-  if (specialEffectParams) {
+  if (tower.specialEffect && tower.specialEffect !== 'none') {
     specialEffect = {
-      type: specialEffectParams.effectType,
-      label: formatSpecialEffectType(specialEffectParams.effectType),
+      type: tower.specialEffect,
+      label: formatSpecialEffectType(tower.specialEffect),
       strength: tower.effectStrength,
       duration: tower.effectDuration > 0 ? tower.effectDuration : null,
       areaRadius: tower.areaRadius ?? null,
-      description: SPECIAL_EFFECT_DESCRIPTIONS[specialEffectParams.effectType] || '',
+      description: SPECIAL_EFFECT_DESCRIPTIONS[tower.specialEffect] || TOWER_STATS[tower.towerType].description,
     };
   }
 
@@ -405,7 +406,7 @@ export function getTowerInfoPanelRenderData(
   return {
     isVisible: true,
     towerId: tower.id,
-    towerName: TOWER_NAMES[tower.towerType],
+    towerName: TOWER_STATS[tower.towerType].displayName,
     towerType: tower.towerType,
     position: panelPosition,
     size: { ...PANEL_SIZE },
@@ -427,7 +428,7 @@ export function getTowerInfoPanelRenderData(
   };
 }
 
-function formatSpecialEffectType(type: SpecialEffectType): string {
+function formatSpecialEffectType(type: string): string {
   switch (type) {
     case SpecialEffectType.AreaDamage:
       return 'Area Damage';
@@ -442,7 +443,7 @@ function formatSpecialEffectType(type: SpecialEffectType): string {
     case SpecialEffectType.RevealCamo:
       return 'Reveal Camo';
     default:
-      return type;
+      return type.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
   }
 }
 

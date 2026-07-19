@@ -53,7 +53,7 @@ function expectFalse(actual: boolean, testName: string): void {
   }
 }
 
-function createMockTower(id: number = 1, towerType: TowerType = TowerType.PuffballFungus): TowerWithUpgrades {
+function createMockTower(id: number = 1, towerType: TowerType = TowerType.Puffball): TowerWithUpgrades {
   return createTowerWithUpgrades(id, 100, 100, towerType, TargetingMode.First);
 }
 
@@ -70,8 +70,8 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   
   expectTrue(result.isVisible, 'is visible when selecting');
   expectEqual(result.towerId, 1, 'tower id matches');
-  expectEqual(result.towerName, 'Puffball Fungus', 'tower name is correct');
-  expectEqual(result.towerType, TowerType.PuffballFungus, 'tower type matches');
+  expectEqual(result.towerName, 'Puffball', 'tower name is correct');
+  expectEqual(result.towerType, TowerType.Puffball, 'tower type matches');
   expectEqual(result.stats.length, 3, 'has 3 stats');
   expectEqual(result.stats[0].label, 'Damage', 'first stat is damage');
   expectEqual(result.stats[1].label, 'Range', 'second stat is range');
@@ -81,32 +81,32 @@ console.log('--- getTowerInfoPanelRenderData basic ---');
   expectTrue(result.upgrades[0].description.includes('layer'), 'Puffball path explains effect');
   expectEqual(result.upgrades[3].label, 'Lingering Field', 'Puffball special path has behavior label');
   expectTrue(result.upgrades[3].isNetworkPath, 'special path is marked as network path');
-  expectEqual(result.sellValue, 70, 'sell value is 70% of base cost');
+  expectEqual(result.sellValue, 125, 'sell value is 70% of canonical base cost');
 }
 
 {
-  const tower = createMockTower(5, TowerType.OrchidTrap);
+  const tower = createMockTower(5, TowerType.Slimefungus);
   const position: Vec2 = { x: 300, y: 150 };
   const canAfford = (path: UpgradePath, tier: number) => true;
   const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
   
   const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
   
-  expectEqual(result.towerName, 'Orchid Trap', 'tower name for Orchid');
-  expectEqual(result.specialEffect?.type, 'slow', 'Orchid has slow effect');
-  expectEqual(result.upgrades[3].label, 'Trait Disrupt', 'Orchid special path advertises trait disruption');
+  expectEqual(result.towerName, 'Slimefungus', 'tower name for Slimefungus');
+  expectEqual(result.specialEffect?.type, 'slow', 'Slimefungus has slow effect');
+  expectEqual(result.upgrades[3].label, 'Trait Disrupt', 'Slimefungus special path advertises trait disruption');
 }
 
 {
-  const tower = createMockTower(3, TowerType.VenusFlytower);
+  const tower = createMockTower(3, TowerType.ThornSniper);
   const position: Vec2 = { x: 150, y: 250 };
   const canAfford = (path: UpgradePath, tier: number) => true;
   const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
   
   const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
   
-  expectEqual(result.towerName, 'Venus Flytower', 'tower name for Venus');
-  expectEqual(result.specialEffect?.type, 'instakill', 'Venus has instakill effect');
+  expectEqual(result.towerName, 'Thorn Sniper', 'tower name for Thorn Sniper');
+  expectEqual(result.specialEffect?.type, 'precision', 'Thorn Sniper has precision effect');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData with upgrades ---');
@@ -126,7 +126,7 @@ console.log('\n--- getTowerInfoPanelRenderData with upgrades ---');
   
   expectEqual(result.upgrades[0].currentTier, 2, 'damage tier is 2');
   expectEqual(result.upgrades[1].currentTier, 1, 'range tier is 1');
-  expectEqual(result.sellValue, Math.floor((100 + 150) * 0.7), 'sell value includes upgrades');
+  expectEqual(result.sellValue, 230, 'sell value includes canonical base cost and upgrades');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData null cases ---');
@@ -153,7 +153,7 @@ console.log('\n--- getTowerInfoPanelRenderData null cases ---');
 
 console.log('\n--- getTowerInfoPanelRenderData targeting mode ---');
 {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.PuffballFungus, TargetingMode.Last);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.Last);
   const position: Vec2 = { x: 200, y: 200 };
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
@@ -163,7 +163,7 @@ console.log('\n--- getTowerInfoPanelRenderData targeting mode ---');
 }
 
 {
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.PuffballFungus, TargetingMode.Strong);
+  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.Strong);
   const position: Vec2 = { x: 200, y: 200 };
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
@@ -173,29 +173,28 @@ console.log('\n--- getTowerInfoPanelRenderData targeting mode ---');
 
 console.log('\n--- getTowerInfoPanelRenderData special effects ---');
 {
-  const tower = createMockTower(1, TowerType.StinkhornLine);
+  const tower = createMockTower(1, TowerType.BulbShooter);
   const position: Vec2 = { x: 200, y: 200 };
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
   
   expectTrue(result.specialEffect !== null, 'has special effect');
-  expectEqual(result.specialEffect?.type, 'poison', 'Stinkhorn has poison effect');
-  expectEqual(result.specialEffect?.label, 'Poison', 'effect label is Poison');
-  expectTrue(result.specialEffect!.duration !== null, 'has duration');
+  expectEqual(result.specialEffect?.type, 'area_damage', 'Bulb Shooter has area damage effect');
+  expectEqual(result.specialEffect?.label, 'Area Damage', 'effect label is Area Damage');
 }
 
 {
-  const tower = createMockTower(1, TowerType.BioluminescentShroom);
+  const tower = createMockTower(1, TowerType.LumenOracle);
   const position: Vec2 = { x: 200, y: 200 };
   
   const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
   
-  expectEqual(result.specialEffect?.type, 'reveal_camo', 'Bioluminescent has reveal_camo effect');
+  expectEqual(result.specialEffect?.type, 'detection', 'Base Lumen Oracle advertises detection without sharing reveal');
 }
 
 console.log('\n--- getTowerInfoPanelRenderData stats values ---');
 {
-  const tower = createMockTower(1, TowerType.VenusFlytower);
+  const tower = createMockTower(1, TowerType.ThornSniper);
   tower.damage = 500;
   tower.range = 75;
   tower.fireRate = 2000;
@@ -322,11 +321,11 @@ console.log('\n--- getPanelColorConfig ---');
 
 console.log('\n--- getTowerIcon ---');
 {
-  expectEqual(getTowerIcon(TowerType.PuffballFungus), '🌿', 'puffball icon');
-  expectEqual(getTowerIcon(TowerType.OrchidTrap), '🌸', 'orchid icon');
-  expectEqual(getTowerIcon(TowerType.VenusFlytower), '🌺', 'venus icon');
-  expectEqual(getTowerIcon(TowerType.BioluminescentShroom), '✨', 'bioluminescent icon');
-  expectEqual(getTowerIcon(TowerType.StinkhornLine), '📍', 'stinkhorn icon');
+  expectEqual(getTowerIcon(TowerType.Puffball), '🌿', 'puffball icon');
+  expectEqual(getTowerIcon(TowerType.Slimefungus), '🌸', 'slimefungus icon');
+  expectEqual(getTowerIcon(TowerType.ThornSniper), '🌺', 'thorn sniper icon');
+  expectEqual(getTowerIcon(TowerType.LumenOracle), '✨', 'lumen oracle icon');
+  expectEqual(getTowerIcon(TowerType.BulbShooter), '📍', 'bulb shooter icon');
 }
 
 console.log('\n--- getUpgradePathIcon ---');
@@ -343,7 +342,7 @@ console.log('\n--- getUpgradePathLabel ---');
   expectEqual(getUpgradePathLabel(UpgradePath.Range), 'Range', 'range label');
   expectEqual(getUpgradePathLabel(UpgradePath.FireRate), 'Fire Rate', 'fire rate label');
   expectEqual(getUpgradePathLabel(UpgradePath.Special), 'Special', 'special label');
-  expectEqual(getUpgradePathLabel(UpgradePath.Special, TowerType.BioluminescentShroom), 'Network Reveal', 'tower-specific special label');
+  expectEqual(getUpgradePathLabel(UpgradePath.Special, TowerType.LumenOracle), 'Network Reveal', 'tower-specific special label');
 }
 
 console.log('\n--- canUpgrade flag ---');

@@ -38,35 +38,35 @@ assert(UPGRADE_TIERS[1].tier === 2, 'Tier 2 data correct');
 assert(UPGRADE_TIERS[2].tier === 3, 'Tier 3 data correct');
 
 console.log('\nTest: getBaseUpgradeCost calculates correctly');
-const baseCost = getBaseUpgradeCost(TowerType.PuffballFungus);
-assert(baseCost === 50, 'Puffball base upgrade cost is 50 (100 * 0.5)');
-const orchidCost = getBaseUpgradeCost(TowerType.OrchidTrap);
-assert(orchidCost === 75, 'Orchid base upgrade cost is 75 (150 * 0.5)');
-const venusCost = getBaseUpgradeCost(TowerType.VenusFlytower);
-assert(venusCost === 250, 'Venus base upgrade cost is 250 (500 * 0.5)');
+const baseCost = getBaseUpgradeCost(TowerType.Puffball);
+assert(baseCost === 90, 'Puffball base upgrade cost is 90 (180 * 0.5)');
+const orchidCost = getBaseUpgradeCost(TowerType.Slimefungus);
+assert(orchidCost === 80, 'Slimefungus base upgrade cost is 80 (160 * 0.5)');
+const venusCost = getBaseUpgradeCost(TowerType.ThornSniper);
+assert(venusCost === 160, 'Thorn Sniper base upgrade cost is 160 (320 * 0.5)');
 
 console.log('\nTest: getUpgradeCost calculates tier costs');
-const tier1Cost = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Damage, 1);
-assert(tier1Cost === 50, 'Tier 1 damage upgrade costs 50');
-const tier2Cost = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Damage, 2);
-assert(tier2Cost === 112, 'Tier 2 damage upgrade costs 112 (50 * 1.5 * 3 / 2)');
-const tier3Cost = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Damage, 3);
-assert(tier3Cost === 250, 'Tier 3 damage upgrade costs 250 (50 * 2.5 * 4 / 2)');
+const tier1Cost = getUpgradeCost(TowerType.Puffball, UpgradePath.Damage, 1);
+assert(tier1Cost === 90, 'Tier 1 damage upgrade costs 90');
+const tier2Cost = getUpgradeCost(TowerType.Puffball, UpgradePath.Damage, 2);
+assert(tier2Cost === 202, 'Tier 2 damage upgrade costs 202 (floor of 90 * 1.5 * 3 / 2)');
+const tier3Cost = getUpgradeCost(TowerType.Puffball, UpgradePath.Damage, 3);
+assert(tier3Cost === 450, 'Tier 3 damage upgrade costs 450 (90 * 2.5 * 4 / 2)');
 
 console.log('\nTest: getNextTierStats returns correct stat increases');
-const tier1Stats = getNextTierStats({ damage: 1, range: 80, fireRate: 500, towerType: TowerType.PuffballFungus } as any, UpgradePath.Damage, 1);
+const tier1Stats = getNextTierStats({ damage: 1, range: 80, fireRate: 500, towerType: TowerType.Puffball } as any, UpgradePath.Damage, 1);
 assert(tier1Stats.statIncrease >= 1, 'Tier 1 damage increase is at least 1');
 assert(tier1Stats.newStatValue > 1, 'New damage value is greater than base');
 
-const rangeStats = getNextTierStats({ damage: 1, range: 80, fireRate: 500, towerType: TowerType.PuffballFungus } as any, UpgradePath.Range, 1);
+const rangeStats = getNextTierStats({ damage: 1, range: 80, fireRate: 500, towerType: TowerType.Puffball } as any, UpgradePath.Range, 1);
 assert(rangeStats.statIncrease >= 5, 'Tier 1 range increase is at least 5');
 assert(rangeStats.newStatValue >= 91 && rangeStats.newStatValue <= 92, 'New range value is 91-92 (floating point: 80 * 0.15 = 11.999...)');
 
-const fireRateStats = getNextTierStats({ fireRate: 500, towerType: TowerType.PuffballFungus } as any, UpgradePath.FireRate, 1);
+const fireRateStats = getNextTierStats({ fireRate: 500, towerType: TowerType.Puffball } as any, UpgradePath.FireRate, 1);
 assert(fireRateStats.statIncrease > 0, 'Tier 1 fire rate improvement is positive');
 
 console.log('\nTest: createTowerWithUpgrades creates tower with upgrade state');
-const tower = createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus);
+const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
 assert(tower.upgradeLevels[UpgradePath.Damage] === 0, 'Damage upgrade level starts at 0');
 assert(tower.upgradeLevels[UpgradePath.Range] === 0, 'Range upgrade level starts at 0');
 assert(tower.upgradeLevels[UpgradePath.FireRate] === 0, 'FireRate upgrade level starts at 0');
@@ -74,18 +74,18 @@ assert(tower.upgradeLevels[UpgradePath.Special] === 0, 'Special upgrade level st
 assert(tower.totalUpgradeCost === 0, 'Total upgrade cost starts at 0');
 
 console.log('\nTest: createTowerWithUpgrades initializes special effect fields');
-const puffTower = createTowerWithUpgrades(10, 0, 0, TowerType.PuffballFungus);
+const puffTower = createTowerWithUpgrades(10, 0, 0, TowerType.Puffball);
 assert(puffTower.effectStrength === 0.5, 'Puffball has base effect strength 0.5');
 assert(puffTower.areaRadius === 40, 'Puffball has base area radius 40');
 assert(puffTower.effectDuration === 0, 'Puffball has no duration');
 
-const orchidTower = createTowerWithUpgrades(11, 0, 0, TowerType.OrchidTrap);
-assert(orchidTower.effectStrength === 0.5, 'Orchid has base effect strength 0.5');
-assert(orchidTower.effectDuration === 1000, 'Orchid has base duration 1000');
+const orchidTower = createTowerWithUpgrades(11, 0, 0, TowerType.Slimefungus);
+assert(orchidTower.effectStrength === 0.5, 'Slimefungus has base effect strength 0.5');
+assert(orchidTower.effectDuration === 1000, 'Slimefungus has base duration 1000');
 
-const stinkhornTower = createTowerWithUpgrades(12, 0, 0, TowerType.StinkhornLine);
-assert(stinkhornTower.effectStrength === 0.5, 'Stinkhorn has base effect strength 0.5');
-assert(stinkhornTower.effectDuration === 3000, 'Stinkhorn has base duration 3000');
+const stinkhornTower = createTowerWithUpgrades(12, 0, 0, TowerType.BulbShooter);
+assert(stinkhornTower.effectStrength === 0.5, 'Bulb Shooter has base effect strength 0.5');
+assert(stinkhornTower.effectDuration === 3000, 'Bulb Shooter has base duration 3000');
 
 console.log('\nTest: canUpgrade checks tier limits');
 const canUpgrade1 = canUpgrade(tower, UpgradePath.Damage, 0);
@@ -98,7 +98,7 @@ const cannotUpgrade = canUpgrade(tower, UpgradePath.Damage, 3);
 assert(cannotUpgrade === false, 'Cannot upgrade past tier 3');
 
 console.log('\nTest: applyUpgrade applies stat and cost correctly');
-const tower2 = createTowerWithUpgrades(2, 0, 0, TowerType.OrchidTrap);
+const tower2 = createTowerWithUpgrades(2, 0, 0, TowerType.Slimefungus);
 const originalDamage = tower2.damage;
 const originalRange = tower2.range;
 const originalFireRate = tower2.fireRate;
@@ -118,13 +118,13 @@ assert(result3.success === true, 'First fire rate upgrade succeeds');
 assert(result3.newTier === 1, 'New tier is 1 after first upgrade');
 
 console.log('\nTest: cannot upgrade past max tier');
-const tower3 = createTowerWithUpgrades(3, 0, 0, TowerType.PuffballFungus);
+const tower3 = createTowerWithUpgrades(3, 0, 0, TowerType.Puffball);
 tower3.upgradeLevels[UpgradePath.Damage] = 3;
 const result4 = applyUpgrade(tower3, UpgradePath.Damage);
 assert(result4.success === false, 'Cannot upgrade past tier 3');
 
 console.log('\nTest: getUpgradeInfo returns correct info');
-const tower4 = createTowerWithUpgrades(4, 0, 0, TowerType.VenusFlytower);
+const tower4 = createTowerWithUpgrades(4, 0, 0, TowerType.ThornSniper);
 const damageInfo = getUpgradeInfo(tower4, UpgradePath.Damage);
 assert(damageInfo.currentTier === 0, 'Current tier is 0 for new tower');
 assert(damageInfo.maxTier === false, 'Not at max tier');
@@ -137,16 +137,16 @@ assert(maxInfo.maxTier === true, 'At max tier after 3 upgrades');
 assert(maxInfo.nextCost === 0, 'No cost for max tier');
 
 console.log('\nTest: getTotalSellValue calculates correctly');
-const tower5 = createTowerWithUpgrades(5, 0, 0, TowerType.PuffballFungus);
+const tower5 = createTowerWithUpgrades(5, 0, 0, TowerType.Puffball);
 const baseSellValue = getTotalSellValue(tower5);
-assert(baseSellValue === 70, 'Base sell value is 70 (100 * 0.7)');
+assert(baseSellValue === 125, 'Base sell value is floor(180 * 0.7)');
 
 applyUpgrade(tower5, UpgradePath.Damage);
 const afterUpgradeSell = getTotalSellValue(tower5);
 assert(afterUpgradeSell > baseSellValue, 'Sell value increases with upgrades');
 
 console.log('\nTest: getUpgradeSummary returns all paths');
-const tower6 = createTowerWithUpgrades(6, 0, 0, TowerType.StinkhornLine);
+const tower6 = createTowerWithUpgrades(6, 0, 0, TowerType.BulbShooter);
 const summary = getUpgradeSummary(tower6);
 assert(UpgradePath.Damage in summary, 'Summary includes Damage path');
 assert(UpgradePath.Range in summary, 'Summary includes Range path');
@@ -156,15 +156,15 @@ assert('totalUpgradeCost' in summary, 'Summary includes totalUpgradeCost');
 assert('totalSellValue' in summary, 'Summary includes totalSellValue');
 
 console.log('\nTest: Fire rate upgrade decreases fire rate (faster firing)');
-const tower7 = createTowerWithUpgrades(7, 0, 0, TowerType.OrchidTrap);
+const tower7 = createTowerWithUpgrades(7, 0, 0, TowerType.Slimefungus);
 const originalFR = tower7.fireRate;
 applyUpgrade(tower7, UpgradePath.FireRate);
 assert(tower7.fireRate < originalFR, 'Fire rate decreased (faster firing) after upgrade');
 
 console.log('\n=== Special Effect Upgrade Tests ===\n');
 
-console.log('Test: Special upgrade applies to PuffballFungus (area damage)');
-const puffballTower = createTowerWithUpgrades(20, 0, 0, TowerType.PuffballFungus);
+console.log('Test: Special upgrade applies to Puffball (area damage)');
+const puffballTower = createTowerWithUpgrades(20, 0, 0, TowerType.Puffball);
 assert(puffballTower.areaRadius === 40, 'Base area radius is 40');
 const puffResult1 = applyUpgrade(puffballTower, UpgradePath.Special);
 assert(puffResult1.success === true, 'Puffball special upgrade succeeds');
@@ -185,50 +185,50 @@ assert(puffballTower.effectStrength === 0.7, 'Tier 3 effect strength is 0.7');
 const puffResult4 = applyUpgrade(puffballTower, UpgradePath.Special);
 assert(puffResult4.success === false, 'Cannot upgrade Puffball special past tier 3');
 
-console.log('\nTest: Special upgrade applies to OrchidTrap (slow)');
-const orchidSpecial = createTowerWithUpgrades(21, 0, 0, TowerType.OrchidTrap);
-assert(orchidSpecial.effectStrength === 0.5, 'Orchid base slow strength is 0.5');
-assert(orchidSpecial.effectDuration === 1000, 'Orchid base slow duration is 1000');
+console.log('\nTest: Special upgrade applies to Slimefungus (slow)');
+const orchidSpecial = createTowerWithUpgrades(21, 0, 0, TowerType.Slimefungus);
+assert(orchidSpecial.effectStrength === 0.5, 'Slimefungus base slow strength is 0.5');
+assert(orchidSpecial.effectDuration === 1000, 'Slimefungus base slow duration is 1000');
 const orchidResult1 = applyUpgrade(orchidSpecial, UpgradePath.Special);
-assert(orchidResult1.success === true, 'Orchid special upgrade succeeds');
-assert(orchidResult1.effectUpgrade !== undefined, 'Orchid effect upgrade returned');
+assert(orchidResult1.success === true, 'Slimefungus special upgrade succeeds');
+assert(orchidResult1.effectUpgrade !== undefined, 'Slimefungus effect upgrade returned');
 assert(orchidResult1.effectUpgrade!.effectStrength === 0.1, 'Tier 1 slow strength bonus is 0.1');
 assert(orchidResult1.effectUpgrade!.effectDuration === 500, 'Tier 1 slow duration bonus is 500');
-assert(orchidSpecial.effectStrength === 0.6, 'Orchid cumulative slow strength is 0.6 after tier 1');
-assert(orchidSpecial.effectDuration === 1500, 'Orchid cumulative slow duration is 1500 after tier 1');
+assert(orchidSpecial.effectStrength === 0.6, 'Slimefungus cumulative slow strength is 0.6 after tier 1');
+assert(orchidSpecial.effectDuration === 1500, 'Slimefungus cumulative slow duration is 1500 after tier 1');
 
-console.log('\nTest: Special upgrade applies to StinkhornLine (poison)');
-const stinkhornSpecial = createTowerWithUpgrades(22, 0, 0, TowerType.StinkhornLine);
-assert(stinkhornSpecial.effectStrength === 0.5, 'Stinkhorn base poison strength is 0.5');
-assert(stinkhornSpecial.effectDuration === 3000, 'Stinkhorn base poison duration is 3000');
+console.log('\nTest: Special upgrade applies to BulbShooter (poison)');
+const stinkhornSpecial = createTowerWithUpgrades(22, 0, 0, TowerType.BulbShooter);
+assert(stinkhornSpecial.effectStrength === 0.5, 'Bulb Shooter base poison strength is 0.5');
+assert(stinkhornSpecial.effectDuration === 3000, 'Bulb Shooter base poison duration is 3000');
 const stinkhornResult1 = applyUpgrade(stinkhornSpecial, UpgradePath.Special);
-assert(stinkhornResult1.success === true, 'Stinkhorn special upgrade succeeds');
-assert(stinkhornResult1.effectUpgrade !== undefined, 'Stinkhorn effect upgrade returned');
+assert(stinkhornResult1.success === true, 'Bulb Shooter special upgrade succeeds');
+assert(stinkhornResult1.effectUpgrade !== undefined, 'Bulb Shooter effect upgrade returned');
 assert(stinkhornResult1.effectUpgrade!.effectStrength === 0.2, 'Tier 1 poison strength bonus is 0.2');
 assert(stinkhornResult1.effectUpgrade!.effectDuration === 1000, 'Tier 1 poison duration bonus is 1000');
-assert(stinkhornSpecial.effectStrength === 0.7, 'Stinkhorn cumulative poison strength is 0.7 after tier 1');
-assert(stinkhornSpecial.effectDuration === 4000, 'Stinkhorn cumulative poison duration is 4000 after tier 1');
+assert(stinkhornSpecial.effectStrength === 0.7, 'Bulb Shooter cumulative poison strength is 0.7 after tier 1');
+assert(stinkhornSpecial.effectDuration === 4000, 'Bulb Shooter cumulative poison duration is 4000 after tier 1');
 
-console.log('\nTest: Special upgrade applies to VenusFlytower (instakill)');
-const venusSpecial = createTowerWithUpgrades(23, 0, 0, TowerType.VenusFlytower);
-assert(venusSpecial.effectStrength === 1.0, 'Venus base instakill strength is 1.0');
+console.log('\nTest: Special upgrade applies to ThornSniper (instakill)');
+const venusSpecial = createTowerWithUpgrades(23, 0, 0, TowerType.ThornSniper);
+assert(venusSpecial.effectStrength === 1.0, 'Thorn Sniper base instakill strength is 1.0');
 const venusResult1 = applyUpgrade(venusSpecial, UpgradePath.Special);
-assert(venusResult1.success === true, 'Venus special upgrade succeeds');
-assert(venusResult1.effectUpgrade !== undefined, 'Venus effect upgrade returned');
+assert(venusResult1.success === true, 'Thorn Sniper special upgrade succeeds');
+assert(venusResult1.effectUpgrade !== undefined, 'Thorn Sniper effect upgrade returned');
 assert(venusResult1.effectUpgrade!.effectStrength === 0.1, 'Tier 1 instakill strength bonus is 0.1');
-assert(venusSpecial.effectStrength === 1.1, 'Venus cumulative instakill strength is 1.1 after tier 1');
+assert(venusSpecial.effectStrength === 1.1, 'Thorn Sniper cumulative instakill strength is 1.1 after tier 1');
 
-console.log('\nTest: Special upgrade applies to BioluminescentShroom (reveal_camo)');
-const biolumSpecial = createTowerWithUpgrades(24, 0, 0, TowerType.BioluminescentShroom);
-assert(biolumSpecial.effectDuration === 500, 'Biolum base reveal duration is 500');
+console.log('\nTest: Special upgrade applies to LumenOracle (reveal_camo)');
+const biolumSpecial = createTowerWithUpgrades(24, 0, 0, TowerType.LumenOracle);
+assert(biolumSpecial.effectDuration === 500, 'Lumen Oracle base reveal duration is 500');
 const biolumResult1 = applyUpgrade(biolumSpecial, UpgradePath.Special);
-assert(biolumResult1.success === true, 'Biolum special upgrade succeeds');
-assert(biolumResult1.effectUpgrade !== undefined, 'Biolum effect upgrade returned');
+assert(biolumResult1.success === true, 'Lumen Oracle special upgrade succeeds');
+assert(biolumResult1.effectUpgrade !== undefined, 'Lumen Oracle effect upgrade returned');
 assert(biolumResult1.effectUpgrade!.effectDuration === 500, 'Tier 1 reveal duration bonus is 500');
-assert(biolumSpecial.effectDuration === 1000, 'Biolum cumulative reveal duration is 1000 after tier 1');
+assert(biolumSpecial.effectDuration === 1000, 'Lumen Oracle cumulative reveal duration is 1000 after tier 1');
 
 console.log('\nTest: getSpecialEffectInfo returns correct info');
-const puffTower2 = createTowerWithUpgrades(25, 0, 0, TowerType.PuffballFungus);
+const puffTower2 = createTowerWithUpgrades(25, 0, 0, TowerType.Puffball);
 const puffEffectInfo = getSpecialEffectInfo(puffTower2);
 assert(puffEffectInfo.effectType === SpecialEffectType.AreaDamage, 'Puffball effect type is AreaDamage');
 assert(puffEffectInfo.areaRadius === 40, 'Base area radius returned');
@@ -239,9 +239,9 @@ const puffEffectInfo2 = getSpecialEffectInfo(puffTower2);
 assert(puffEffectInfo2.specialTier === 1, 'Special tier is 1 after upgrade');
 
 console.log('\nTest: Special upgrade cost is calculated correctly');
-const specialCost1 = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Special, 1);
-const specialCost2 = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Special, 2);
-const specialCost3 = getUpgradeCost(TowerType.PuffballFungus, UpgradePath.Special, 3);
+const specialCost1 = getUpgradeCost(TowerType.Puffball, UpgradePath.Special, 1);
+const specialCost2 = getUpgradeCost(TowerType.Puffball, UpgradePath.Special, 2);
+const specialCost3 = getUpgradeCost(TowerType.Puffball, UpgradePath.Special, 3);
 assert(specialCost1 > 0, 'Tier 1 special cost is positive');
 assert(specialCost2 > specialCost1, 'Tier 2 special cost is higher than tier 1');
 assert(specialCost3 > specialCost2, 'Tier 3 special cost is higher than tier 2');

@@ -26,7 +26,7 @@ assert(game.getPlacedTowers().length === 0, 'Should start with no placed towers'
 assert(game.getActiveEnemies().length === 0, 'Should start with no active enemies');
 
 const stats = game.getGameStats();
-assertEqual(stats.money, 650, 'Should start with 650 money');
+assertEqual(stats.money, 500, 'Default release runner should start with exactly 500 Nutrients');
 assertEqual(stats.lives, 20, 'Should start with 20 lives');
 assertEqual(stats.state, GameState.Idle, 'Initial state should be Idle');
 assertEqual(stats.towers, 0, 'Should have 0 towers');
@@ -35,15 +35,30 @@ assertEqual(stats.enemies, 0, 'Should have 0 enemies');
 game.start();
 assert(game.getState() === GameState.Playing, 'After start, state should be Playing');
 
-const canPlace = game.canPlaceTower(TowerType.PuffballFungus, 100, 100);
+const thornBesidePath = game.canPlaceTower(TowerType.ThornSniper, 100, 265);
+assert(thornBesidePath.canPlace === true, 'High-range Thorn Sniper should be placeable 35px from the path');
+
+const sporecapBesidePath = game.canPlaceTower(TowerType.Sporecap, 100, 265);
+assertEqual(
+  thornBesidePath.canPlace,
+  sporecapBesidePath.canPlace,
+  'High- and low-range towers should use the same physical path clearance'
+);
+
+const thornInsideClearance = game.canPlaceTower(TowerType.ThornSniper, 100, 275);
+const sporecapInsideClearance = game.canPlaceTower(TowerType.Sporecap, 100, 275);
+assert(thornInsideClearance.canPlace === false, 'High-range tower should be rejected inside 30px path clearance');
+assert(sporecapInsideClearance.canPlace === false, 'Low-range tower should be rejected inside 30px path clearance');
+
+const canPlace = game.canPlaceTower(TowerType.Puffball, 100, 100);
 assert(canPlace.canPlace === true, 'Should be able to place Puffball Fungus');
 
-const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
 assert(tower !== null, 'Should be able to place tower');
 assertEqual(game.getPlacedTowers().length, 1, 'Should have 1 placed tower');
 
 const newStats = game.getGameStats();
-assertEqual(newStats.money, 550, 'Should have 550 money after placing Puffball (cost 100)');
+assertEqual(newStats.money, 320, 'Should have 320 Nutrients after placing Puffball (cost 180)');
 assertEqual(newStats.towers, 1, 'Should have 1 tower');
 
 const upgradeInfo = game.getTowerUpgradeInfo(tower!.id);
@@ -81,7 +96,7 @@ mixedWaveRemainingGame.update(mixedWaveStartTime);
 assertEqual(mixedWaveRemainingGame.getActiveEnemies().length, 1, 'Mixed wave should spawn its opening enemy');
 assertEqual(
   mixedWaveRemainingGame.getRemainingEnemies(),
-  14,
+  11,
   'Remaining enemies should count exact future group sizes in mixed waves'
 );
 
@@ -109,15 +124,15 @@ const fastForwardEnemy = fastForwardGame.getActiveEnemies()[0];
 assert(fastForwardEnemy !== undefined, 'Fast-forward update should spawn an enemy');
 fastForwardGame.update(fastForwardStartTime + 1000);
 assert(
-  fastForwardEnemy.pathDistance >= 140,
-  `Fast-forward should scale movement from caller timestamps (expected at least 140, got ${fastForwardEnemy.pathDistance})`
+  fastForwardEnemy.pathDistance >= 135,
+  `Fast-forward should scale movement from caller timestamps (expected at least 135, got ${fastForwardEnemy.pathDistance})`
 );
 
 const metalCounterGame = createGameRunner({ startingMoney: 5000 });
 metalCounterGame.start();
-const nonExplosiveTower = metalCounterGame.placeTower(TowerType.StinkhornLine, 720, 270, TargetingMode.First);
+const nonExplosiveTower = metalCounterGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 assert(nonExplosiveTower !== null, 'Should place non-explosive metal counter test tower');
-const metalTarget = createEnemy(901, EnemyType.ArmoredBeetle, metalCounterGame.getPath());
+const metalTarget = createEnemy(901, EnemyType.BulwarkBeetle, metalCounterGame.getPath());
 metalTarget.pathDistance = 1420;
 metalTarget.pathProgress = 1420;
 metalTarget.position = { ...metalCounterGame.getPath().getPointAtDistance(metalTarget.pathDistance).position };
@@ -128,15 +143,15 @@ metalCounterGame.update(1000);
 metalCounterGame.update(1400);
 assertEqual(
   metalTarget.hp,
-  metalTarget.maxHp,
-  'Metal enemies should ignore ordinary non-explosive tower hits'
+  metalTarget.maxHp - 3,
+  'Metal enemies should take full explosive damage from Bulb Shooter hits'
 );
 
 const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
 metalExplosiveGame.start();
-const explosiveTower = metalExplosiveGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const explosiveTower = metalExplosiveGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(explosiveTower !== null, 'Should place explosive metal counter test tower');
-const explosiveTarget = createEnemy(902, EnemyType.ArmoredBeetle, metalExplosiveGame.getPath());
+const explosiveTarget = createEnemy(902, EnemyType.BulwarkBeetle, metalExplosiveGame.getPath());
 explosiveTarget.pathDistance = 1420;
 explosiveTarget.pathProgress = 1420;
 explosiveTarget.position = { ...metalExplosiveGame.getPath().getPointAtDistance(explosiveTarget.pathDistance).position };
@@ -152,14 +167,14 @@ assert(
 
 const traitDisruptionGame = createGameRunner({ startingMoney: 5000 });
 traitDisruptionGame.start();
-const disruptingTower = traitDisruptionGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+const disruptingTower = traitDisruptionGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(disruptingTower !== null, 'Should place Orchid trait disruption tower');
 const disruptingUpgrade = traitDisruptionGame.upgradeTower(disruptingTower!.id, UpgradePath.Special);
 assert(
   disruptingUpgrade.success === true,
   'Connected Orchid should be able to buy Special trait disruption upgrade'
 );
-const disruptedMetalTarget = createEnemy(912, EnemyType.ArmoredBeetle, traitDisruptionGame.getPath());
+const disruptedMetalTarget = createEnemy(912, EnemyType.BulwarkBeetle, traitDisruptionGame.getPath());
 disruptedMetalTarget.pathDistance = 1420;
 disruptedMetalTarget.pathProgress = 1420;
 disruptedMetalTarget.position = { ...traitDisruptionGame.getPath().getPointAtDistance(disruptedMetalTarget.pathDistance).position };
@@ -181,9 +196,9 @@ assert(
 
 const plainOrchidGame = createGameRunner({ startingMoney: 5000 });
 plainOrchidGame.start();
-const plainOrchid = plainOrchidGame.placeTower(TowerType.OrchidTrap, 720, 270, TargetingMode.First);
+const plainOrchid = plainOrchidGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(plainOrchid !== null, 'Should place ordinary Orchid metal regression tower');
-const plainOrchidMetalTarget = createEnemy(913, EnemyType.ArmoredBeetle, plainOrchidGame.getPath());
+const plainOrchidMetalTarget = createEnemy(913, EnemyType.BulwarkBeetle, plainOrchidGame.getPath());
 plainOrchidMetalTarget.pathDistance = 1420;
 plainOrchidMetalTarget.pathProgress = 1420;
 plainOrchidMetalTarget.position = { ...plainOrchidGame.getPath().getPointAtDistance(plainOrchidMetalTarget.pathDistance).position };
@@ -194,15 +209,15 @@ plainOrchidGame.update(1000);
 plainOrchidGame.update(2200);
 assertEqual(
   plainOrchidMetalTarget.hp,
-  plainOrchidMetalTarget.maxHp,
-  'Ordinary Orchid should not bypass Metal without connected Special upgrade'
+  plainOrchidMetalTarget.maxHp - 2,
+  'Two ordinary Orchid hits should each deal the one-damage Metal floor without suppressing the trait'
 );
 
 const shieldedHitGame = createGameRunner({ startingMoney: 5000 });
 shieldedHitGame.start();
-const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
+const shieldBreakerTower = shieldedHitGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 assert(shieldBreakerTower !== null, 'Should place shielded enemy test tower');
-const shieldedTarget = createEnemy(903, EnemyType.RainbowStag, shieldedHitGame.getPath());
+const shieldedTarget = createEnemy(903, EnemyType.WardMoth, shieldedHitGame.getPath());
 shieldedTarget.pathDistance = 1420;
 shieldedTarget.pathProgress = 1420;
 shieldedTarget.position = { ...shieldedHitGame.getPath().getPointAtDistance(shieldedTarget.pathDistance).position };
@@ -222,9 +237,102 @@ assertEqual(
   'Shielded enemy shield should break after blocking a hit'
 );
 
+const heroShieldGame = createGameRunner({ startingLives: 20 });
+heroShieldGame.start();
+const heroShieldTarget = createEnemy(920, EnemyType.WardMoth, heroShieldGame.getPath());
+heroShieldTarget.position = { ...heroShieldGame.getPath().getPointAtDistance(0).position };
+heroShieldTarget.speed = 0;
+heroShieldTarget.baseSpeed = 0;
+heroShieldGame.getActiveEnemies().push(heroShieldTarget);
+const shieldHero = heroShieldGame.spawnHero(heroShieldTarget.position.x, heroShieldTarget.position.y);
+assert(shieldHero !== null, 'Should spawn hero for shield-event regression');
+
+heroShieldGame.update(1000);
+const firstHeroShieldEvents = heroShieldGame.drainEvents().filter(event => event.type === 'trait_broken');
+assertEqual(heroShieldTarget.shieldCharges, 0, 'Hero attack should consume the shield');
+assertEqual(heroShieldTarget.hp, heroShieldTarget.maxHp, 'Shield should absorb the first hero attack');
+assertEqual(firstHeroShieldEvents.length, 1, 'Hero shield consumption should emit exactly one trait_broken');
+assertEqual(firstHeroShieldEvents[0].trait, EnemyTrait.Shielded, 'Hero shield event should identify Shielded');
+
+heroShieldGame.update(1001);
+assert(heroShieldTarget.hp < heroShieldTarget.maxHp, 'Next hero attack should damage HP');
+assertEqual(
+  heroShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next hero attack should not duplicate the shield event'
+);
+
+const heroAbilityShieldGame = createGameRunner({ startingLives: 20 });
+heroAbilityShieldGame.start();
+const heroAbilityShieldTarget = createEnemy(922, EnemyType.WardMoth, heroAbilityShieldGame.getPath());
+heroAbilityShieldTarget.position = { ...heroAbilityShieldGame.getPath().getPointAtDistance(0).position };
+heroAbilityShieldTarget.speed = 0;
+heroAbilityShieldTarget.baseSpeed = 0;
+heroAbilityShieldGame.getActiveEnemies().push(heroAbilityShieldTarget);
+const abilityHero = heroAbilityShieldGame.spawnHero(
+  heroAbilityShieldTarget.position.x,
+  heroAbilityShieldTarget.position.y
+);
+assert(abilityHero !== null, 'Should spawn hero for ability shield-event regression');
+
+const firstAbility = heroAbilityShieldGame.useHeroAbility(0, heroAbilityShieldTarget.position);
+assert(firstAbility.used, 'Damaging hero ability should be used');
+assert(abilityHero!.abilities[0].currentCooldown > 0, 'Damaging hero ability should retain its cooldown behavior');
+assertEqual(heroAbilityShieldTarget.shieldCharges, 0, 'Hero ability should consume the shield');
+assertEqual(heroAbilityShieldTarget.hp, heroAbilityShieldTarget.maxHp, 'Shield should absorb the first hero ability hit');
+assert(
+  !heroAbilityShieldTarget.statusEffects.some(effect => effect.type === StatusEffectType.Slow),
+  'Shield should consume the hero ability Slow status'
+);
+assertEqual(
+  heroAbilityShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  1,
+  'Hero ability shield consumption should emit exactly one trait_broken'
+);
+
+abilityHero!.abilities[0].currentCooldown = 0;
+heroAbilityShieldGame.useHeroAbility(0, heroAbilityShieldTarget.position);
+assert(heroAbilityShieldTarget.hp < heroAbilityShieldTarget.maxHp, 'Next hero ability hit should damage HP');
+assertEqual(
+  heroAbilityShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next hero ability hit should not duplicate the shield event'
+);
+
+const poisonShieldGame = createGameRunner({ startingLives: 20 });
+poisonShieldGame.start();
+const poisonShieldTarget = createEnemy(921, EnemyType.WardMoth, poisonShieldGame.getPath());
+poisonShieldTarget.position = { ...poisonShieldGame.getPath().getPointAtDistance(0).position };
+poisonShieldTarget.speed = 0;
+poisonShieldTarget.baseSpeed = 0;
+poisonShieldTarget.statusEffects.push({
+  type: StatusEffectType.Poison,
+  duration: 5000,
+  remaining: 5000,
+  strength: 1,
+});
+poisonShieldGame.getActiveEnemies().push(poisonShieldTarget);
+
+poisonShieldGame.update(0);
+poisonShieldGame.drainEvents();
+poisonShieldGame.update(1000);
+const firstPoisonShieldEvents = poisonShieldGame.drainEvents().filter(event => event.type === 'trait_broken');
+assertEqual(poisonShieldTarget.shieldCharges, 0, 'First poison tick should consume the shield');
+assertEqual(poisonShieldTarget.hp, poisonShieldTarget.maxHp, 'Shield should absorb the first poison tick');
+assertEqual(firstPoisonShieldEvents.length, 1, 'Poison shield consumption should emit exactly one trait_broken');
+assertEqual(firstPoisonShieldEvents[0].trait, EnemyTrait.Shielded, 'Poison shield event should identify Shielded');
+
+poisonShieldGame.update(2000);
+assert(poisonShieldTarget.hp < poisonShieldTarget.maxHp, 'Next poison tick should damage HP');
+assertEqual(
+  poisonShieldGame.drainEvents().filter(event => event.type === 'trait_broken').length,
+  0,
+  'Next poison tick should not duplicate the shield event'
+);
+
 const isolatedSwarmGame = createGameRunner({ startingLives: 20 });
 isolatedSwarmGame.start();
-const isolatedSwarmEnemy = createEnemy(904, EnemyType.PinkLadybug, isolatedSwarmGame.getPath());
+const isolatedSwarmEnemy = createEnemy(904, EnemyType.SwarmWasp, isolatedSwarmGame.getPath());
 isolatedSwarmEnemy.position = { ...isolatedSwarmGame.getPath().getPointAtDistance(0).position };
 isolatedSwarmGame.getActiveEnemies().push(isolatedSwarmEnemy);
 isolatedSwarmGame.update(1000);
@@ -233,7 +341,7 @@ isolatedSwarmGame.update(2000);
 const packedSwarmGame = createGameRunner({ startingLives: 20 });
 packedSwarmGame.start();
 const packedSwarmEnemies = [905, 906, 907].map(id => {
-  const enemy = createEnemy(id, EnemyType.PinkLadybug, packedSwarmGame.getPath());
+  const enemy = createEnemy(id, EnemyType.SwarmWasp, packedSwarmGame.getPath());
   enemy.position = { ...packedSwarmGame.getPath().getPointAtDistance(0).position };
   return enemy;
 });
@@ -252,21 +360,19 @@ assert(
 const swarmProjectileFreshnessGame = createGameRunner({ startingLives: 20 });
 swarmProjectileFreshnessGame.start();
 swarmProjectileFreshnessGame.update(0);
-const movingOutOfPack = createEnemy(908, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
-movingOutOfPack.hp = 20;
-movingOutOfPack.maxHp = 20;
+const movingOutOfPack = createEnemy(908, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 movingOutOfPack.pathDistance = 0;
 movingOutOfPack.pathProgress = 0;
 movingOutOfPack.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(0).position };
 movingOutOfPack.speed = 200;
 movingOutOfPack.baseSpeed = 200;
-const stationaryPackMateA = createEnemy(909, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+const stationaryPackMateA = createEnemy(909, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 stationaryPackMateA.pathDistance = 10;
 stationaryPackMateA.pathProgress = 10;
 stationaryPackMateA.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(10).position };
 stationaryPackMateA.speed = 0;
 stationaryPackMateA.baseSpeed = 0;
-const stationaryPackMateB = createEnemy(910, EnemyType.PinkLadybug, swarmProjectileFreshnessGame.getPath());
+const stationaryPackMateB = createEnemy(910, EnemyType.SwarmWasp, swarmProjectileFreshnessGame.getPath());
 stationaryPackMateB.pathDistance = 20;
 stationaryPackMateB.pathProgress = 20;
 stationaryPackMateB.position = { ...swarmProjectileFreshnessGame.getPath().getPointAtDistance(20).position };
@@ -278,25 +384,30 @@ swarmProjectileFreshnessGame.getActiveProjectiles().push({
   position: { x: 0, y: 300 },
   targetId: movingOutOfPack.id,
   speed: 10000,
-  damage: 10,
-  towerType: TowerType.StinkhornLine,
+  damage: 0.5,
+  towerType: TowerType.BulbShooter,
   alive: true,
 });
 swarmProjectileFreshnessGame.update(1000);
 assertEqual(
   movingOutOfPack.hp,
-  10,
+  0.5,
   'Projectile damage should refresh Swarm-linked state after movement, so enemies that left the pack take full damage'
 );
 
-const swarmSeededPayloadFreshnessGame = createGameRunner({ startingLives: 20 });
+const swarmSeededPayloadFreshnessGame = createGameRunner({ startingLives: 20, startingMoney: 5000 });
 swarmSeededPayloadFreshnessGame.start();
 swarmSeededPayloadFreshnessGame.update(0);
+const seededPayloadSource = swarmSeededPayloadFreshnessGame.placeTower(
+  TowerType.BulbShooter,
+  720,
+  270,
+  TargetingMode.First
+);
+assert(seededPayloadSource !== null, 'Should place a connected source tower for the injected seeded payload');
 const payloadPosition = { x: 0, y: 300 };
 const seededSwarmTargets = [911, 912, 913].map(id => {
-  const enemy = createEnemy(id, EnemyType.PinkLadybug, swarmSeededPayloadFreshnessGame.getPath());
-  enemy.hp = 20;
-  enemy.maxHp = 20;
+  const enemy = createEnemy(id, EnemyType.SwarmWasp, swarmSeededPayloadFreshnessGame.getPath());
   enemy.pathDistance = 0;
   enemy.pathProgress = 0;
   enemy.position = { ...payloadPosition };
@@ -310,27 +421,26 @@ swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
   type: 'stinkhorn_seeded_payload',
   position: { ...payloadPosition },
   radius: 35,
-  damage: 10,
+  damage: 0.5,
   delay: 1000,
   remaining: 0,
-  sourceTowerId: 1,
+  sourceTowerId: seededPayloadSource!.id,
+  targetEnemyId: seededSwarmTargets[0].id,
 });
 swarmSeededPayloadFreshnessGame.update(1000);
 assertEqual(
   seededSwarmTargets[0].hp,
-  11,
-  'Seeded payload damage should refresh Swarm-linked state before detonation damage'
+  0.5,
+  'Seeded payload damage should not receive a Swarm-linked damage modifier'
 );
 
 const markApplicationGame = createGameRunner({ startingMoney: 5000 });
 markApplicationGame.start();
-const markingTower = markApplicationGame.placeTower(TowerType.PuffballFungus, 720, 250, TargetingMode.First);
-assert(markingTower !== null, 'Should place Puffball mark placeholder tower');
+const markingTower = markApplicationGame.placeTower(TowerType.Sporecap, 720, 250, TargetingMode.First);
+assert(markingTower !== null, 'Should place Sporecap marking tower');
 const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
-assert(markingUpgrade.success === true, 'Connected Puffball should buy Special mark upgrade');
-const markTarget = createEnemy(914, EnemyType.BlueBeetle, markApplicationGame.getPath());
-markTarget.hp = 10;
-markTarget.maxHp = 10;
+assert(markingUpgrade.success === true, 'Connected Sporecap should buy Special mark upgrade');
+const markTarget = createEnemy(914, EnemyType.CrawlerCaterpillar, markApplicationGame.getPath());
 markTarget.pathDistance = 1420;
 markTarget.pathProgress = 1420;
 markTarget.position = { ...markApplicationGame.getPath().getPointAtDistance(markTarget.pathDistance).position };
@@ -341,26 +451,27 @@ markApplicationGame.update(1000);
 markApplicationGame.update(1400);
 assert(
   markTarget.statusEffects.some(effect => effect.type === StatusEffectType.Marked),
-  'Connected Special Puffball should mark its direct target'
+  'Connected Special Sporecap should mark its direct target'
 );
 assert(
-  markTarget.hp <= 8,
-  'The marked Puffball hit should include the +1 marked damage bonus'
+  markTarget.hp === markTarget.maxHp - markingTower!.damage,
+  'The direct hit should resolve before its newly applied Mark can affect later hits'
 );
 
 const executeMarkedGame = createGameRunner({ startingMoney: 5000 });
 executeMarkedGame.start();
-const executeTower = executeMarkedGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+const executeTower = executeMarkedGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(executeTower !== null, 'Should place Venus execute placeholder tower');
 const executeUpgrade = executeMarkedGame.upgradeTower(executeTower!.id, UpgradePath.Special);
 assert(executeUpgrade.success === true, 'Connected Venus should buy Special execute upgrade');
-const executeTarget = createEnemy(915, EnemyType.ArmoredBeetle, executeMarkedGame.getPath());
+const executeTarget = createEnemy(915, EnemyType.BulwarkBeetle, executeMarkedGame.getPath());
 executeTarget.pathDistance = 1420;
 executeTarget.pathProgress = 1420;
 executeTarget.position = { ...executeMarkedGame.getPath().getPointAtDistance(executeTarget.pathDistance).position };
 executeTarget.speed = 0;
 executeTarget.baseSpeed = 0;
 markEnemy(executeTarget, 4000);
+executeTarget.hp = 3;
 executeMarkedGame.getActiveEnemies().push(executeTarget);
 executeMarkedGame.getActiveProjectiles().push({
   id: 992,
@@ -369,14 +480,14 @@ executeMarkedGame.getActiveProjectiles().push({
   sourceTowerId: executeTower!.id,
   speed: 0,
   damage: executeTower!.damage,
-  towerType: TowerType.VenusFlytower,
+  towerType: TowerType.ThornSniper,
   alive: true,
 });
 const moneyBeforeExecute = executeMarkedGame.getEconomy().getMoney();
 executeMarkedGame.update(0);
 assert(
   executeTarget.alive === false && executeTarget.hp === 0,
-  'Connected Special Venus should execute a marked Metal enemy without ordinary damage checks'
+  'Connected Special Thorn should execute a marked Metal enemy below the health threshold'
 );
 executeMarkedGame.update(16);
 assertEqual(
@@ -387,11 +498,11 @@ assertEqual(
 
 const shieldedExecuteGame = createGameRunner({ startingMoney: 5000 });
 shieldedExecuteGame.start();
-const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.VenusFlytower, 720, 270, TargetingMode.First);
+const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(shieldExecuteTower !== null, 'Should place Venus shield execute tower');
 const shieldExecuteUpgrade = shieldedExecuteGame.upgradeTower(shieldExecuteTower!.id, UpgradePath.Special);
 assert(shieldExecuteUpgrade.success === true, 'Connected Venus should buy Special shield execute upgrade');
-const shieldedExecuteTarget = createEnemy(916, EnemyType.RainbowStag, shieldedExecuteGame.getPath());
+const shieldedExecuteTarget = createEnemy(916, EnemyType.WardMoth, shieldedExecuteGame.getPath());
 shieldedExecuteTarget.pathDistance = 1420;
 shieldedExecuteTarget.pathProgress = 1420;
 shieldedExecuteTarget.position = { ...shieldedExecuteGame.getPath().getPointAtDistance(shieldedExecuteTarget.pathDistance).position };
@@ -406,7 +517,7 @@ shieldedExecuteGame.getActiveProjectiles().push({
   sourceTowerId: shieldExecuteTower!.id,
   speed: 0,
   damage: shieldExecuteTower!.damage,
-  towerType: TowerType.VenusFlytower,
+  towerType: TowerType.ThornSniper,
   alive: true,
 });
 shieldedExecuteGame.update(0);
@@ -434,15 +545,15 @@ assert(game.getState() === GameState.Playing, 'Should be playing after resume');
 game.reset();
 assert(game.getState() === GameState.Idle, 'Should be Idle after reset');
 assertEqual(game.getPlacedTowers().length, 0, 'Should have no towers after reset');
-assertEqual(game.getGameStats().money, 650, 'Should have 650 money after reset');
+assertEqual(game.getGameStats().money, 500, 'Reset should restore exactly 500 Nutrients');
 
 const game2 = createGameRunner({ startingMoney: 1000, startingLives: 30 });
 assertEqual(game2.getGameStats().money, 1000, 'Should start with custom money');
 assertEqual(game2.getGameStats().lives, 30, 'Should start with custom lives');
 
-const placed = game2.placeTower(TowerType.VenusFlytower, 200, 200);
-assert(placed !== null, 'Should place Venus Flytower (cost 500)');
-assertEqual(game2.getGameStats().money, 500, 'Should have 500 money left');
+const placed = game2.placeTower(TowerType.ThornSniper, 200, 200);
+assert(placed !== null, 'Should place Thorn Sniper (cost 320)');
+assertEqual(game2.getGameStats().money, 680, 'Should have 680 money left');
 
 const sellValue = game2.sellTower(placed!.id);
 assert(sellValue > 0, 'Should get sell value');
@@ -452,6 +563,24 @@ const game3 = createGameRunner();
 const earlyGameStats = game3.getGameStats();
 assertEqual(earlyGameStats.wave, 0, 'Wave should start at 0 before any wave starts');
 assertEqual(earlyGameStats.totalWaves, 10, 'Should have 10 total waves');
+
+const tenWaveReleaseGame = createGameRunner({ maxWaves: 1, startingLives: 100 });
+assertEqual(
+  tenWaveReleaseGame.getGameStats().totalWaves,
+  10,
+  'release stats ignore legacy maxWaves overrides'
+);
+tenWaveReleaseGame.start();
+tenWaveReleaseGame.startWave(0);
+const tenWaveReleaseStartTime = Date.now();
+tenWaveReleaseGame.update(tenWaveReleaseStartTime);
+tenWaveReleaseGame.getActiveEnemies().length = 0;
+tenWaveReleaseGame.getWaveSpawner().update(tenWaveReleaseStartTime + 7000);
+tenWaveReleaseGame.update(tenWaveReleaseStartTime + 7016);
+assert(
+  tenWaveReleaseGame.getState() !== GameState.Victory,
+  'release cannot reach Victory after Wave 1 when maxWaves is overridden'
+);
 
 game3.start();
 game3.startWave(4);
@@ -473,6 +602,35 @@ assertEqual(
   roundCompletionGame.getRoundManager().getState(),
   RoundState.Intermission,
   'Round should enter intermission after the wave spawner is inactive and no enemies remain'
+);
+
+const releaseMapGame = createGameRunner();
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'runner defaults to Garden Path');
+const releaseWaveSpawner = releaseMapGame.getWaveSpawner();
+const releaseRoundManager = releaseMapGame.getRoundManager();
+assertEqual(releaseMapGame.setMap('garden_path'), true, 'setting Garden Path remains successful');
+assert(
+  releaseMapGame.getWaveSpawner() === releaseWaveSpawner,
+  'setting Garden Path preserves the WaveSpawner used by RoundManager'
+);
+assert(
+  releaseMapGame.getRoundManager() === releaseRoundManager,
+  'setting Garden Path preserves the existing RoundManager'
+);
+assertEqual(releaseMapGame.setMap('forest_loop'), false, 'release scope rejects alternate maps');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map set preserves Garden Path');
+assertEqual(releaseMapGame.selectMap('forest_loop'), false, 'release scope rejects alternate map selection');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map selection preserves Garden Path');
+releaseMapGame.getMapSelectionState().selectedMapId = 'forest_loop';
+assertEqual(releaseMapGame.confirmMapSelection(), false, 'release scope rejects alternate map confirmation');
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'rejected map confirmation preserves Garden Path');
+releaseMapGame.startMapSelection();
+assertEqual(releaseMapGame.getMapSelectionState().isSelecting, false, 'release scope blocks map selection');
+releaseMapGame.reset();
+assertEqual(releaseMapGame.getCurrentMap()?.id, 'garden_path', 'reset preserves Garden Path');
+assert(
+  releaseMapGame.getWaveSpawner() === releaseWaveSpawner,
+  'reset preserves the WaveSpawner used by RoundManager'
 );
 
 console.log('All GameRunner tests passed!');

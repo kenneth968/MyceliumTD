@@ -103,12 +103,12 @@ const SELECTION_COLORS = {
 };
 
 const TOWER_SIZES: Record<TowerType, number> = {
-  [TowerType.PuffballFungus]: 20,
-  [TowerType.OrchidTrap]: 18,
-  [TowerType.VenusFlytower]: 24,
-  [TowerType.BioluminescentShroom]: 16,
-  [TowerType.StinkhornLine]: 22,
-  [TowerType.MyceliumNetwork]: 25,
+  [TowerType.Puffball]: 20,
+  [TowerType.Slimefungus]: 18,
+  [TowerType.ThornSniper]: 24,
+  [TowerType.LumenOracle]: 16,
+  [TowerType.BulbShooter]: 22,
+  [TowerType.Sporecap]: 25,
 };
 
 const PLACEMENT_COLORS = {
@@ -241,12 +241,12 @@ export function getTowerPlacementIndicator(
   const pulsePhase = (time * pulseSpeed) % (2 * Math.PI);
 
   const typeMap: Record<TowerType, 'circle' | 'square' | 'diamond'> = {
-    [TowerType.PuffballFungus]: 'circle',
-    [TowerType.OrchidTrap]: 'diamond',
-    [TowerType.VenusFlytower]: 'square',
-    [TowerType.BioluminescentShroom]: 'circle',
-    [TowerType.StinkhornLine]: 'diamond',
-    [TowerType.MyceliumNetwork]: 'circle',
+    [TowerType.Puffball]: 'circle',
+    [TowerType.Slimefungus]: 'diamond',
+    [TowerType.ThornSniper]: 'square',
+    [TowerType.LumenOracle]: 'circle',
+    [TowerType.BulbShooter]: 'diamond',
+    [TowerType.Sporecap]: 'circle',
   };
 
   return {

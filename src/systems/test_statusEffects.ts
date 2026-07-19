@@ -10,7 +10,7 @@ const path = createDefaultPath();
 console.log('=== Status Effect System Integration Tests ===\n');
 
 function createTestEnemy(): Enemy {
-  return createEnemy(1, EnemyType.RedMushroom, path);
+  return createEnemy(1, EnemyType.ScoutBeetle, path);
 }
 
 let passed = 0;
@@ -210,6 +210,19 @@ test('should process multiple effects at once', () => {
   assert(result.effectsApplied.length === 2, 'Should apply 2 effects');
   assert(result.effectsApplied.includes(StatusEffectType.Slow), 'Should include slow');
   assert(result.effectsApplied.includes(StatusEffectType.Poison), 'Should include poison');
+});
+
+test('shielded hit should consume damage and status together', () => {
+  const enemy = createEnemy(2, EnemyType.WardMoth, path);
+  const result = processStatusEffectHit(enemy, [
+    { type: 'damage', strength: 3 },
+    { type: 'slow', strength: 0.5, duration: 1000 },
+  ], 16);
+
+  assert(result.damage === 0, 'Shielded hit should apply zero damage');
+  assert(enemy.shieldCharges === 0, 'Shielded hit should consume the shield charge');
+  assert(result.effectsApplied.length === 0, 'Shielded hit should consume its status effect');
+  assert(!hasStatusEffect(enemy, StatusEffectType.Slow), 'Shielded hit should not apply slow');
 });
 
 console.log('\n--- Tower type status effects ---');

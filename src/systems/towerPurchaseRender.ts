@@ -1,6 +1,5 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
-import { PlacementMode } from './input';
 
 export interface TowerPurchaseButton {
   towerType: TowerType;
@@ -30,66 +29,48 @@ export interface TowerPurchasePanel {
 }
 
 const TOWER_COLORS: Record<TowerType, { primary: string; secondary: string }> = {
-  [TowerType.PuffballFungus]: { primary: '#98D8AA', secondary: '#5DAA7A' },
-  [TowerType.OrchidTrap]: { primary: '#DDA0DD', secondary: '#BA55D3' },
-  [TowerType.VenusFlytower]: { primary: '#90EE90', secondary: '#32CD32' },
-  [TowerType.BioluminescentShroom]: { primary: '#87CEEB', secondary: '#4169E1' },
-  [TowerType.StinkhornLine]: { primary: '#DEB887', secondary: '#D2691E' },
-  [TowerType.MyceliumNetwork]: { primary: '#9B59B6', secondary: '#8E44AD' },
-};
-
-const TOWER_DESCRIPTIONS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Area damage, hits multiple enemies',
-  [TowerType.OrchidTrap]: 'Slows enemies, great for control',
-  [TowerType.VenusFlytower]: 'Instakill low-HP enemies',
-  [TowerType.BioluminescentShroom]: 'Reveals camo enemies',
-  [TowerType.StinkhornLine]: 'Poisons enemies over time',
-  [TowerType.MyceliumNetwork]: 'Buffs nearby towers with mycelium network',
+  [TowerType.Puffball]: { primary: '#98D8AA', secondary: '#5DAA7A' },
+  [TowerType.Slimefungus]: { primary: '#DDA0DD', secondary: '#BA55D3' },
+  [TowerType.ThornSniper]: { primary: '#90EE90', secondary: '#32CD32' },
+  [TowerType.LumenOracle]: { primary: '#87CEEB', secondary: '#4169E1' },
+  [TowerType.BulbShooter]: { primary: '#DEB887', secondary: '#D2691E' },
+  [TowerType.Sporecap]: { primary: '#9B59B6', secondary: '#8E44AD' },
 };
 
 const TOWER_ROLES: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Splash',
-  [TowerType.OrchidTrap]: 'Control',
-  [TowerType.VenusFlytower]: 'Execute',
-  [TowerType.BioluminescentShroom]: 'Reveal',
-  [TowerType.StinkhornLine]: 'Damage Over Time',
-  [TowerType.MyceliumNetwork]: 'Network',
+  [TowerType.Puffball]: 'Splash',
+  [TowerType.Slimefungus]: 'Control',
+  [TowerType.ThornSniper]: 'Precision',
+  [TowerType.LumenOracle]: 'Reveal',
+  [TowerType.BulbShooter]: 'Burst',
+  [TowerType.Sporecap]: 'Generalist',
 };
 
 const TOWER_COUNTER_TAGS: Record<TowerType, string[]> = {
-  [TowerType.PuffballFungus]: ['Swarm', 'Metal'],
-  [TowerType.OrchidTrap]: ['Fast', 'Traits'],
-  [TowerType.VenusFlytower]: ['Marked', 'Elite'],
-  [TowerType.BioluminescentShroom]: ['Camo', 'Support'],
-  [TowerType.StinkhornLine]: ['Tank', 'Long Lane'],
-  [TowerType.MyceliumNetwork]: ['Bottom Path', 'Support'],
+  [TowerType.Puffball]: ['Swarm', 'Metal'],
+  [TowerType.Slimefungus]: ['Fast', 'Traits'],
+  [TowerType.ThornSniper]: ['Elite', 'Long Lane'],
+  [TowerType.LumenOracle]: ['Camo', 'Support'],
+  [TowerType.BulbShooter]: ['Swarm', 'Metal'],
+  [TowerType.Sporecap]: ['Starter', 'Flexible'],
 };
 
 const TOWER_TACTICAL_HINTS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Best when clustered enemies bunch on bends.',
-  [TowerType.OrchidTrap]: 'Slows fast threats and strips trait pressure.',
-  [TowerType.VenusFlytower]: 'Finishes marked or weakened high-value targets.',
-  [TowerType.BioluminescentShroom]: 'Reveals camo lanes so other towers can fire.',
-  [TowerType.StinkhornLine]: 'Stacks poison on durable enemies over long lanes.',
-  [TowerType.MyceliumNetwork]: 'Links towers into the network for support routes.',
-};
-
-const TOWER_LABELS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: 'Puffball',
-  [TowerType.OrchidTrap]: 'Orchid',
-  [TowerType.VenusFlytower]: 'Venus',
-  [TowerType.BioluminescentShroom]: 'BioLumi',
-  [TowerType.StinkhornLine]: 'Stinkhorn',
-  [TowerType.MyceliumNetwork]: 'Mycelium',
+  [TowerType.Puffball]: 'Best when clustered enemies bunch on bends.',
+  [TowerType.Slimefungus]: 'Slows fast threats and strips trait pressure.',
+  [TowerType.ThornSniper]: 'Covers long lanes and focuses durable priority targets.',
+  [TowerType.LumenOracle]: 'Reveals camo lanes so other towers can fire.',
+  [TowerType.BulbShooter]: 'Bursts clustered armored threats at choke points.',
+  [TowerType.Sporecap]: 'A dependable early tower for flexible lane coverage.',
 };
 
 const HOTKEYS: Record<TowerType, string> = {
-  [TowerType.PuffballFungus]: '1',
-  [TowerType.OrchidTrap]: '2',
-  [TowerType.VenusFlytower]: '3',
-  [TowerType.BioluminescentShroom]: '4',
-  [TowerType.StinkhornLine]: '5',
-  [TowerType.MyceliumNetwork]: '6',
+  [TowerType.Puffball]: '1',
+  [TowerType.Slimefungus]: '2',
+  [TowerType.ThornSniper]: '3',
+  [TowerType.LumenOracle]: '4',
+  [TowerType.BulbShooter]: '5',
+  [TowerType.Sporecap]: '6',
 };
 
 export interface TowerPurchaseLayoutConfig {
@@ -125,8 +106,8 @@ export function getTowerPurchaseButton(
     canAfford,
     isSelected,
     hotkey: HOTKEYS[towerType],
-    label: TOWER_LABELS[towerType],
-    description: TOWER_DESCRIPTIONS[towerType],
+    label: TOWER_STATS[towerType].displayName,
+    description: TOWER_STATS[towerType].description,
     role: TOWER_ROLES[towerType],
     counterTags: [...TOWER_COUNTER_TAGS[towerType]],
     tacticalHint: TOWER_TACTICAL_HINTS[towerType],
@@ -139,11 +120,12 @@ export function getTowerPurchaseButtons(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): TowerPurchaseButton[] {
   const towerTypes = [
-    TowerType.PuffballFungus,
-    TowerType.OrchidTrap,
-    TowerType.VenusFlytower,
-    TowerType.BioluminescentShroom,
-    TowerType.StinkhornLine,
+    TowerType.Puffball,
+    TowerType.Slimefungus,
+    TowerType.ThornSniper,
+    TowerType.LumenOracle,
+    TowerType.BulbShooter,
+    TowerType.Sporecap,
   ];
 
   const totalWidth = towerTypes.length * config.buttonWidth + (towerTypes.length - 1) * config.buttonSpacing;
@@ -205,7 +187,7 @@ export function getTowerPurchasePanelSize(
 export function getTowerPurchasePanelPosition(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): Vec2 {
-  const size = getTowerPurchasePanelSize(5, config);
+  const size = getTowerPurchasePanelSize(6, config);
   return {
     x: config.anchorX - size.width / 2,
     y: config.anchorY - config.panelPadding,
@@ -236,7 +218,7 @@ export function isTowerPurchasePanelAtPosition(
   config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): boolean {
   const panelPos = getTowerPurchasePanelPosition(config);
-  const panelSize = getTowerPurchasePanelSize(5, config);
+  const panelSize = getTowerPurchasePanelSize(6, config);
 
   return (
     x >= panelPos.x &&
@@ -298,9 +280,9 @@ export function getTowerPurchaseButtonHotkey(towerType: TowerType): string {
 }
 
 export function getTowerPurchaseButtonLabel(towerType: TowerType): string {
-  return TOWER_LABELS[towerType] || towerType;
+  return TOWER_STATS[towerType].displayName;
 }
 
 export function getTowerPurchaseButtonDescription(towerType: TowerType): string {
-  return TOWER_DESCRIPTIONS[towerType] || '';
+  return TOWER_STATS[towerType].description;
 }

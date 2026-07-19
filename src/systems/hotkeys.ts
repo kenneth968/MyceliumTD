@@ -8,6 +8,7 @@ export enum HotkeyAction {
   SelectTower3 = 'select_tower_3',
   SelectTower4 = 'select_tower_4',
   SelectTower5 = 'select_tower_5',
+  SelectTower6 = 'select_tower_6',
   SelectMap = 'select_map',
   Cancel = 'cancel',
   Pause = 'pause',
@@ -23,11 +24,12 @@ export interface HotkeyMapping {
 }
 
 export const HOTKEY_MAPPINGS: HotkeyMapping[] = [
-  { key: '1', action: HotkeyAction.SelectTower1, towerType: TowerType.PuffballFungus },
-  { key: '2', action: HotkeyAction.SelectTower2, towerType: TowerType.OrchidTrap },
-  { key: '3', action: HotkeyAction.SelectTower3, towerType: TowerType.VenusFlytower },
-  { key: '4', action: HotkeyAction.SelectTower4, towerType: TowerType.BioluminescentShroom },
-  { key: '5', action: HotkeyAction.SelectTower5, towerType: TowerType.StinkhornLine },
+  { key: '1', action: HotkeyAction.SelectTower1, towerType: TowerType.Puffball },
+  { key: '2', action: HotkeyAction.SelectTower2, towerType: TowerType.Slimefungus },
+  { key: '3', action: HotkeyAction.SelectTower3, towerType: TowerType.ThornSniper },
+  { key: '4', action: HotkeyAction.SelectTower4, towerType: TowerType.LumenOracle },
+  { key: '5', action: HotkeyAction.SelectTower5, towerType: TowerType.BulbShooter },
+  { key: '6', action: HotkeyAction.SelectTower6, towerType: TowerType.Sporecap },
   { key: 'Escape', action: HotkeyAction.Cancel },
   { key: 'Esc', action: HotkeyAction.Cancel },
   { key: 'Space', action: HotkeyAction.Pause },
@@ -48,15 +50,17 @@ export interface HotkeyResult {
 export function getTowerTypeForHotkey(action: HotkeyAction): TowerType | undefined {
   switch (action) {
     case HotkeyAction.SelectTower1:
-      return TowerType.PuffballFungus;
+      return TowerType.Puffball;
     case HotkeyAction.SelectTower2:
-      return TowerType.OrchidTrap;
+      return TowerType.Slimefungus;
     case HotkeyAction.SelectTower3:
-      return TowerType.VenusFlytower;
+      return TowerType.ThornSniper;
     case HotkeyAction.SelectTower4:
-      return TowerType.BioluminescentShroom;
+      return TowerType.LumenOracle;
     case HotkeyAction.SelectTower5:
-      return TowerType.StinkhornLine;
+      return TowerType.BulbShooter;
+    case HotkeyAction.SelectTower6:
+      return TowerType.Sporecap;
     default:
       return undefined;
   }
@@ -120,6 +124,7 @@ export function processHotkey(
     case HotkeyAction.SelectTower3:
     case HotkeyAction.SelectTower4:
     case HotkeyAction.SelectTower5:
+    case HotkeyAction.SelectTower6:
       if (!canSelectTower(config)) {
         return { ...result, handled: false };
       }
@@ -151,7 +156,7 @@ export function processHotkey(
 }
 
 export function isTowerHotkey(action: HotkeyAction): boolean {
-  return action >= HotkeyAction.SelectTower1 && action <= HotkeyAction.SelectTower5;
+  return action >= HotkeyAction.SelectTower1 && action <= HotkeyAction.SelectTower6;
 }
 
 export function isCancelHotkey(action: HotkeyAction): boolean {
@@ -174,6 +179,8 @@ export function getHotkeyLabel(action: HotkeyAction): string {
       return '4';
     case HotkeyAction.SelectTower5:
       return '5';
+    case HotkeyAction.SelectTower6:
+      return '6';
     case HotkeyAction.Cancel:
       return 'Esc';
     case HotkeyAction.Pause:
@@ -192,15 +199,17 @@ export function getHotkeyLabel(action: HotkeyAction): string {
 export function getHotkeyDescription(action: HotkeyAction, towerName?: string): string {
   switch (action) {
     case HotkeyAction.SelectTower1:
-      return 'Select Puffball Fungus';
+      return 'Select Puffball';
     case HotkeyAction.SelectTower2:
-      return 'Select Orchid Trap';
+      return 'Select Slimefungus';
     case HotkeyAction.SelectTower3:
-      return 'Select Venus Flytower';
+      return 'Select Thorn Sniper';
     case HotkeyAction.SelectTower4:
-      return 'Select Bioluminescent Shroom';
+      return 'Select Lumen Oracle';
     case HotkeyAction.SelectTower5:
-      return 'Select Stinkhorn Line';
+      return 'Select Bulb Shooter';
+    case HotkeyAction.SelectTower6:
+      return 'Select Sporecap';
     case HotkeyAction.Cancel:
       return 'Cancel';
     case HotkeyAction.Pause:

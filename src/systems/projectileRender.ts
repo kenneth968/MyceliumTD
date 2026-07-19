@@ -40,7 +40,7 @@ const TOWER_COLORS: Record<TowerType, {
   shape: ProjectileShape;
   trailStyle: ProjectileTrailStyle;
 }> = {
-  [TowerType.PuffballFungus]: {
+  [TowerType.Puffball]: {
     primary: '#9B59B6',
     glow: '#E8DAEF',
     accent: '#F7DC6F',
@@ -48,7 +48,7 @@ const TOWER_COLORS: Record<TowerType, {
     shape: 'cloud',
     trailStyle: 'spore',
   },
-  [TowerType.OrchidTrap]: {
+  [TowerType.Slimefungus]: {
     primary: '#3498DB',
     glow: '#D4E6F1',
     accent: '#FF69B4',
@@ -56,7 +56,7 @@ const TOWER_COLORS: Record<TowerType, {
     shape: 'drop',
     trailStyle: 'ribbon',
   },
-  [TowerType.VenusFlytower]: {
+  [TowerType.ThornSniper]: {
     primary: '#E74C3C',
     glow: '#FADBD8',
     accent: '#32CD32',
@@ -64,7 +64,7 @@ const TOWER_COLORS: Record<TowerType, {
     shape: 'jaw',
     trailStyle: 'snap',
   },
-  [TowerType.BioluminescentShroom]: {
+  [TowerType.LumenOracle]: {
     primary: '#1ABC9C',
     glow: '#D1F2EB',
     accent: '#A3E4D7',
@@ -72,7 +72,7 @@ const TOWER_COLORS: Record<TowerType, {
     shape: 'bolt',
     trailStyle: 'spark',
   },
-  [TowerType.StinkhornLine]: {
+  [TowerType.BulbShooter]: {
     primary: '#27AE60',
     glow: '#D5F5E3',
     accent: '#FF8C42',
@@ -80,7 +80,7 @@ const TOWER_COLORS: Record<TowerType, {
     shape: 'needle',
     trailStyle: 'toxin',
   },
-  [TowerType.MyceliumNetwork]: {
+  [TowerType.Sporecap]: {
     primary: '#8E44AD',
     glow: '#D7BDE2',
     accent: '#FF00FF',
@@ -98,7 +98,7 @@ export function getProjectileRenderData(
   projectile: Projectile,
   previousPosition?: Vec2
 ): ProjectileRenderData {
-  const colors = TOWER_COLORS[projectile.towerType] || TOWER_COLORS[TowerType.PuffballFungus];
+  const colors = TOWER_COLORS[projectile.towerType] || TOWER_COLORS[TowerType.Puffball];
   const stats = TOWER_STATS[projectile.towerType];
 
   return {

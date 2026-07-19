@@ -41,7 +41,7 @@ function test(name: string, fn: () => void): void {
 
 test('WaveSpawner creates enemies with correct stats from ENEMY_STATS', () => {
   const waves = createDefaultWaves();
-  const redMushroomStats = ENEMY_STATS[EnemyType.RedMushroom];
+  const redMushroomStats = ENEMY_STATS[EnemyType.ScoutBeetle];
   
   const spawner = new WaveSpawner(path, [waves[0]]);
   spawner.setNextEnemyId(1);
@@ -53,8 +53,9 @@ test('WaveSpawner creates enemies with correct stats from ENEMY_STATS', () => {
   assert(newEnemies.length > 0, 'Enemy was spawned');
   
   const enemy = newEnemies[0];
-  assertEqual(enemy.hp, redMushroomStats.hp, 'Enemy HP matches ENEMY_STATS');
-  assertEqual(enemy.maxHp, redMushroomStats.hp, 'Enemy maxHp matches ENEMY_STATS');
+  const expectedHp = redMushroomStats.layers.reduce((total, layerHp) => total + layerHp, 0);
+  assertEqual(enemy.hp, expectedHp, 'Enemy HP matches ENEMY_STATS');
+  assertEqual(enemy.maxHp, expectedHp, 'Enemy maxHp matches ENEMY_STATS');
   assertEqual(enemy.speed, redMushroomStats.speed, 'Enemy speed matches ENEMY_STATS');
   assertEqual(enemy.reward, redMushroomStats.reward, 'Enemy reward matches ENEMY_STATS');
   assertEqual(enemy.alive, true, 'Newly spawned enemy is alive');
@@ -96,7 +97,8 @@ test('WaveSpawner generates unique enemy IDs across multiple spawns', () => {
     if (!spawner.isWaveActive()) break;
   }
   
-  assertEqual(ids.size, 10, 'All 10 enemies have unique IDs');
+  const expectedCount = waves[0].groups.reduce((total, group) => total + group.count, 0);
+  assertEqual(ids.size, expectedCount, 'Every release-wave enemy has a unique ID');
 });
 
 test('WaveSpawner tracks all spawned enemies via getSpawnedEnemies', () => {
@@ -113,15 +115,16 @@ test('WaveSpawner tracks all spawned enemies via getSpawnedEnemies', () => {
   }
   
   const spawnedEnemies = spawner.getSpawnedEnemies();
-  assertEqual(spawnedEnemies.length, 10, 'WaveSpawner tracks all 10 spawned enemies');
+  const expectedCount = waves[0].groups.reduce((total, group) => total + group.count, 0);
+  assertEqual(spawnedEnemies.length, expectedCount, 'WaveSpawner tracks every release-wave enemy');
 });
 
 test('Enemies from different waves have correct types', () => {
   const wave1 = createWave(1, 'Wave 1', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 }
   ]);
   const wave2 = createWave(2, 'Wave 2', [
-    { enemyType: EnemyType.BlueBeetle, count: 2, interval: 100 }
+    { enemyType: EnemyType.DartWasp, count: 2, interval: 100 }
   ]);
   
   const spawner = new WaveSpawner(path, [wave1, wave2]);
@@ -142,14 +145,14 @@ test('Enemies from different waves have correct types', () => {
   }
   
   assertEqual(wave1Enemies.length, 2, 'Wave 1 has 2 enemies');
-  assertEqual(wave1Enemies[0].enemyType, EnemyType.RedMushroom, 'Wave 1 enemy type is RedMushroom');
+  assertEqual(wave1Enemies[0].enemyType, EnemyType.ScoutBeetle, 'Wave 1 enemy type is RedMushroom');
   
   assertEqual(wave2Enemies.length, 2, 'Wave 2 has 2 enemies');
-  assertEqual(wave2Enemies[0].enemyType, EnemyType.BlueBeetle, 'Wave 2 enemy type is BlueBeetle');
+  assertEqual(wave2Enemies[0].enemyType, EnemyType.DartWasp, 'Wave 2 enemy type is BlueBeetle');
 });
 
 test('Enemy respawn resets position and health', () => {
-  const enemy = createEnemy(1, EnemyType.RedMushroom, path);
+  const enemy = createEnemy(1, EnemyType.ScoutBeetle, path);
   const originalPos = { ...enemy.position };
   
   enemy.hp = 0;
@@ -183,7 +186,7 @@ test('WaveSpawner.nextEnemyId is managed correctly', () => {
 
 test('Wave spawn timing respects interval', () => {
   const wave = createWave(1, 'Test', [
-    { enemyType: EnemyType.RedMushroom, count: 3, interval: 500 }
+    { enemyType: EnemyType.ScoutBeetle, count: 3, interval: 500 }
   ]);
   
   const spawner = new WaveSpawner(path, [wave]);
@@ -205,7 +208,7 @@ test('Wave spawn timing respects interval', () => {
 
 test('WaveSpawner catches up all due enemies after a long frame', () => {
   const wave = createWave(1, 'Catch-up Test', [
-    { enemyType: EnemyType.RedMushroom, count: 5, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 5, interval: 100 }
   ]);
 
   const spawner = new WaveSpawner(path, [wave]);
@@ -223,7 +226,7 @@ test('WaveSpawner catches up all due enemies after a long frame', () => {
 
 test('WaveSpawner deactivates after the final group has spawned and its delay has elapsed', () => {
   const wave = createWave(1, 'Completion Test', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 }
   ], 200);
 
   const spawner = new WaveSpawner(path, [wave]);
@@ -240,8 +243,8 @@ test('WaveSpawner deactivates after the final group has spawned and its delay ha
 
 test('Wave with multiple groups spawns correctly', () => {
   const wave = createWave(1, 'MultiGroup', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 },
-    { enemyType: EnemyType.BlueBeetle, count: 2, interval: 100 },
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 },
+    { enemyType: EnemyType.DartWasp, count: 2, interval: 100 },
   ], 200);
   
   const spawner = new WaveSpawner(path, [wave]);
@@ -261,8 +264,8 @@ test('Wave with multiple groups spawns correctly', () => {
   const firstTwo = spawned.slice(0, 2);
   const lastTwo = spawned.slice(2);
   
-  assertEqual(firstTwo[0].enemyType, EnemyType.RedMushroom, 'First group is RedMushroom');
-  assertEqual(lastTwo[0].enemyType, EnemyType.BlueBeetle, 'Second group is BlueBeetle');
+  assertEqual(firstTwo[0].enemyType, EnemyType.ScoutBeetle, 'First group is RedMushroom');
+  assertEqual(lastTwo[0].enemyType, EnemyType.DartWasp, 'Second group is BlueBeetle');
 });
 
 test('EnemyType enum values match ENEMY_STATS keys', () => {
@@ -274,21 +277,21 @@ test('EnemyType enum values match ENEMY_STATS keys', () => {
 
 test('All 10 enemy types have valid stats', () => {
   const expectedTypes: EnemyType[] = [
-    EnemyType.RedMushroom,
-    EnemyType.BlueBeetle,
-    EnemyType.GreenCaterpillar,
-    EnemyType.YellowWasp,
-    EnemyType.PinkLadybug,
-    EnemyType.BlackWidow,
-    EnemyType.WhiteMoth,
-    EnemyType.ArmoredBeetle,
-    EnemyType.RainbowStag,
-    EnemyType.ShelledSnail,
+    EnemyType.ScoutBeetle,
+    EnemyType.DartWasp,
+    EnemyType.ShellBeetle,
+    EnemyType.CrawlerCaterpillar,
+    EnemyType.SwarmWasp,
+    EnemyType.IronCaterpillar,
+    EnemyType.VeilWasp,
+    EnemyType.BulwarkBeetle,
+    EnemyType.WardMoth,
+    EnemyType.PaleMoth,
   ];
   
   for (const type of expectedTypes) {
     const stats = ENEMY_STATS[type];
-    assert(stats.hp > 0, `${type} has positive HP`);
+    assert(stats.layers.reduce((total, layerHp) => total + layerHp, 0) > 0, `${type} has positive HP`);
     assert(stats.speed > 0, `${type} has positive speed`);
     assert(stats.reward >= 0, `${type} has non-negative reward`);
   }
@@ -296,7 +299,7 @@ test('All 10 enemy types have valid stats', () => {
 
 test('SpawnedEnemy tracks spawn metadata', () => {
   const wave = createWave(1, 'Test', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 }
   ]);
   
   const spawner = new WaveSpawner(path, [wave]);
@@ -338,16 +341,16 @@ test('GameRunner properly integrates wave spawner to create enemies', () => {
 
 test('Enemy stats are correctly used for all enemy types', () => {
   const enemyTypes: EnemyType[] = [
-    EnemyType.RedMushroom,
-    EnemyType.BlueBeetle,
-    EnemyType.GreenCaterpillar,
-    EnemyType.YellowWasp,
-    EnemyType.PinkLadybug,
-    EnemyType.BlackWidow,
-    EnemyType.WhiteMoth,
-    EnemyType.ArmoredBeetle,
-    EnemyType.RainbowStag,
-    EnemyType.ShelledSnail,
+    EnemyType.ScoutBeetle,
+    EnemyType.DartWasp,
+    EnemyType.ShellBeetle,
+    EnemyType.CrawlerCaterpillar,
+    EnemyType.SwarmWasp,
+    EnemyType.IronCaterpillar,
+    EnemyType.VeilWasp,
+    EnemyType.BulwarkBeetle,
+    EnemyType.WardMoth,
+    EnemyType.PaleMoth,
   ];
   
   for (const type of enemyTypes) {
@@ -355,8 +358,9 @@ test('Enemy stats are correctly used for all enemy types', () => {
     const stats = ENEMY_STATS[type];
     
     assertEqual(enemy.enemyType, type, `${type}: enemyType matches`);
-    assertEqual(enemy.hp, stats.hp, `${type}: hp matches`);
-    assertEqual(enemy.maxHp, stats.hp, `${type}: maxHp matches`);
+    const expectedHp = stats.layers.reduce((total, layerHp) => total + layerHp, 0);
+    assertEqual(enemy.hp, expectedHp, `${type}: hp matches`);
+    assertEqual(enemy.maxHp, expectedHp, `${type}: maxHp matches`);
     assertEqual(enemy.speed, stats.speed, `${type}: speed matches`);
     assertEqual(enemy.baseSpeed, stats.speed, `${type}: baseSpeed matches`);
     assertEqual(enemy.reward, stats.reward, `${type}: reward matches`);
@@ -368,10 +372,10 @@ test('Enemy stats are correctly used for all enemy types', () => {
 
 test('Multiple waves can be started sequentially', () => {
   const wave1 = createWave(1, 'Wave 1', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 }
   ]);
   const wave2 = createWave(2, 'Wave 2', [
-    { enemyType: EnemyType.BlueBeetle, count: 2, interval: 100 }
+    { enemyType: EnemyType.DartWasp, count: 2, interval: 100 }
   ]);
   
   const spawner = new WaveSpawner(path, [wave1, wave2]);
@@ -394,7 +398,7 @@ test('Multiple waves can be started sequentially', () => {
 
 test('getRemainingInCurrentGroup returns correct count', () => {
   const wave = createWave(1, 'Test', [
-    { enemyType: EnemyType.RedMushroom, count: 5, interval: 100 }
+    { enemyType: EnemyType.ScoutBeetle, count: 5, interval: 100 }
   ]);
   
   const spawner = new WaveSpawner(path, [wave]);
@@ -414,8 +418,8 @@ test('getRemainingInCurrentGroup returns correct count', () => {
 
 test('getRemainingGroups returns correct count', () => {
   const wave = createWave(1, 'Test', [
-    { enemyType: EnemyType.RedMushroom, count: 2, interval: 100 },
-    { enemyType: EnemyType.BlueBeetle, count: 2, interval: 100 },
+    { enemyType: EnemyType.ScoutBeetle, count: 2, interval: 100 },
+    { enemyType: EnemyType.DartWasp, count: 2, interval: 100 },
   ], 200);
   
   const spawner = new WaveSpawner(path, [wave]);

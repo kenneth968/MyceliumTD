@@ -17,6 +17,12 @@ console.log('Testing Economy System...\n');
 const startingMoney = DEFAULT_ECONOMY_CONFIG.startingMoney;
 const startingLives = DEFAULT_ECONOMY_CONFIG.startingLives;
 
+assert(DEFAULT_ECONOMY_CONFIG.startingMoney === 500, 'Release starts with exactly 500 Nutrients');
+assert(DEFAULT_ECONOMY_CONFIG.roundBonusBase === 75, 'Release completion base is exactly 75');
+assert(DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier === 25, 'Release completion multiplier is exactly 25');
+assert(DEFAULT_ECONOMY_CONFIG.perfectWaveBonusPercent === 0.1, 'Release perfect bonus is exactly 10%');
+assert(DEFAULT_ECONOMY_CONFIG.sellRefundPercent === 0.7, 'Release sell refund is exactly 70%');
+
 const economy = createEconomy();
 assert(economy.getMoney() === startingMoney, `Starting money should be ${startingMoney}`);
 assert(economy.getLives() === startingLives, `Starting lives should be ${startingLives}`);
@@ -78,18 +84,44 @@ console.log('  ✓ addInterest respects 5s interval');
 
 economy.reset();
 const bonus = economy.addRoundBonus();
-assert(bonus === DEFAULT_ECONOMY_CONFIG.roundBonusBase, `Round bonus should be base ${DEFAULT_ECONOMY_CONFIG.roundBonusBase}`);
+assert(bonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase, `Round completion should be base ${DEFAULT_ECONOMY_CONFIG.roundBonusBase}`);
+assert(bonus.perfect === Math.floor(bonus.completion * DEFAULT_ECONOMY_CONFIG.perfectWaveBonusPercent), 'Perfect wave should receive the configured bonus');
+assert(bonus.total === bonus.completion + bonus.perfect, 'Round total should include completion and perfect bonuses');
 assert(economy.getRoundsCompleted() === 1, 'Rounds completed should be 1');
-assert(economy.getMoney() === startingMoney + DEFAULT_ECONOMY_CONFIG.roundBonusBase, 'Money should include round bonus');
+assert(economy.getMoney() === startingMoney + bonus.total, 'Money should include round bonus');
 console.log('  ✓ addRoundBonus');
 
 economy.reset();
 economy.addRoundBonus();
 economy.addKillReward(100);
 const secondBonus = economy.addRoundBonus();
-assert(secondBonus === DEFAULT_ECONOMY_CONFIG.roundBonusBase + DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier, 
+assert(secondBonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase + DEFAULT_ECONOMY_CONFIG.roundBonusMultiplier,
   `Second bonus should include multiplier`);
 console.log('  ✓ addRoundBonus includes multiplier');
+
+const leakedWaveEconomy = createEconomy();
+const leakedWaveBonus = leakedWaveEconomy.addRoundBonus(1);
+assert(
+  leakedWaveBonus.completion === DEFAULT_ECONOMY_CONFIG.roundBonusBase,
+  'A leaked wave should still receive its completion bonus'
+);
+assert(leakedWaveBonus.perfect === 0, 'A leaked wave should not receive a perfect bonus');
+assert(leakedWaveBonus.total === leakedWaveBonus.completion, 'A leaked wave total should equal completion only');
+const leakedWaveTransaction = leakedWaveEconomy.getTransactions()[0];
+assert(leakedWaveTransaction.type === TransactionType.RoundBonus, 'Leaked wave records a RoundBonus transaction');
+assert(leakedWaveTransaction.amount === 75, 'Leaked wave transaction records the exact 75 total');
+assert(leakedWaveTransaction.description === 'Wave 1 completed', 'Leaked wave transaction has the exact wave description');
+
+const perfectWaveEconomy = createEconomy();
+const perfectWaveBonus = perfectWaveEconomy.addRoundBonus(0);
+assert(perfectWaveBonus.completion === 75, 'Perfect wave records exact completion reward');
+assert(perfectWaveBonus.perfect === 7, 'Perfect wave floors the exact 10% reward');
+assert(perfectWaveBonus.total === 82, 'Perfect wave reports exact total reward');
+const perfectWaveTransaction = perfectWaveEconomy.getTransactions()[0];
+assert(perfectWaveTransaction.type === TransactionType.RoundBonus, 'Perfect wave records a RoundBonus transaction');
+assert(perfectWaveTransaction.amount === 82, 'Perfect wave transaction records the exact 82 total');
+assert(perfectWaveTransaction.description === 'Wave 1 completed', 'Perfect wave transaction has the exact wave description');
+console.log('  ✓ leaked wave receives completion but not perfect bonus');
 
 economy.reset();
 const lostLife = economy.loseLife(1);
@@ -108,7 +140,7 @@ console.log('  ✓ loseLife respects minimum of 0');
 
 economy.reset();
 economy.addKillReward(500);
-economy.spendForTower(200, 'PuffballFungus');
+economy.spendForTower(200, 'Puffball');
 assert(economy.getMoney() === startingMoney + 500 - 200, 'Money should reflect tower purchase');
 console.log('  ✓ spendForTower');
 
@@ -156,7 +188,7 @@ assert(hasGameOver === true, 'Should have game over transaction');
 console.log('  ✓ Game Over detection');
 
 economy.reset();
-economy.spendForTower(650, 'Venus Flytower');
+economy.spendForTower(startingMoney, 'Venus Flytower');
 const spent2 = economy.spend(100, 'Something');
 assert(spent2 === false, 'Should not be able to spend when low on funds');
 console.log('  ✓ Spend correctly checks available funds');

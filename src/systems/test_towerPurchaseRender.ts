@@ -59,18 +59,18 @@ function testGetTowerPurchaseButton(): void {
   console.log('  testGetTowerPurchaseButton');
   
   const button = getTowerPurchaseButton(
-    TowerType.PuffballFungus,
+    TowerType.Puffball,
     { x: 100, y: 200 },
     true,
     false
   );
 
-  assertEqual(button.towerType, TowerType.PuffballFungus, 'towerType matches');
+  assertEqual(button.towerType, TowerType.Puffball, 'towerType matches');
   assertEqual(button.position.x, 100, 'position x');
   assertEqual(button.position.y, 200, 'position y');
   assertEqual(button.size.width, 120, 'button width');
   assertEqual(button.size.height, 80, 'button height');
-  assertEqual(button.cost, 100, 'cost from TOWER_STATS');
+  assertEqual(button.cost, 180, 'cost from TOWER_STATS');
   assertEqual(button.canAfford, true, 'canAfford');
   assertEqual(button.isSelected, false, 'isSelected');
   assertEqual(button.hotkey, '1', 'hotkey');
@@ -83,22 +83,23 @@ function testGetTowerPurchaseButton(): void {
 function testGetTowerPurchaseButtons(): void {
   console.log('  testGetTowerPurchaseButtons');
   
-  const canAffordFn = (tt: TowerType) => tt !== TowerType.VenusFlytower;
+  const canAffordFn = (tt: TowerType) => tt !== TowerType.ThornSniper;
   
   const buttons = getTowerPurchaseButtons(canAffordFn, null);
 
-  assertEqual(buttons.length, 5, '5 tower types');
+  assertEqual(buttons.length, 6, 'six canonical tower types');
   
-  assertEqual(buttons[0].towerType, TowerType.PuffballFungus, 'first is Puffball');
+  assertEqual(buttons[0].towerType, TowerType.Puffball, 'first is Puffball');
   assertEqual(buttons[0].canAfford, true, 'Puffball can afford');
   
-  assertEqual(buttons[2].towerType, TowerType.VenusFlytower, 'third is Venus');
-  assertEqual(buttons[2].canAfford, false, 'Venus cannot afford');
+  assertEqual(buttons[2].towerType, TowerType.ThornSniper, 'third is Thorn Sniper');
+  assertEqual(buttons[2].canAfford, false, 'Thorn Sniper cannot afford');
   
-  const totalWidth = 5 * 120 + 4 * 10;
+  const totalWidth = 6 * 120 + 5 * 10;
   const startX = 640 - totalWidth / 2;
   assertEqual(buttons[0].position.x, startX, 'first button x position');
-  assertEqual(buttons[4].position.x, startX + 4 * (120 + 10), 'last button x position');
+  assertEqual(buttons[5].towerType, TowerType.Sporecap, 'last is Sporecap');
+  assertEqual(buttons[5].position.x, startX + 5 * (120 + 10), 'last button x position');
 }
 
 function testGetTowerPurchaseRenderData(): void {
@@ -109,10 +110,10 @@ function testGetTowerPurchaseRenderData(): void {
   const data = getTowerPurchaseRenderData(false, null, 500, canAffordFn);
   
   assertEqual(data.isVisible, true, 'visible when not placing');
-  assertEqual(data.buttons.length, 5, '5 buttons');
+  assertEqual(data.buttons.length, 6, 'six buttons');
   assertEqual(data.currentMoney, 500, 'current money passed');
   
-  const placingData = getTowerPurchaseRenderData(true, TowerType.PuffballFungus, 500, canAffordFn);
+  const placingData = getTowerPurchaseRenderData(true, TowerType.Puffball, 500, canAffordFn);
   assertEqual(placingData.isVisible, false, 'hidden when placing');
   assertEqual(placingData.buttons.length, 0, 'no buttons when placing');
 }
@@ -120,8 +121,8 @@ function testGetTowerPurchaseRenderData(): void {
 function testGetTowerPurchasePanelSize(): void {
   console.log('  testGetTowerPurchasePanelSize');
   
-  const size = getTowerPurchasePanelSize(5);
-  const expectedWidth = 5 * 120 + 4 * 10 + 30;
+  const size = getTowerPurchasePanelSize(6);
+  const expectedWidth = 6 * 120 + 5 * 10 + 30;
   const expectedHeight = 80 + 30;
   
   assertEqual(size.width, expectedWidth, 'panel width');
@@ -133,7 +134,7 @@ function testGetTowerPurchasePanelPosition(): void {
   
   const pos = getTowerPurchasePanelPosition();
   
-  const totalWidth = 5 * 120 + 4 * 10 + 30;
+  const totalWidth = 6 * 120 + 5 * 10 + 30;
   const expectedX = 640 - totalWidth / 2;
   
   assertEqual(pos.x, expectedX, 'panel x');
@@ -153,7 +154,7 @@ function testGetTowerPurchaseButtonAtPosition(): void {
     firstButton.position.y + 10
   );
   
-  assertEqual(clickedType, TowerType.PuffballFungus, 'clicked first button');
+  assertEqual(clickedType, TowerType.Puffball, 'clicked first button');
   
   const outsideType = getTowerPurchaseButtonAtPosition(buttons, 0, 0);
   assertEqual(outsideType, null, 'clicked outside returns null');
@@ -164,14 +165,14 @@ function testGetTowerPurchaseButtonAtPosition(): void {
     secondButton.position.x + 10,
     secondButton.position.y + 10
   );
-  assertEqual(clickedSecond, TowerType.OrchidTrap, 'clicked second button');
+  assertEqual(clickedSecond, TowerType.Slimefungus, 'clicked second button');
 }
 
 function testIsTowerPurchasePanelAtPosition(): void {
   console.log('  testIsTowerPurchasePanelAtPosition');
   
   const panelPos = getTowerPurchasePanelPosition();
-  const panelSize = getTowerPurchasePanelSize(5);
+  const panelSize = getTowerPurchasePanelSize(6);
   
   const inside = isTowerPurchasePanelAtPosition(
     panelPos.x + 10,
@@ -186,11 +187,11 @@ function testIsTowerPurchasePanelAtPosition(): void {
 function testGetTowerButtonColors(): void {
   console.log('  testGetTowerButtonColors');
   
-  const puffballColors = getTowerButtonColors(TowerType.PuffballFungus);
+  const puffballColors = getTowerButtonColors(TowerType.Puffball);
   assertEqual(puffballColors.primary, '#98D8AA', 'puffball primary');
   assertEqual(puffballColors.secondary, '#5DAA7A', 'puffball secondary');
   
-  const venusColors = getTowerButtonColors(TowerType.VenusFlytower);
+  const venusColors = getTowerButtonColors(TowerType.ThornSniper);
   assertEqual(venusColors.primary, '#90EE90', 'venus primary');
 }
 
@@ -217,14 +218,14 @@ function testTowerPurchaseAnimator(): void {
 function testGetTowerPurchaseButtonInfo(): void {
   console.log('  testGetTowerPurchaseButtonInfo');
   
-  assertEqual(getTowerPurchaseButtonHotkey(TowerType.PuffballFungus), '1', 'puffball hotkey');
-  assertEqual(getTowerPurchaseButtonHotkey(TowerType.StinkhornLine), '5', 'stinkhorn hotkey');
+  assertEqual(getTowerPurchaseButtonHotkey(TowerType.Puffball), '1', 'puffball hotkey');
+  assertEqual(getTowerPurchaseButtonHotkey(TowerType.BulbShooter), '5', 'stinkhorn hotkey');
   
-  assertEqual(getTowerPurchaseButtonLabel(TowerType.OrchidTrap), 'Orchid', 'orchid label');
-  assertEqual(getTowerPurchaseButtonLabel(TowerType.VenusFlytower), 'Venus', 'venus label');
+  assertEqual(getTowerPurchaseButtonLabel(TowerType.Slimefungus), 'Slimefungus', 'Slimefungus label');
+  assertEqual(getTowerPurchaseButtonLabel(TowerType.ThornSniper), 'Thorn Sniper', 'Thorn Sniper label');
   
-  const desc = getTowerPurchaseButtonDescription(TowerType.BioluminescentShroom);
-  assert(desc.includes('camo'), 'bio description contains camo');
+  const desc = getTowerPurchaseButtonDescription(TowerType.LumenOracle);
+  assert(desc.includes('hidden enemies'), 'Lumen Oracle description explains detection');
 }
 
 function testButtonLayout(): void {
@@ -251,21 +252,21 @@ function testButtonClickDetection(): void {
   const buttons = getTowerPurchaseButtons(canAffordFn, null);
   
   const topLeft = getTowerPurchaseButtonAtPosition(buttons, buttons[0].position.x, buttons[0].position.y);
-  assertEqual(topLeft, TowerType.PuffballFungus, 'top-left corner');
+  assertEqual(topLeft, TowerType.Puffball, 'top-left corner');
   
   const bottomRight = getTowerPurchaseButtonAtPosition(
     buttons,
-    buttons[4].position.x + buttons[4].size.width - 1,
-    buttons[4].position.y + buttons[4].size.height - 1
+    buttons[5].position.x + buttons[5].size.width - 1,
+    buttons[5].position.y + buttons[5].size.height - 1
   );
-  assertEqual(bottomRight, TowerType.StinkhornLine, 'bottom-right corner');
+  assertEqual(bottomRight, TowerType.Sporecap, 'bottom-right corner');
   
   const inFirstButton = getTowerPurchaseButtonAtPosition(
     buttons,
     buttons[0].position.x + buttons[0].size.width - 1,
     buttons[0].position.y
   );
-  assertEqual(inFirstButton, TowerType.PuffballFungus, 'right edge of first button is still first button');
+  assertEqual(inFirstButton, TowerType.Puffball, 'right edge of first button is still first button');
   
   const outside = getTowerPurchaseButtonAtPosition(buttons, 0, 0);
   assertEqual(outside, null, 'outside all buttons returns null');
@@ -274,8 +275,8 @@ function testButtonClickDetection(): void {
 function testAffordability(): void {
   console.log('  testAffordability');
   
-  const expensiveTower = TowerType.VenusFlytower;
-  const cheapTower = TowerType.PuffballFungus;
+  const expensiveTower = TowerType.ThornSniper;
+  const cheapTower = TowerType.Puffball;
   
   const canAffordExpensive = (tt: TowerType) => tt !== expensiveTower;
   const buttons = getTowerPurchaseButtons(canAffordExpensive, null);
@@ -290,13 +291,14 @@ function testAffordability(): void {
 function testHotkeyMapping(): void {
   console.log('  testHotkeyMapping');
   
-  const hotkeys = ['1', '2', '3', '4', '5'];
+  const hotkeys = ['1', '2', '3', '4', '5', '6'];
   const towerTypes = [
-    TowerType.PuffballFungus,
-    TowerType.OrchidTrap,
-    TowerType.VenusFlytower,
-    TowerType.BioluminescentShroom,
-    TowerType.StinkhornLine,
+    TowerType.Puffball,
+    TowerType.Slimefungus,
+    TowerType.ThornSniper,
+    TowerType.LumenOracle,
+    TowerType.BulbShooter,
+    TowerType.Sporecap,
   ];
   
   for (let i = 0; i < towerTypes.length; i++) {
@@ -320,7 +322,7 @@ function testArsenalReadability(): void {
     assert(button.tacticalHint.length > 0, `${button.label} has tactical hint`);
   }
 
-  const oracle = buttons.find(b => b.towerType === TowerType.BioluminescentShroom);
+  const oracle = buttons.find(b => b.towerType === TowerType.LumenOracle);
   assert(oracle?.counterTags.includes('Camo') === true, 'oracle advertises Camo counter');
 }
 

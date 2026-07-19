@@ -62,7 +62,7 @@ console.log('\n--- getTowerInfoPanelRenderData initial state ---');
 console.log('\n--- tower selection shows info panel ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
   const selected = game.selectTower(tower!.id);
   expectTrue(selected, 'tower was selected');
@@ -72,7 +72,7 @@ console.log('\n--- tower selection shows info panel ---');
   const renderData = game.getTowerInfoPanelRenderData();
   expectTrue(renderData.isVisible || game.getTowerInfoPanelAnimator().isShowing, 'info panel shows after selection');
   expectEqual(renderData.towerId, tower!.id, 'tower id matches');
-  expectEqual(renderData.towerName, 'Puffball Fungus', 'tower name is correct');
+  expectEqual(renderData.towerName, 'Puffball', 'tower name is correct');
   expectEqual(renderData.stats.length, 3, 'has 3 stats');
   expectEqual(renderData.upgrades.length, 4, 'has 4 upgrade paths');
 }
@@ -80,7 +80,7 @@ console.log('\n--- tower selection shows info panel ---');
 console.log('\n--- tower deselection hides info panel ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.OrchidTrap, 100, 100, TargetingMode.Last);
+  const tower = game.placeTower(TowerType.Slimefungus, 100, 100, TargetingMode.Last);
   
   game.selectTower(tower!.id);
   expectTrue(game.getPlacementState() === PlacementState.Selecting, 'in selecting state');
@@ -95,7 +95,7 @@ console.log('\n--- tower deselection hides info panel ---');
 console.log('\n--- info panel with upgraded tower ---');
 {
   const game = createGameRunner({ startingMoney: 2000 });
-  const tower = game.placeTower(TowerType.VenusFlytower, 100, 100, TargetingMode.Strong);
+  const tower = game.placeTower(TowerType.ThornSniper, 100, 100, TargetingMode.Strong);
   
   game.selectTower(tower!.id);
   game.upgradeTower(tower!.id, UpgradePath.Damage);
@@ -106,13 +106,13 @@ console.log('\n--- info panel with upgraded tower ---');
   expectTrue(renderData.towerId === tower!.id, 'info panel for correct tower');
   expectEqual(renderData.upgrades[0].currentTier, 2, 'damage at tier 2');
   expectEqual(renderData.upgrades[1].currentTier, 1, 'range at tier 1');
-  expectTrue(renderData.sellValue > TOWER_STATS[TowerType.VenusFlytower].cost * 0.7, 'sell value includes upgrades');
+  expectTrue(renderData.sellValue > TOWER_STATS[TowerType.ThornSniper].cost * 0.7, 'sell value includes upgrades');
 }
 
 console.log('\n--- info panel targeting mode ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.StinkhornLine, 100, 100, TargetingMode.Close);
+  const tower = game.placeTower(TowerType.BulbShooter, 100, 100, TargetingMode.Close);
   
   game.selectTower(tower!.id);
   
@@ -124,19 +124,19 @@ console.log('\n--- info panel targeting mode ---');
 console.log('\n--- info panel special effect ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.BioluminescentShroom, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.LumenOracle, 100, 100, TargetingMode.First);
   
   game.selectTower(tower!.id);
   
   const renderData = game.getTowerInfoPanelRenderData();
   expectTrue(renderData.specialEffect !== null, 'has special effect');
-  expectEqual(renderData.specialEffect!.type, 'reveal_camo', 'has reveal_camo effect');
+  expectEqual(renderData.specialEffect!.type, 'detection', 'base Oracle advertises detection');
 }
 
 console.log('\n--- info panel animation ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
   game.selectTower(tower!.id);
   
@@ -150,7 +150,7 @@ console.log('\n--- info panel animation ---');
 console.log('\n--- info panel game reset ---');
 {
   const game = createGameRunner();
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
   game.selectTower(tower!.id);
   expectTrue(game.getTowerInfoPanelAnimator().isShowing, 'animator showing before reset');
@@ -163,18 +163,19 @@ console.log('\n--- info panel during placement mode ---');
 {
   const game = createGameRunner();
   
-  game.startTowerPlacement(TowerType.OrchidTrap);
+  game.startTowerPlacement(TowerType.Slimefungus);
   expectFalse(game.getTowerInfoPanelRenderData().isVisible, 'panel not visible during placement');
 }
 
 console.log('\n--- info panel all tower types ---');
 {
   const towerTypes = [
-    { type: TowerType.PuffballFungus, name: 'Puffball Fungus', effect: 'area_damage' },
-    { type: TowerType.OrchidTrap, name: 'Orchid Trap', effect: 'slow' },
-    { type: TowerType.VenusFlytower, name: 'Venus Flytower', effect: 'instakill' },
-    { type: TowerType.BioluminescentShroom, name: 'Bioluminescent Shroom', effect: 'reveal_camo' },
-    { type: TowerType.StinkhornLine, name: 'Stinkhorn Line', effect: 'poison' },
+    { type: TowerType.Puffball, name: 'Puffball', effect: 'area_damage' },
+    { type: TowerType.Slimefungus, name: 'Slimefungus', effect: 'slow' },
+    { type: TowerType.ThornSniper, name: 'Thorn Sniper', effect: 'precision' },
+    { type: TowerType.LumenOracle, name: 'Lumen Oracle', effect: 'detection' },
+    { type: TowerType.BulbShooter, name: 'Bulb Shooter', effect: 'area_damage' },
+    { type: TowerType.Sporecap, name: 'Sporecap', effect: undefined },
   ];
   
   for (const tt of towerTypes) {
@@ -191,14 +192,14 @@ console.log('\n--- info panel all tower types ---');
 console.log('\n--- info panel canUpgrade affordability ---');
 {
   const game = createGameRunner({ startingMoney: 1000 });
-  const tower = game.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
   game.selectTower(tower!.id);
   let renderData = game.getTowerInfoPanelRenderData();
   expectTrue(renderData.upgrades[0].canUpgrade, 'can upgrade with enough money');
   
   const game2 = createGameRunner({ startingMoney: 100 });
-  const tower2 = game2.placeTower(TowerType.PuffballFungus, 100, 100, TargetingMode.First);
+  const tower2 = game2.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
   
   if (tower2) {
     game2.selectTower(tower2.id);

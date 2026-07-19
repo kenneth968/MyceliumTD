@@ -17,6 +17,7 @@ export interface HitEffect {
 
 export interface AreaDamageResult {
   enemiesHit: Enemy[];
+  hits: Array<{ enemy: Enemy; damage: number }>;
   totalDamage: number;
 }
 
@@ -81,7 +82,7 @@ export function resolveHit(
   let totalDamage = projectile.damage;
   let appliedDamage = projectile.damage;
 
-  if (projectile.towerType === TowerType.StinkhornLine) {
+  if (projectile.towerType === TowerType.BulbShooter) {
     const existingPoison = target.statusEffects.find(
       e => e.type === StatusEffectType.Poison
     );
@@ -161,8 +162,13 @@ export function getHitEffectsForTowerType(
 export function applyHitEffects(
   enemy: Enemy,
   effects: HitEffect[],
-  deltaTime: number
+  deltaTime: number,
+  blockedByShield: boolean = false
 ): void {
+  if (blockedByShield) {
+    return;
+  }
+
   for (const effect of effects) {
     switch (effect.type) {
       case 'slow':
@@ -191,6 +197,7 @@ export function calculateAreaDamage(
 ): AreaDamageResult {
   const effectiveRadius = radius ?? AREA_DAMAGE_RADIUS;
   const enemiesHit: Enemy[] = [];
+  const hits: Array<{ enemy: Enemy; damage: number }> = [];
   let totalDamage = 0;
 
   for (const enemy of enemies) {
@@ -205,11 +212,12 @@ export function calculateAreaDamage(
       const damage = Math.floor(baseDamage * falloff);
 
       enemiesHit.push(enemy);
+      hits.push({ enemy, damage });
       totalDamage += damage;
     }
   }
 
-  return { enemiesHit, totalDamage };
+  return { enemiesHit, hits, totalDamage };
 }
 
 export function processProjectileCollision(
@@ -231,7 +239,7 @@ export function processProjectileCollision(
   const collision = resolveHit(projectile, target, deltaTime);
 
   let areaDamage: AreaDamageResult | undefined;
-  if (projectile.towerType === TowerType.PuffballFungus) {
+  if (projectile.towerType === TowerType.Puffball || projectile.towerType === TowerType.BulbShooter) {
     areaDamage = calculateAreaDamage(projectile.position, enemies, projectile.damage, projectile.areaRadius);
   }
 
@@ -268,7 +276,7 @@ export function updateProjectileCollision(
     projectile.position = { ...target.position };
     projectile.alive = false;
     const collision = resolveHit(projectile, target, deltaTime);
-    if (projectile.towerType === TowerType.PuffballFungus) {
+    if (projectile.towerType === TowerType.Puffball) {
       calculateAreaDamage(projectile.position, enemies, projectile.damage, projectile.areaRadius);
     }
     return collision;

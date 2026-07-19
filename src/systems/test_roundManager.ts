@@ -232,7 +232,7 @@ manager22.startFirstRound();
 manager22.startRound();
 assert(eventRound22 === 1, 'onRoundStart should fire with correct round');
 assert(eventWave22 !== null, 'onRoundStart should provide wave');
-assertContains(eventWave22!.name, 'Red Dawn', 'Wave should be first wave');
+assertContains(eventWave22!.name, 'First Footsteps', 'Wave should be first release wave');
 console.log('  onRoundStart event tests passed!');
 
 // onGameOver event

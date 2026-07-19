@@ -138,48 +138,48 @@ describe('Tower Visual Upgrade Progression', () => {
 
   describe('getTowerVisualConfigForStage', () => {
     runTest('should return smaller radii for Sprout stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.Sprout);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.Sprout);
       assert(config.baseRadius === 18 * 0.5, `baseRadius should be 9, got ${config.baseRadius}`);
       assert(config.bodyRadius === 14 * 0.4, `bodyRadius should be 5.6, got ${config.bodyRadius}`);
     });
 
     runTest('should return medium radii for Growing stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.Growing);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.Growing);
       assert(config.baseRadius === 18 * 0.75, `baseRadius should be 13.5, got ${config.baseRadius}`);
       assert(config.bodyRadius === 14 * 0.65, `bodyRadius should be 9.1, got ${config.bodyRadius}`);
     });
 
     runTest('should return near-full radii for Mature stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.Mature);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.Mature);
       assert(config.baseRadius === 18 * 0.9, `baseRadius should be 16.2, got ${config.baseRadius}`);
       assert(config.bodyRadius === 14 * 0.85, `bodyRadius should be 11.9, got ${config.bodyRadius}`);
     });
 
     runTest('should return slightly larger radii for FullyMatured stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.FullyMatured);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.FullyMatured);
       assert(config.baseRadius === 18 * 1.05, `baseRadius should be 18.9, got ${config.baseRadius}`);
       assert(config.bodyRadius === 14 * 1.1, `bodyRadius should be 15.4, got ${config.bodyRadius}`);
     });
 
     runTest('should darken colors for Sprout stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.Sprout);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.Sprout);
       assert(config.primary !== '#9B59B6', 'primary should be different for Sprout');
       assert(/^#[0-9a-f]{6}$/.test(config.primary), 'primary should be valid hex color');
     });
 
     runTest('should brighten colors for FullyMatured stage', () => {
-      const config = getTowerVisualConfigForStage(TowerType.PuffballFungus, TowerGrowthStage.FullyMatured);
+      const config = getTowerVisualConfigForStage(TowerType.Puffball, TowerGrowthStage.FullyMatured);
       assert(config.primary !== '#9B59B6', 'primary should be different for FullyMatured');
     });
 
     runTest('should work for all tower types', () => {
       const towerTypes = [
-        TowerType.PuffballFungus,
-        TowerType.OrchidTrap,
-        TowerType.VenusFlytower,
-        TowerType.BioluminescentShroom,
-        TowerType.StinkhornLine,
-        TowerType.MyceliumNetwork,
+        TowerType.Puffball,
+        TowerType.Slimefungus,
+        TowerType.ThornSniper,
+        TowerType.LumenOracle,
+        TowerType.BulbShooter,
+        TowerType.Sporecap,
       ];
 
       for (const towerType of towerTypes) {
@@ -200,7 +200,7 @@ describe('Tower Visual Upgrade Progression', () => {
     const { getTowerRenderData } = require('./towerRender');
 
     runTest('should apply Sprout visuals for unupgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus);
+      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 0 });
       
       assert(renderData.growthStage === TowerGrowthStage.Sprout, 'Should be Sprout stage');
@@ -209,7 +209,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply Growing visuals for slightly upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus);
+      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 100 });
       
       assert(renderData.growthStage === TowerGrowthStage.Growing, 'Should be Growing stage');
@@ -217,7 +217,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply Mature visuals for moderately upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus);
+      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 200 });
       
       assert(renderData.growthStage === TowerGrowthStage.Mature, 'Should be Mature stage');
@@ -225,7 +225,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply FullyMatured visuals for heavily upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus);
+      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 500 });
       
       assert(renderData.growthStage === TowerGrowthStage.FullyMatured, 'Should be FullyMatured stage');
@@ -235,8 +235,8 @@ describe('Tower Visual Upgrade Progression', () => {
     runTest('should propagate growth stage to render collection', () => {
       const { getTowersRenderData } = require('./towerRender');
       const towers = [
-        createTowerWithUpgrades(1, 0, 0, TowerType.PuffballFungus),
-        createTowerWithUpgrades(2, 50, 50, TowerType.OrchidTrap),
+        createTowerWithUpgrades(1, 0, 0, TowerType.Puffball),
+        createTowerWithUpgrades(2, 50, 50, TowerType.Slimefungus),
       ];
 
       const collection = getTowersRenderData(towers, {

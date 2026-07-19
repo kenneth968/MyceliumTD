@@ -1,84 +1,12 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
-import { Enemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
+import { Enemy as TargetingEnemy, Tower as TowerBase, TargetingMode, getTarget, getEnemiesInRange } from '../systems/targeting';
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
-import { DamageOptions, DamageType, canDamageEnemy, consumeShieldBlock, getMarkedAdjustedDamage, getTraitAdjustedDamage } from './enemy';
+import { DamageOptions, DamageType, Enemy, applyDamageToEnemy } from './enemy';
+import { TOWER_DEFINITIONS, TowerType } from '../content/towerDefinitions';
 
-export enum TowerType {
-  PuffballFungus = 'puffball_fungus',
-  OrchidTrap = 'orchid_trap',
-  VenusFlytower = 'venus_flytower',
-  BioluminescentShroom = 'bioluminescent_shroom',
-  StinkhornLine = 'stinkhorn_line',
-  MyceliumNetwork = 'mycelium_network',
-}
-
-export interface TowerStats {
-  type: TowerType;
-  damage: number;
-  range: number;
-  fireRate: number;
-  cost: number;
-  projectileSpeed?: number;
-  specialEffect?: string;
-}
-
-export const TOWER_STATS: Record<TowerType, TowerStats> = {
-  [TowerType.PuffballFungus]: {
-    type: TowerType.PuffballFungus,
-    damage: 1,
-    range: 80,
-    fireRate: 500,
-    cost: 100,
-    projectileSpeed: 200,
-    specialEffect: 'area_damage',
-  },
-  [TowerType.OrchidTrap]: {
-    type: TowerType.OrchidTrap,
-    damage: 2,
-    range: 100,
-    fireRate: 800,
-    cost: 150,
-    projectileSpeed: 150,
-    specialEffect: 'slow',
-  },
-  [TowerType.VenusFlytower]: {
-    type: TowerType.VenusFlytower,
-    damage: 100,
-    range: 50,
-    fireRate: 3000,
-    cost: 500,
-    projectileSpeed: 0,
-    specialEffect: 'instakill',
-  },
-  [TowerType.BioluminescentShroom]: {
-    type: TowerType.BioluminescentShroom,
-    damage: 1,
-    range: 120,
-    fireRate: 600,
-    cost: 200,
-    projectileSpeed: 180,
-    specialEffect: 'reveal_camo',
-  },
-  [TowerType.StinkhornLine]: {
-    type: TowerType.StinkhornLine,
-    damage: 3,
-    range: 90,
-    fireRate: 400,
-    cost: 250,
-    projectileSpeed: 120,
-    specialEffect: 'poison',
-  },
-  [TowerType.MyceliumNetwork]: {
-    type: TowerType.MyceliumNetwork,
-    damage: 0,
-    range: 100,
-    fireRate: 0,
-    cost: 350,
-    projectileSpeed: 0,
-    specialEffect: 'network_buff',
-  },
-};
+export { TowerDefinition as TowerStats, TowerType } from '../content/towerDefinitions';
+export const TOWER_STATS = TOWER_DEFINITIONS;
 
 export interface Projectile {
   id: number;
@@ -116,7 +44,7 @@ export function createTower(
   id: number,
   x: number,
   y: number,
-  towerType: TowerType = TowerType.PuffballFungus,
+  towerType: TowerType = TowerType.Sporecap,
   targetingMode: TargetingMode = TargetingMode.First
 ): Tower {
   const stats = TOWER_STATS[towerType];
@@ -147,18 +75,23 @@ export function getCooldownProgress(tower: Tower, currentTime: number): number {
 
 export function fireTower(
   tower: Tower,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   path: Path,
   currentTime: number,
   effectStrength?: number,
   effectDuration?: number,
-  areaRadius?: number
-): { projectile: Projectile | null; target: Enemy | null } {
+  areaRadius?: number,
+  prioritizeMarked: boolean = false
+): { projectile: Projectile | null; target: TargetingEnemy | null } {
   if (!canFire(tower, currentTime)) {
     return { projectile: null, target: null };
   }
 
-  const result = getTarget(tower, enemies, path);
+  const result = getTarget(
+    prioritizeMarked ? { ...tower, prioritizeMarked: true } : tower,
+    enemies,
+    path
+  );
   if (!result.target) {
     return { projectile: null, target: null };
   }
@@ -186,14 +119,24 @@ let nextProjectileId = 1;
 
 export function fireTowerWithProjectile(
   tower: Tower,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   path: Path,
   currentTime: number,
   effectStrength?: number,
   effectDuration?: number,
-  areaRadius?: number
+  areaRadius?: number,
+  prioritizeMarked: boolean = false
 ): Projectile | null {
-  const result = fireTower(tower, enemies, path, currentTime, effectStrength, effectDuration, areaRadius);
+  const result = fireTower(
+    tower,
+    enemies,
+    path,
+    currentTime,
+    effectStrength,
+    effectDuration,
+    areaRadius,
+    prioritizeMarked
+  );
   if (!result.projectile) {
     return null;
   }
@@ -204,9 +147,9 @@ export function fireTowerWithProjectile(
 
 export function updateProjectile(
   projectile: Projectile,
-  enemies: Enemy[],
+  enemies: TargetingEnemy[],
   deltaTime: number
-): { hit: boolean; damage: number; target: Enemy | null } {
+): { hit: boolean; damage: number; target: TargetingEnemy | null } {
   if (!projectile.alive) {
     return { hit: false, damage: 0, target: null };
   }
@@ -248,37 +191,22 @@ export function updateProjectile(
 }
 
 export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions = {}): boolean {
-  if (!enemy.alive || enemy.hp <= 0) {
-    return false;
-  }
-  if (consumeShieldBlock(enemy)) {
-    return false;
-  }
-  if (!canDamageEnemy(enemy, options)) {
-    return false;
-  }
-
-  const markedDamage = getMarkedAdjustedDamage(enemy, damage, options);
-  enemy.hp -= getTraitAdjustedDamage(enemy, markedDamage);
-  if (enemy.hp <= 0) {
-    enemy.hp = 0;
-    enemy.alive = false;
-    return true;
-  }
-
-  return false;
+  return applyDamageToEnemy(enemy, damage, options);
 }
 
 export function getTowerDamageType(towerType: TowerType): DamageType {
   switch (towerType) {
-    case TowerType.PuffballFungus:
+    case TowerType.Puffball:
+    case TowerType.BulbShooter:
       return DamageType.Explosive;
     default:
       return DamageType.Normal;
   }
 }
 
-export function getKillReward(enemy: Enemy): number {
-  const entry = Object.entries(ENEMY_STATS).find(([, stats]) => stats.hp === enemy.maxHp);
-  return entry ? entry[1].reward : 0;
+export function getKillReward(enemy: TargetingEnemy): number {
+  if (!enemy.enemyType) {
+    return 0;
+  }
+  return ENEMY_STATS[enemy.enemyType as EnemyType]?.reward ?? 0;
 }

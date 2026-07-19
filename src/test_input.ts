@@ -6,8 +6,8 @@ function createMockPlacedTowers(): PlacedTower[] {
   const game = createGameRunner();
   game.start();
   return [
-    { tower: game.placeTower(TowerType.PuffballFungus, 100, 200)!, x: 100, y: 200 },
-    { tower: game.placeTower(TowerType.OrchidTrap, 300, 400)!, x: 300, y: 400 },
+    { tower: game.placeTower(TowerType.Puffball, 100, 200)!, x: 100, y: 200 },
+    { tower: game.placeTower(TowerType.Slimefungus, 300, 400)!, x: 300, y: 400 },
   ];
 }
 
@@ -48,12 +48,12 @@ test('initial selected tower type is null', () => {
 });
 
 test('startPlacement sets mode to Placing', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   return placer.getMode() === PlacementMode.Placing;
 });
 
 test('startPlacement sets selected tower type', () => {
-  return placer.getSelectedTowerType() === TowerType.PuffballFungus;
+  return placer.getSelectedTowerType() === TowerType.Puffball;
 });
 
 test('cancelPlacement resets mode to None', () => {
@@ -66,7 +66,7 @@ test('cancelPlacement clears selected tower type', () => {
 });
 
 test('updatePlacementPosition sets position in Placing mode', () => {
-  placer.startPlacement(TowerType.OrchidTrap);
+  placer.startPlacement(TowerType.Slimefungus);
   placer.updatePlacementPosition(250, 150);
   const pos = placer.getPlacementPosition();
   placer.cancelPlacement();
@@ -74,54 +74,71 @@ test('updatePlacementPosition sets position in Placing mode', () => {
 });
 
 test('updatePlacementPosition does nothing in None mode', () => {
-  placer.startPlacement(TowerType.OrchidTrap);
+  placer.startPlacement(TowerType.Slimefungus);
   placer.updatePlacementPosition(250, 150);
   placer.cancelPlacement();
   return placer.getPlacementPosition() === null;
 });
 
 test('validatePlacement accepts valid position', () => {
-  const result = placer.validatePlacement(500, 50, TowerType.PuffballFungus);
+  const result = placer.validatePlacement(500, 50, TowerType.Puffball);
   return result.canPlace === true;
 });
 
+test('validatePlacement accepts a high-range Thorn Sniper 35px from the path', () => {
+  const result = placer.validatePlacement(100, 265, TowerType.ThornSniper);
+  return result.canPlace === true;
+});
+
+test('validatePlacement uses the same physical path clearance for low- and high-range towers', () => {
+  const thornBesidePath = placer.validatePlacement(100, 265, TowerType.ThornSniper);
+  const sporecapBesidePath = placer.validatePlacement(100, 265, TowerType.Sporecap);
+  const thornInsideClearance = placer.validatePlacement(100, 275, TowerType.ThornSniper);
+  const sporecapInsideClearance = placer.validatePlacement(100, 275, TowerType.Sporecap);
+
+  return thornBesidePath.canPlace === true &&
+    sporecapBesidePath.canPlace === true &&
+    thornInsideClearance.canPlace === false &&
+    sporecapInsideClearance.canPlace === false;
+});
+
 test('confirmPlacement returns tower type when placement is valid', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const result = placer.confirmPlacement();
-  return result === TowerType.PuffballFungus;
+  return result === TowerType.Puffball;
 });
 
 test('validatePlacement rejects position too close to path', () => {
-  const result = placer.validatePlacement(200, 300, TowerType.PuffballFungus);
+  const result = placer.validatePlacement(200, 300, TowerType.Puffball);
   return result.canPlace === false && result.reason === 'Too close to path';
 });
 
 test('validatePlacement allows long-range towers close to road edge without using attack range as collision radius', () => {
-  const result = placer.validatePlacement(160, 335, TowerType.BioluminescentShroom);
+  const result = placer.validatePlacement(160, 335, TowerType.ThornSniper);
   return result.canPlace === true;
 });
 
 test('validatePlacement still rejects towers on the road shoulder', () => {
-  const result = placer.validatePlacement(160, 315, TowerType.BioluminescentShroom);
+  const result = placer.validatePlacement(160, 315, TowerType.ThornSniper);
   return result.canPlace === false && result.reason === 'Too close to path';
 });
 
 test('validatePlacement rejects position too close to another tower', () => {
-  const result = placer.validatePlacement(110, 200, TowerType.PuffballFungus);
+  const result = placer.validatePlacement(110, 200, TowerType.Puffball);
   return result.canPlace === false && result.reason === 'Too close to another tower';
 });
 
 test('confirmPlacement returns tower type when placement is valid', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const result = placer.confirmPlacement();
-  return result === TowerType.PuffballFungus;
+  return result === TowerType.Puffball;
 });
 
 test('startPlacement returns false if already placing', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
-  const result = placer.startPlacement(TowerType.OrchidTrap);
+  placer.startPlacement(TowerType.Puffball);
+  const result = placer.startPlacement(TowerType.Slimefungus);
   placer.cancelPlacement();
   return result === false;
 });
@@ -141,10 +158,10 @@ test('deselectTower exits Selecting mode', () => {
 });
 
 test('getRangeForSelectedTower returns correct range', () => {
-  placer.startPlacement(TowerType.VenusFlytower);
+  placer.startPlacement(TowerType.ThornSniper);
   const range = placer.getRangeForSelectedTower();
   placer.cancelPlacement();
-  return range === 50;
+  return range === 190;
 });
 
 test('getRangePreview returns null when not placing', () => {
@@ -152,22 +169,22 @@ test('getRangePreview returns null when not placing', () => {
 });
 
 test('getRangePreview returns null without position', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   const preview = placer.getRangePreview();
   placer.cancelPlacement();
   return preview === null;
 });
 
 test('getRangePreview returns correct data during placement', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getRangePreview();
   placer.cancelPlacement();
-  return preview !== null && preview.position.x === 500 && preview.position.y === 50 && preview.radius === 80;
+  return preview !== null && preview.position.x === 500 && preview.position.y === 50 && preview.radius === 95;
 });
 
 test('getRangePreview isValid for valid placement', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getRangePreview();
   placer.cancelPlacement();
@@ -175,7 +192,7 @@ test('getRangePreview isValid for valid placement', () => {
 });
 
 test('getRangePreview isInvalid for invalid placement', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(200, 300);
   const preview = placer.getRangePreview();
   placer.cancelPlacement();
@@ -183,11 +200,11 @@ test('getRangePreview isInvalid for invalid placement', () => {
 });
 
 test('getRangePreview uses tower-specific range', () => {
-  placer.startPlacement(TowerType.VenusFlytower);
+  placer.startPlacement(TowerType.ThornSniper);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getRangePreview();
   placer.cancelPlacement();
-  return preview !== null && preview.radius === 50;
+  return preview !== null && preview.radius === 190;
 });
 
 test('confirmPlacement returns null when not placing', () => {
@@ -199,14 +216,14 @@ test('getPlacementPosition returns null when not placing', () => {
 });
 
 test('isPlacing returns true during placement', () => {
-  placer.startPlacement(TowerType.BioluminescentShroom);
+  placer.startPlacement(TowerType.LumenOracle);
   const result = placer.isPlacing();
   placer.cancelPlacement();
   return result === true;
 });
 
 test('isSelecting returns false after cancel', () => {
-  placer.startPlacement(TowerType.StinkhornLine);
+  placer.startPlacement(TowerType.BulbShooter);
   placer.cancelPlacement();
   return placer.isSelecting() === false;
 });
@@ -216,14 +233,14 @@ test('getPathPreview returns null when not placing', () => {
 });
 
 test('getPathPreview returns null without position', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
   return preview === null;
 });
 
 test('getPathPreview returns correct segment count', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
@@ -231,7 +248,7 @@ test('getPathPreview returns correct segment count', () => {
 });
 
 test('getPathPreview returns segments with correct structure', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
@@ -243,7 +260,7 @@ test('getPathPreview returns segments with correct structure', () => {
 });
 
 test('getPathPreview has valid totalPathLength', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
@@ -251,7 +268,7 @@ test('getPathPreview has valid totalPathLength', () => {
 });
 
 test('getPathPreview coveredLength is sum of covered segments', () => {
-  placer.startPlacement(TowerType.PuffballFungus);
+  placer.startPlacement(TowerType.Puffball);
   placer.updatePlacementPosition(500, 50);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
@@ -266,7 +283,7 @@ test('getPathPreview coveredLength is sum of covered segments', () => {
 });
 
 test('getPathPreview marks segments within range as covered', () => {
-  placer.startPlacement(TowerType.VenusFlytower);
+  placer.startPlacement(TowerType.ThornSniper);
   placer.updatePlacementPosition(200, 150);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();
@@ -276,7 +293,7 @@ test('getPathPreview marks segments within range as covered', () => {
 });
 
 test('getPathPreview returns data during placement', () => {
-  placer.startPlacement(TowerType.OrchidTrap);
+  placer.startPlacement(TowerType.Slimefungus);
   placer.updatePlacementPosition(450, 80);
   const preview = placer.getPathPreview();
   placer.cancelPlacement();

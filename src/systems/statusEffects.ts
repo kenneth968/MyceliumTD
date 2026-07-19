@@ -1,4 +1,4 @@
-import { Enemy, StatusEffectType, applyStatusEffect, updateStatusEffects, applyDamageToEnemy } from '../entities/enemy';
+import { Enemy, StatusEffectType, applyStatusEffect, resolveDamage, updateStatusEffects } from '../entities/enemy';
 import { HitEffect } from './collision';
 
 export interface StatusEffectResult {
@@ -11,8 +11,15 @@ export function processStatusEffectHit(
   effects: HitEffect[],
   deltaTime: number
 ): StatusEffectResult {
-  let totalDamage = 0;
+  const totalDamage = effects
+    .filter(effect => effect.type === 'damage')
+    .reduce((sum, effect) => sum + effect.strength, 0);
   const effectsApplied: StatusEffectType[] = [];
+  const damageResolution = totalDamage > 0 ? resolveDamage(enemy, totalDamage) : null;
+
+  if (damageResolution?.shieldConsumed) {
+    return { damage: 0, effectsApplied };
+  }
 
   for (const effect of effects) {
     switch (effect.type) {
@@ -33,14 +40,13 @@ export function processStatusEffectHit(
         effectsApplied.push(StatusEffectType.Revealed);
         break;
       case 'damage':
-        totalDamage += effect.strength;
         break;
       case 'area_damage':
         break;
     }
   }
 
-  return { damage: totalDamage, effectsApplied };
+  return { damage: damageResolution?.damageApplied ?? 0, effectsApplied };
 }
 
 export function updateEnemyWithStatusEffects(
