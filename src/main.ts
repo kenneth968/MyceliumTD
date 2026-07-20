@@ -2,7 +2,7 @@ import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed } from '.
 import type { GameEvent } from './systems/gameEvents';
 import { RoundState } from './systems/roundManager';
 import { createWaveControls, getStartWaveButtonRect, getStartWaveLabel, WaveControls } from './systems/waveControls';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
@@ -72,6 +72,7 @@ import {
     projectOnboardingReach,
     type OnboardingRenderData,
 } from './systems/onboardingRender';
+import { paintEnvironment } from './presentation/environmentPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
@@ -1178,7 +1179,7 @@ class Game {
         this.ctx.scale(renderData.camera.zoom, renderData.camera.zoom);
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
-        this.drawPath(renderData.path);
+        paintEnvironment(this.ctx, renderData.environment, renderData.viewport);
         this.drawLingeringFields(renderData.lingeringFields);
         this.drawSeededPayloads(renderData.seededPayloads);
         this.drawNetworkConnections(renderData.networkConnections);
@@ -1194,52 +1195,6 @@ class Game {
         this.ctx.restore();
         
         this.drawHUD(renderData);
-    }
-
-    private drawPath(pathData: PathRenderData): void {
-        for (const segment of pathData.segments) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(segment.start.x, segment.start.y);
-            this.ctx.lineTo(segment.end.x, segment.end.y);
-            this.ctx.strokeStyle = segment.isHighlighted ? segment.highlightColor : segment.color;
-            this.ctx.lineWidth = segment.width;
-            this.ctx.lineCap = 'round';
-            this.ctx.stroke();
-        }
-
-        // Direction arrows along path
-        const segs = pathData.segments;
-        for (let i = 0; i < segs.length; i++) {
-            const s = segs[i];
-            const mx = (s.start.x + s.end.x) / 2;
-            const my = (s.start.y + s.end.y) / 2;
-            const angle = Math.atan2(s.end.y - s.start.y, s.end.x - s.start.x);
-            const sz = 8;
-            this.ctx.save();
-            this.ctx.translate(mx, my);
-            this.ctx.rotate(angle);
-            this.ctx.beginPath();
-            this.ctx.moveTo(sz, 0);
-            this.ctx.lineTo(-sz, -sz * 0.6);
-            this.ctx.lineTo(-sz, sz * 0.6);
-            this.ctx.closePath();
-            this.ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
-            this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        // Start / End labels
-        if (segs.length > 0) {
-            const first = segs[0];
-            const last = segs[segs.length - 1];
-            this.ctx.font = 'bold 14px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = '#4ade80';
-            this.ctx.fillText('START', first.start.x, first.start.y - 20);
-            this.ctx.fillStyle = '#f87171';
-            this.ctx.fillText('END', last.end.x, last.end.y - 20);
-        }
     }
 
     private drawPlacementPreview(preview: PlacementPreviewWithTargetingRenderData | null): void {

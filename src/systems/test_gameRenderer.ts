@@ -85,6 +85,11 @@ test('placement state is None initially', () => renderData.placementState === Pl
 test('path render data is defined', () => renderData.path !== undefined);
 test('path has points', () => renderData.path.points.length > 0);
 test('path has segments', () => renderData.path.segments.length > 0);
+test('frame includes the Garden Path environment before gameplay layers', () =>
+  renderData.environment.background === '#07130F'
+  && renderData.environment.pathSegments.length === renderData.path.segments.length
+  && renderData.environment.kernel.radius >= 28
+);
 test('tower render data is defined', () => renderData.towers !== undefined);
 test('tower towers array is defined', () => Array.isArray(renderData.towers.towers));
 test('enemy render data is defined', () => renderData.enemies !== undefined);

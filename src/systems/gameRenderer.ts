@@ -30,6 +30,11 @@ import {
   type OnboardingRenderData,
 } from './onboardingRender';
 import { createOnboardingState, type OnboardingState } from './onboarding';
+import {
+  getEnvironmentRenderData,
+  type EnvironmentRenderData,
+} from '../presentation/environmentRender';
+import { VISUAL_THEME } from '../presentation/visualTheme';
 
 export interface PathRenderData {
   points: Vec2[];
@@ -53,6 +58,7 @@ export interface GameFrameRenderData {
   placementState: PlacementState;
   
   path: PathRenderData;
+  environment: EnvironmentRenderData;
   towers: TowerRenderCollection;
   enemies: EnemyRenderCollection;
   projectiles: ProjectileRenderData[];
@@ -166,9 +172,9 @@ const DEFAULT_VIEWPORT: ViewportSize = {
   height: 720,
 };
 
-const PATH_COLOR = '#4A4A4A';
+const PATH_COLOR = VISUAL_THEME.pathBase;
 const PATH_HIGHLIGHT_COLOR = '#FFD700';
-const PATH_WIDTH = 20;
+const PATH_WIDTH = VISUAL_THEME.pathWidth;
 const DISABLED_ONBOARDING = Object.freeze(createOnboardingState(false));
 
 export class GameRenderer {
@@ -328,6 +334,8 @@ export class GameRenderer {
 
     const path = game.getPath();
     const pathRenderData = this.getPathRenderData(path);
+    const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
+    const environment = getEnvironmentRenderData(path, kernelPosition, timestamp);
 
     const placedTowers = game.getPlacedTowers();
     const selectedTowerId = game.getSelectedTowerId();
@@ -404,6 +412,7 @@ export class GameRenderer {
       gameState: state,
       placementState,
       path: pathRenderData,
+      environment,
       towers: towerCollection,
       enemies: enemyCollection,
       projectiles: projectileRenderData,
