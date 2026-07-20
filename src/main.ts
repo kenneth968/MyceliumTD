@@ -1,8 +1,7 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed } from './systems/gameRunner';
-import type { GameEvent } from './systems/gameEvents';
 import { RoundState } from './systems/roundManager';
 import { createWaveControls, getStartWaveButtonRect, getStartWaveLabel, WaveControls } from './systems/waveControls';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
@@ -80,416 +79,15 @@ import {
 import { paintTowerSelectionOutline } from './presentation/towerOverlayPainter';
 import { paintEnemies } from './presentation/enemyPainter';
 import { paintBossHealthBars } from './presentation/bossHealthBarPainter';
+import { CombatEffectPool } from './presentation/combatEffects';
+import { paintCombatEffects } from './presentation/combatEffectPainter';
+import { paintNetworkConnections } from './presentation/networkPainter';
+import { paintProjectiles } from './presentation/projectilePainter';
+import { paintWorldEffects } from './presentation/worldEffectPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
 
-// --- Particle System ---
-
-interface Particle {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    size: number;
-    sizeEnd: number;
-    color: string;
-    alpha: number;
-    alphaEnd: number;
-    shape: 'circle' | 'ring' | 'spark' | 'splat' | 'cloud';
-    rotation: number;
-    rotationSpeed: number;
-    gravity: number;
-}
-
-// Enemy type -> color for death splats
-const ENEMY_COLORS: Record<string, string> = {
-    scout_beetle: '#E74C3C',
-    dart_wasp: '#3498DB',
-    shell_beetle: '#27AE60',
-    crawler_caterpillar: '#F1C40F',
-    swarm_wasp: '#E91E90',
-    iron_caterpillar: '#2C3E50',
-    veil_wasp: '#ECF0F1',
-    bulwark_beetle: '#7F8C8D',
-    ward_moth: '#9B59B6',
-    pale_moth: '#E67E22',
-};
-
-class ParticleSystem {
-    private particles: Particle[] = [];
-    private pendingInstakillBursts: Array<{ x: number; y: number; delay: number }> = [];
-    private maxParticles = 500;
-
-    private spawn(p: Partial<Particle> & { x: number; y: number }): void {
-        if (this.particles.length >= this.maxParticles) return;
-        this.particles.push({
-            vx: 0, vy: 0, life: 1, maxLife: 1, size: 4, sizeEnd: 0,
-            color: '#fff', alpha: 1, alphaEnd: 0, shape: 'circle',
-            rotation: 0, rotationSpeed: 0, gravity: 0,
-            ...p,
-        });
-    }
-
-    /** Bug squash splat - radial splatter particles */
-    spawnDeathEffect(x: number, y: number, enemyType: string): void {
-        const color = ENEMY_COLORS[enemyType] || '#E74C3C';
-        const count = 8 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
-            const speed = 40 + Math.random() * 80;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.4 + Math.random() * 0.3,
-                maxLife: 0.4 + Math.random() * 0.3,
-                size: 3 + Math.random() * 4,
-                sizeEnd: 1,
-                color,
-                alpha: 0.9,
-                alphaEnd: 0,
-                shape: 'splat',
-                gravity: 60,
-            });
-        }
-        // Central flash
-        this.spawn({
-            x, y,
-            size: 12, sizeEnd: 20,
-            life: 0.15, maxLife: 0.15,
-            color: '#fff', alpha: 0.8, alphaEnd: 0,
-            shape: 'circle',
-        });
-    }
-
-    /** Puffball area explosion - expanding ring + scattered spores */
-    spawnAreaExplosion(x: number, y: number, radius: number): void {
-        // Expanding ring
-        this.spawn({
-            x, y,
-            size: 5, sizeEnd: radius,
-            life: 0.35, maxLife: 0.35,
-            color: '#9B59B6', alpha: 0.5, alphaEnd: 0,
-            shape: 'ring',
-        });
-        // Spore cloud particles
-        const count = 10 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * radius * 0.8;
-            const speed = 10 + Math.random() * 30;
-            this.spawn({
-                x: x + Math.cos(angle) * dist * 0.3,
-                y: y + Math.sin(angle) * dist * 0.3,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 15,
-                life: 0.5 + Math.random() * 0.4,
-                maxLife: 0.5 + Math.random() * 0.4,
-                size: 2 + Math.random() * 3,
-                sizeEnd: 5 + Math.random() * 3,
-                color: '#D7BDE2',
-                alpha: 0.6,
-                alphaEnd: 0,
-                shape: 'cloud',
-                gravity: -10,
-            });
-        }
-    }
-
-    /** Slimefungus slow hit - ice crystal shards */
-    spawnSlowHit(x: number, y: number): void {
-        const count = 6;
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-            const speed = 30 + Math.random() * 40;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.3 + Math.random() * 0.2,
-                maxLife: 0.3 + Math.random() * 0.2,
-                size: 3 + Math.random() * 2,
-                sizeEnd: 0,
-                color: '#85C1E9',
-                alpha: 0.9,
-                alphaEnd: 0.2,
-                shape: 'spark',
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 10,
-            });
-        }
-        // Blue flash
-        this.spawn({
-            x, y,
-            size: 8, sizeEnd: 15,
-            life: 0.2, maxLife: 0.2,
-            color: '#3498DB', alpha: 0.5, alphaEnd: 0,
-            shape: 'circle',
-        });
-    }
-
-    /** Bulb Shooter poison hit - lingering toxic wisps */
-    spawnPoisonHit(x: number, y: number): void {
-        const count = 5;
-        for (let i = 0; i < count; i++) {
-            this.spawn({
-                x: x + (Math.random() - 0.5) * 15,
-                y: y + (Math.random() - 0.5) * 15,
-                vx: (Math.random() - 0.5) * 20,
-                vy: -15 - Math.random() * 25,
-                life: 0.6 + Math.random() * 0.5,
-                maxLife: 0.6 + Math.random() * 0.5,
-                size: 4 + Math.random() * 3,
-                sizeEnd: 8 + Math.random() * 4,
-                color: '#27AE60',
-                alpha: 0.6,
-                alphaEnd: 0,
-                shape: 'cloud',
-                gravity: -20,
-            });
-        }
-    }
-
-    /** Thorn Sniper instakill - red snap/chomp flash */
-    spawnInstakillHit(x: number, y: number): void {
-        // Bright chomp flash
-        this.spawn({
-            x, y,
-            size: 15, sizeEnd: 25,
-            life: 0.12, maxLife: 0.12,
-            color: '#E74C3C', alpha: 0.8, alphaEnd: 0,
-            shape: 'circle',
-        });
-        // Red teeth-like sparks converging inward then outward
-        for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8;
-            this.spawn({
-                x: x + Math.cos(angle) * 18,
-                y: y + Math.sin(angle) * 18,
-                vx: -Math.cos(angle) * 60,
-                vy: -Math.sin(angle) * 60,
-                life: 0.15, maxLife: 0.15,
-                size: 4, sizeEnd: 1,
-                color: '#FF6B6B', alpha: 1, alphaEnd: 0.3,
-                shape: 'spark',
-                rotation: angle,
-            });
-        }
-        this.pendingInstakillBursts.push({ x, y, delay: 0.1 });
-    }
-
-    private emitInstakillBurst(x: number, y: number): void {
-        for (let i = 0; i < 6; i++) {
-            const angle = (Math.PI * 2 * i) / 6 + 0.3;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 80,
-                vy: Math.sin(angle) * 80,
-                life: 0.2, maxLife: 0.2,
-                size: 3, sizeEnd: 0,
-                color: '#FFD700', alpha: 0.9, alphaEnd: 0,
-                shape: 'spark',
-            });
-        }
-    }
-
-    /** Lumen Oracle reveal - cyan expanding pulse */
-    spawnRevealHit(x: number, y: number): void {
-        this.spawn({
-            x, y,
-            size: 5, sizeEnd: 50,
-            life: 0.4, maxLife: 0.4,
-            color: '#1ABC9C', alpha: 0.4, alphaEnd: 0,
-            shape: 'ring',
-        });
-        for (let i = 0; i < 5; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 20,
-                vy: Math.sin(angle) * 20,
-                life: 0.5 + Math.random() * 0.3,
-                maxLife: 0.5 + Math.random() * 0.3,
-                size: 2, sizeEnd: 4,
-                color: '#76D7C4',
-                alpha: 0.7, alphaEnd: 0,
-                shape: 'circle',
-                gravity: -5,
-            });
-        }
-    }
-
-    /** Generic damage hit - small white sparks */
-    spawnDamageHit(x: number, y: number): void {
-        for (let i = 0; i < 3; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 20 + Math.random() * 30;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.15 + Math.random() * 0.1,
-                maxLife: 0.15 + Math.random() * 0.1,
-                size: 2, sizeEnd: 0,
-                color: '#fff', alpha: 0.8, alphaEnd: 0,
-                shape: 'spark',
-            });
-        }
-    }
-
-    /** Process game events into particles */
-    processEvents(events: readonly GameEvent[]): void {
-        for (const event of events) {
-            if (event.type === 'death') {
-                this.spawnDeathEffect(event.position.x, event.position.y, event.enemyType || '');
-            } else if (event.type === 'area_hit') {
-                this.spawnAreaExplosion(event.position.x, event.position.y, event.radius || 40);
-            } else if (event.type === 'hit') {
-                switch (event.effectType) {
-                    case 'slow':
-                        this.spawnSlowHit(event.position.x, event.position.y);
-                        break;
-                    case 'poison':
-                        this.spawnPoisonHit(event.position.x, event.position.y);
-                        break;
-                    case 'instakill':
-                        this.spawnInstakillHit(event.position.x, event.position.y);
-                        break;
-                    case 'reveal_camo':
-                        this.spawnRevealHit(event.position.x, event.position.y);
-                        break;
-                    case 'area_damage':
-                        // Handled by the separate area_hit event
-                        this.spawnDamageHit(event.position.x, event.position.y);
-                        break;
-                    default:
-                        this.spawnDamageHit(event.position.x, event.position.y);
-                        break;
-                }
-            }
-        }
-    }
-
-    update(deltaTime: number): void {
-        for (let i = this.pendingInstakillBursts.length - 1; i >= 0; i--) {
-            const burst = this.pendingInstakillBursts[i];
-            burst.delay -= deltaTime;
-            if (burst.delay <= 0) {
-                this.emitInstakillBurst(burst.x, burst.y);
-                this.pendingInstakillBursts.splice(i, 1);
-            }
-        }
-
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            p.life -= deltaTime;
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-                continue;
-            }
-            p.x += p.vx * deltaTime;
-            p.y += p.vy * deltaTime;
-            p.vy += p.gravity * deltaTime;
-            p.rotation += p.rotationSpeed * deltaTime;
-            // Friction
-            p.vx *= 0.98;
-            p.vy *= 0.98;
-        }
-    }
-
-    render(ctx: CanvasRenderingContext2D): void {
-        for (const p of this.particles) {
-            const t = 1 - p.life / p.maxLife; // 0 -> 1 as particle ages
-            const alpha = p.alpha + (p.alphaEnd - p.alpha) * t;
-            const size = p.size + (p.sizeEnd - p.size) * t;
-
-            if (alpha <= 0.01 || size <= 0.1) continue;
-
-            ctx.globalAlpha = alpha;
-
-            switch (p.shape) {
-                case 'circle':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.fill();
-                    break;
-
-                case 'ring':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.strokeStyle = p.color;
-                    ctx.lineWidth = 2 + (1 - t) * 2;
-                    ctx.stroke();
-                    break;
-
-                case 'spark':
-                    ctx.save();
-                    ctx.translate(p.x, p.y);
-                    ctx.rotate(p.rotation);
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(-size, -size * 0.3, size * 2, size * 0.6);
-                    ctx.restore();
-                    break;
-
-                case 'splat':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.fill();
-                    // Darker outline for gooey look
-                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                    break;
-
-                case 'cloud':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.shadowColor = p.color;
-                    ctx.shadowBlur = size;
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    break;
-            }
-        }
-        ctx.globalAlpha = 1;
-    }
-
-    clear(): void {
-        this.particles = [];
-        this.pendingInstakillBursts = [];
-    }
-
-    spawnNetworkBloom(x: number, y: number): void {
-        this.spawn({
-            x, y,
-            size: 12, sizeEnd: 160,
-            life: 0.8, maxLife: 0.8,
-            color: '#4ADE80', alpha: 0.9, alphaEnd: 0,
-            shape: 'ring',
-        });
-        for (let index = 0; index < 12; index++) {
-            const angle = (Math.PI * 2 * index) / 12;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 90,
-                vy: Math.sin(angle) * 90,
-                life: 0.55, maxLife: 0.55,
-                size: 4, sizeEnd: 1,
-                color: '#C084FC', alpha: 0.9, alphaEnd: 0,
-                shape: 'spark',
-                rotation: angle,
-            });
-        }
-    }
-}
-
-// --- End Particle System ---
 
 interface MouseState {
     x: number;
@@ -506,7 +104,7 @@ class Game {
     private loop: GameLoop;
     private mouse: MouseState;
     private audio: AudioManager;
-    private particles: ParticleSystem;
+    private combatEffects: CombatEffectPool;
     private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
     private lastRenderTime: number = 0;
@@ -527,7 +125,7 @@ class Game {
 
         this.mouse = { x: 0, y: 0, down: false };
         this.audio = createAudioManager();
-        this.particles = new ParticleSystem();
+        this.combatEffects = new CombatEffectPool();
         this.towerSpriteCache = new TowerSpriteImageCache();
 
         this.setupEventListeners();
@@ -668,7 +266,7 @@ class Game {
         const path = this.game.getPath();
         const position = bloomPosition
             ?? path.getPointAtDistance(path.getTotalLength()).position;
-        this.particles.spawnNetworkBloom(position.x, position.y);
+        this.combatEffects.addCelebration(position);
     }
 
     private handleOnboardingControl(control: OnboardingControl): void {
@@ -1127,7 +725,7 @@ class Game {
         this.game.start();
         this.lastTrackedWaveIndex = -1;
         this.audio.playNormalTrack();
-        this.particles.clear();
+        this.combatEffects.clear();
     }
 
     private quitToMenu(): void {
@@ -1139,7 +737,7 @@ class Game {
         this.game.reset();
         this.lastTrackedWaveIndex = -1;
         this.audio.stop();
-        this.particles.clear();
+        this.combatEffects.clear();
         this.drawMenu();
     }
 
@@ -1174,12 +772,18 @@ class Game {
             this.onboarding,
             () => this.game.drainEvents(),
             events => {
-                this.particles.processEvents(events);
+                if (events.length > 0) {
+                    this.combatEffects.processEvents(
+                        events,
+                        renderData.towers.towers,
+                        renderData.environment.kernel.position,
+                    );
+                }
                 this.audio.processGameEvents(events);
             },
         );
         this.transitionOnboarding(eventResult.state, eventResult.completionBloom);
-        this.particles.update(particleDt);
+        this.combatEffects.update(particleDt);
         renderData.onboarding = this.getCurrentOnboardingRenderData();
 
         this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1189,14 +793,24 @@ class Game {
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
         paintEnvironment(this.ctx, renderData.environment, renderData.viewport);
-        this.drawLingeringFields(renderData.lingeringFields);
-        this.drawSeededPayloads(renderData.seededPayloads);
-        this.drawNetworkConnections(renderData.networkConnections);
+        paintWorldEffects(this.ctx, {
+            fields: renderData.lingeringFields,
+            payloads: renderData.seededPayloads,
+            timestamp: renderData.timestamp,
+        });
+        paintNetworkConnections(this.ctx, {
+            connections: renderData.networkConnections,
+            transients: this.combatEffects.getTransientSlots(),
+            timestamp: renderData.timestamp,
+        });
         this.drawPlacementPreview(renderData.placementPreview, renderData.timestamp);
         this.drawTowers(renderData);
         this.drawEnemies(renderData);
-        this.drawProjectiles(renderData.projectiles);
-        this.particles.render(this.ctx);
+        paintProjectiles(this.ctx, renderData.projectiles);
+        paintCombatEffects(this.ctx, {
+            particles: this.combatEffects.getParticleSlots(),
+            transients: this.combatEffects.getTransientSlots(),
+        });
         this.drawTowerSelection(renderData.towerSelection);
         this.drawSellButton(renderData.sellButton);
         
@@ -1412,121 +1026,6 @@ class Game {
         }
     }
     
-    private drawNetworkConnections(connections: NetworkConnectionRenderData[]): void {
-        if (connections.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const connection of connections) {
-            const target = connection.targetPosition;
-
-            const pulseAlpha = 0.15 + Math.sin(time * 3) * 0.08;
-            ctx.beginPath();
-            ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
-            ctx.fillStyle = connection.sourceType === 'kernel'
-                ? `rgba(74, 222, 128, ${pulseAlpha})`
-                : `rgba(142, 68, 173, ${pulseAlpha})`;
-            ctx.fill();
-
-            const source = connection.sourcePosition;
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const dashOffset = (time * 40) % 20;
-
-            ctx.beginPath();
-            ctx.moveTo(source.x, source.y);
-            ctx.lineTo(target.x, target.y);
-            const glowAlpha = 0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08;
-            ctx.strokeStyle = connection.sourceType === 'kernel'
-                ? `rgba(74, 222, 128, ${glowAlpha})`
-                : `rgba(142, 68, 173, ${glowAlpha})`;
-            ctx.lineWidth = connection.width + 4;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(source.x, source.y);
-            ctx.lineTo(target.x, target.y);
-            ctx.strokeStyle = connection.color;
-            ctx.lineWidth = connection.width;
-            ctx.setLineDash([8, 12]);
-            ctx.lineDashOffset = -dashOffset;
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.lineDashOffset = 0;
-        }
-    }
-
-    private drawLingeringFields(fields: LingeringFieldRenderData[]): void {
-        if (fields.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const field of fields) {
-            const pulse = 0.92 + Math.sin(time * 2.6 + field.id) * 0.08;
-            const radius = field.radius * pulse;
-
-            ctx.save();
-            ctx.globalAlpha = Math.min(0.85, field.alpha);
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = field.color;
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = field.borderColor;
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 6]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius * 0.55, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(202, 255, 128, 0.16)';
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    private drawSeededPayloads(payloads: SeededPayloadRenderData[]): void {
-        if (payloads.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const payload of payloads) {
-            const pulse = 0.85 + Math.sin(time * 8 + payload.id) * 0.15;
-            const coreRadius = 7 + pulse * 2;
-
-            ctx.save();
-            ctx.globalAlpha = Math.min(0.9, payload.alpha);
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, payload.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 207, 102, 0.22)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 8]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, coreRadius, 0, Math.PI * 2);
-            ctx.fillStyle = payload.color;
-            ctx.fill();
-            ctx.strokeStyle = payload.borderColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, coreRadius * 0.45, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(90, 54, 20, 0.55)';
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
     private isEnemyRevealed(ex: number, ey: number): boolean {
         for (const placed of this.game.getPlacedTowers()) {
             if (placed.tower.towerType === TowerType.LumenOracle) {
@@ -1545,182 +1044,6 @@ class Game {
             timestamp: renderData.timestamp,
             isRevealed: (x, y) => this.isEnemyRevealed(x, y),
         });
-    }
-
-    private drawProjectiles(projectiles: any[]): void {
-        for (const p of projectiles) {
-            const x = p.position.x;
-            const y = p.position.y;
-            const size = p.size || 5;
-            const color = p.color || '#fff';
-            const glowColor = p.glowColor || color;
-            
-            this.ctx.save();
-
-            // Trail points are in world coordinates.
-            if (p.hasTrail && p.trailPoints && p.trailPoints.length > 0) {
-                this.drawProjectileTrail(p.trailPoints, color, glowColor, size, p.trailStyle || 'ribbon');
-            }
-
-            const animationState = p.animationState || { scale: 1, rotation: 0, pulsePhase: 0 };
-            const stretch = p.stretch || { scaleX: 1, scaleY: 1 };
-
-            this.ctx.translate(x, y);
-            this.ctx.rotate(animationState.rotation);
-            this.ctx.scale(stretch.scaleX * animationState.scale, stretch.scaleY * animationState.scale);
-            
-            if (p.glowColor) {
-                this.ctx.shadowColor = glowColor;
-                this.ctx.shadowBlur = size * 2;
-            }
-            
-            this.drawProjectileShape(p.shape || 'orb', size, color, p.accentColor || glowColor);
-            
-            if (p.specialEffect === 'area_damage') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'poison') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(150, 0, 150, 0.7)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'slow') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(100, 150, 255, 0.5)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'instakill') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.8, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 200, 0, 0.6)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'reveal_camo') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(0, 255, 200, 0.6)';
-                this.ctx.fill();
-            }
-            
-            this.ctx.shadowBlur = 0;
-            this.ctx.restore();
-        }
-    }
-
-    private drawProjectileShape(shape: string, size: number, color: string, accentColor: string): void {
-        this.ctx.fillStyle = color;
-        this.ctx.strokeStyle = accentColor;
-        this.ctx.lineWidth = Math.max(2, size * 0.22);
-
-        if (shape === 'cloud') {
-            for (const puff of [
-                { x: -size * 0.45, y: 0, r: size * 0.62 },
-                { x: size * 0.25, y: -size * 0.2, r: size * 0.7 },
-                { x: size * 0.42, y: size * 0.28, r: size * 0.5 },
-            ]) {
-                this.ctx.beginPath();
-                this.ctx.arc(puff.x, puff.y, puff.r, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'drop') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, -size * 1.15);
-            this.ctx.bezierCurveTo(size, -size * 0.25, size * 0.55, size, 0, size);
-            this.ctx.bezierCurveTo(-size * 0.55, size, -size, -size * 0.25, 0, -size * 1.15);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'jaw') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size, -size * 0.7);
-            this.ctx.lineTo(size * 0.15, 0);
-            this.ctx.lineTo(-size, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.beginPath();
-            this.ctx.moveTo(size, -size * 0.7);
-            this.ctx.lineTo(-size * 0.15, 0);
-            this.ctx.lineTo(size, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size * 0.15, 0);
-            this.ctx.lineTo(size * 0.15, 0);
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'bolt') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size * 0.35, -size * 1.1);
-            this.ctx.lineTo(size * 0.28, -size * 0.18);
-            this.ctx.lineTo(-size * 0.04, -size * 0.18);
-            this.ctx.lineTo(size * 0.42, size * 1.1);
-            this.ctx.lineTo(-size * 0.42, size * 0.08);
-            this.ctx.lineTo(-size * 0.08, size * 0.08);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'needle') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, -size * 1.25);
-            this.ctx.lineTo(size * 0.36, size * 0.7);
-            this.ctx.lineTo(0, size * 1.05);
-            this.ctx.lineTo(-size * 0.36, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, size, 0, Math.PI * 2);
-        this.ctx.fill();
-    }
-
-    private drawProjectileTrail(trailPoints: any[], color: string, glowColor: string, size: number, style: string): void {
-        if (trailPoints.length < 2) return;
-
-        for (let i = 1; i < trailPoints.length; i++) {
-            const prev = trailPoints[i - 1];
-            const curr = trailPoints[i];
-            const opacity = curr.opacity || 0.3;
-
-            if (style === 'spore' || style === 'toxin') {
-                this.ctx.beginPath();
-                this.ctx.arc(curr.position.x, curr.position.y, Math.max(1.5, size * opacity * 0.35), 0, Math.PI * 2);
-                this.ctx.fillStyle = style === 'toxin' ? color : glowColor;
-                this.ctx.globalAlpha = opacity * 0.65;
-                this.ctx.fill();
-                this.ctx.globalAlpha = 1;
-                continue;
-            }
-
-            this.ctx.beginPath();
-            this.ctx.moveTo(prev.position.x, prev.position.y);
-            if (style === 'spark') {
-                const midX = (prev.position.x + curr.position.x) / 2 + Math.sin(i * 2.3) * size * 0.35;
-                const midY = (prev.position.y + curr.position.y) / 2 + Math.cos(i * 1.7) * size * 0.35;
-                this.ctx.lineTo(midX, midY);
-            }
-            this.ctx.lineTo(curr.position.x, curr.position.y);
-            this.ctx.strokeStyle = style === 'snap' ? color : glowColor;
-            this.ctx.lineWidth = Math.max(1, size * opacity * (style === 'pulse' ? 0.8 : 0.5));
-            this.ctx.globalAlpha = opacity * (style === 'pulse' ? 0.65 : 0.5);
-            this.ctx.stroke();
-            this.ctx.globalAlpha = 1;
-        }
     }
 
     private drawTowerSelection(selection: TowerSelectionPreviewRenderData | null): void {

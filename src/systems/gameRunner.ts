@@ -19,7 +19,7 @@ import {
 } from '../systems/upgrade';
 import { EVOLUTION_DEFINITIONS, EvolutionEffect, EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { Vec2, vec2Distance } from '../utils/vec2';
-import { applyHitEffects, getProjectileHitEffects, calculateAreaDamage } from './collision';
+import { applyHitEffects, getProjectileHitEffects, calculateAreaDamage, type HitEffect } from './collision';
 import { processEnemyStatusTick, isEnemyStunned, getSlowFactor } from './statusEffects';
 import { PlacementMode, TowerPlacer, createTowerPlacer, RangePreview, PathPreview } from './input';
 import { 
@@ -986,6 +986,13 @@ export class GameRunner {
     const trait = disruptEnemyTrait(enemy, duration);
     if (trait && !disruptedBefore.has(trait)) {
       this.emitTraitBroken(enemy, trait);
+      this.eventQueue.push({
+        type: 'trait_suppressed',
+        position: { ...enemy.position },
+        enemyId: enemy.id,
+        trait,
+        timestamp: this.currentTime,
+      });
     }
   }
 
@@ -1012,6 +1019,37 @@ export class GameRunner {
       ? MARK_DURATION
       : MARK_DURATION * this.getChorusMultiplier(placed.tower);
     markEnemy(enemy, duration, MARK_DAMAGE_MULTIPLIER);
+    this.eventQueue.push({
+      type: 'enemy_marked',
+      position: { ...enemy.position },
+      enemyId: enemy.id,
+      timestamp: this.currentTime,
+    });
+  }
+
+  private emitAppliedStatusFeedback(enemy: Enemy, effects: readonly HitEffect[]): void {
+    for (const effect of effects) {
+      if (effect.type !== 'slow' && effect.type !== 'reveal_camo') continue;
+      this.eventQueue.push({
+        type: effect.type === 'slow' ? 'enemy_slowed' : 'enemy_revealed',
+        position: { ...enemy.position },
+        enemyId: enemy.id,
+        timestamp: this.currentTime,
+      });
+    }
+  }
+
+  private emitNetworkTrigger(projectile: Projectile): void {
+    const targetTowerId = projectile.sourceTowerId;
+    if (targetTowerId === undefined || !this.isTowerConnectedToNetwork(targetTowerId)) return;
+    const parentId = this.networkState.parentByTowerId.get(targetTowerId);
+    if (parentId === undefined) return;
+    this.eventQueue.push({
+      type: 'network_triggered',
+      sourceTowerId: typeof parentId === 'number' ? parentId : null,
+      targetTowerId,
+      timestamp: this.currentTime,
+    });
   }
 
   private canProjectileExecuteMarkedEnemy(projectile: Projectile): boolean {
@@ -1199,6 +1237,7 @@ export class GameRunner {
           directResolution = resolution;
           applyHitEffects(enemy, effects, deltaTime, resolution.shieldConsumed);
           if (!resolution.shieldConsumed) {
+            this.emitAppliedStatusFeedback(enemy, effects);
             directHitApplied = true;
             this.registerConnectedHitOnSeed(projectile, enemy);
             this.applyMarkFromProjectile(projectile, enemy);
@@ -1208,6 +1247,8 @@ export class GameRunner {
         if (directResolution) {
           this.resolveEvolutionFollowUps(projectile, enemy, directResolution);
         }
+
+        this.emitNetworkTrigger(projectile);
 
         // Emit hit event for visual effects
         this.eventQueue.push({

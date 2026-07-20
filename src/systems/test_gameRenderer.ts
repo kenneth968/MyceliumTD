@@ -286,6 +286,29 @@ test('screenToWorld handles zoom correctly', () => Math.abs(worldZoom.x) < 0.001
 console.log('\nTrail tracker tests:');
 const trailTracker = renderer.getTrailTracker();
 test('trail tracker is defined', () => trailTracker !== undefined);
+const trackedProjectile = {
+  id: 909,
+  position: { x: 50, y: 60 },
+  targetId: 1,
+  speed: 100,
+  damage: 1,
+  towerType: TowerType.Puffball,
+  alive: true,
+};
+renderer.updateTrails([trackedProjectile], 16, 1_000);
+test('renderer tracks an active projectile position', () => renderer.getTrackedProjectilePositionCount() === 1);
+const trackedPositionIdentity = renderer.getTrackedProjectilePosition(909);
+trackedProjectile.position.x = 75;
+trackedProjectile.position.y = 85;
+renderer.updateTrails([trackedProjectile], 16, 1_016);
+test('renderer reuses the tracked projectile Vec2 object', () =>
+  trackedPositionIdentity !== undefined
+  && renderer.getTrackedProjectilePosition(909) === trackedPositionIdentity
+  && trackedPositionIdentity.x === 75
+  && trackedPositionIdentity.y === 85
+);
+renderer.updateTrails([], 16, 1_016);
+test('renderer prunes dead projectile positions', () => renderer.getTrackedProjectilePositionCount() === 0);
 
 // Path render data structure
 console.log('\nPath render data structure tests:');

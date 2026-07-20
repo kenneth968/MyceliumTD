@@ -54,6 +54,25 @@ export type GameEvent =
       layersBroken: number;
     }>
   | Readonly<{
+      type: 'enemy_marked' | 'enemy_slowed' | 'enemy_revealed';
+      timestamp: number;
+      position: Vec2;
+      enemyId: number;
+    }>
+  | Readonly<{
+      type: 'trait_suppressed';
+      timestamp: number;
+      position: Vec2;
+      enemyId: number;
+      trait: EnemyTrait;
+    }>
+  | Readonly<{
+      type: 'network_triggered';
+      timestamp: number;
+      sourceTowerId: number | null;
+      targetTowerId: number;
+    }>
+  | Readonly<{
       type: 'trait_broken';
       timestamp: number;
       position: Vec2;

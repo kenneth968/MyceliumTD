@@ -597,10 +597,15 @@ test('GameRunner projectiles should hit enemies and apply effects', () => {
   enemy.layers = [{ hp: 100, maxHp: 100 }];
   enemy.currentLayerIndex = 0;
   game.getActiveEnemies().push(enemy);
+  game.drainEvents();
   game.update(0);
   game.update(2000);
 
   assert(hasStatusEffect(enemy, StatusEffectType.Slow), 'Real Slimefungus projectile should apply its slow effect');
+  assert(
+    game.drainEvents().some(event => event.type === 'enemy_slowed' && event.enemyId === enemy.id),
+    'Real Slimefungus projectile should emit enemy_slowed feedback',
+  );
 });
 
 test('GameRunner Puffball projectiles should deal area damage', () => {
@@ -1107,12 +1112,22 @@ test('Connected Symbiote Lumen applies reveal and slow through GameRunner', () =
   target.baseSpeed = 0;
   setTestEnemyHealth(target, 100);
   game.getActiveEnemies().push(target);
+  game.drainEvents();
   game.update(0);
 
   game.update(2000);
 
   assert(hasStatusEffect(target, StatusEffectType.Revealed), 'Connected Symbiote Lumen should reveal through GameRunner');
   assert(hasStatusEffect(target, StatusEffectType.Slow), 'Connected Symbiote Lumen should slow through GameRunner');
+  const revealFeedbackEvents = game.drainEvents();
+  assert(
+    revealFeedbackEvents.some(event => event.type === 'enemy_revealed' && event.enemyId === target.id),
+    'Connected Symbiote Lumen should emit enemy_revealed feedback',
+  );
+  assert(
+    revealFeedbackEvents.some(event => event.type === 'enemy_slowed' && event.enemyId === target.id),
+    'Connected Symbiote Lumen should emit enemy_slowed feedback',
+  );
 });
 
 test('Disconnected Symbiote Lumen keeps its connection-gated reveal and slow dormant', () => {

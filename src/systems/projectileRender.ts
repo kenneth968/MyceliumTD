@@ -2,12 +2,17 @@ import { Vec2 } from '../utils/vec2';
 import { Projectile, TowerType, TOWER_STATS } from '../entities/tower';
 import { EvolutionPath } from '../content/evolutionDefinitions';
 import type { EvolutionEffect } from '../content/evolutionDefinitions';
-
-export interface TrailPoint {
-  position: Vec2;
-  timestamp: number;
-  opacity: number;
-}
+import type { TrailPoint } from './projectileTrail';
+import { ProjectileRenderBuffer } from './projectileRenderBuffer';
+export {
+  createProjectileTrailTracker,
+  createTrailPoint,
+  ProjectileTrailTracker,
+  shouldKeepTrailPoint,
+  updateTrailPointOpacity,
+} from './projectileTrail';
+export type { TrailPoint } from './projectileTrail';
+export { ProjectileRenderBuffer } from './projectileRenderBuffer';
 
 export type ProjectileShape = 'cloud' | 'drop' | 'jaw' | 'bolt' | 'needle' | 'orb';
 export type ProjectileTrailStyle = 'spore' | 'ribbon' | 'snap' | 'spark' | 'toxin' | 'pulse';
@@ -25,7 +30,7 @@ export interface ProjectileRenderData {
   opacity: number;
   towerType: TowerType;
   hasTrail: boolean;
-  trailPoints: TrailPoint[];
+  trailPoints: readonly TrailPoint[];
   specialEffect?: string;
   evolutionEffect?: EvolutionEffect;
 }
@@ -93,9 +98,6 @@ const TOWER_COLORS: Record<TowerType, {
   },
 };
 
-const MAX_TRAIL_POINTS = 20;
-const TRAIL_FADE_RATE = 0.85;
-const MIN_OPACITY = 0.1;
 const EVOLUTION_RENDER_STYLES: Readonly<Record<EvolutionPath, {
   readonly accentColor: string;
   readonly sizeIncrease: number;
@@ -133,108 +135,13 @@ export function getProjectileRenderData(
   };
 }
 
-export function createTrailPoint(position: Vec2, timestamp: number, opacity: number = 1.0): TrailPoint {
-  return { position: { ...position }, timestamp, opacity };
-}
-
 export function getTrailColor(towerType: TowerType): string {
   return TOWER_COLORS[towerType]?.glow || '#FFFFFF';
 }
 
-export function updateTrailPointOpacity(point: TrailPoint, fadeFactor: number = TRAIL_FADE_RATE): TrailPoint {
-  return {
-    ...point,
-    opacity: Math.max(point.opacity * fadeFactor, MIN_OPACITY),
-  };
-}
-
-export function shouldKeepTrailPoint(point: TrailPoint): boolean {
-  return point.opacity > MIN_OPACITY;
-}
-
-export class ProjectileTrailTracker {
-  private trails: Map<number, TrailPoint[]>;
-  private maxPoints: number;
-  private fadeRate: number;
-
-  constructor(maxPoints: number = MAX_TRAIL_POINTS, fadeRate: number = TRAIL_FADE_RATE) {
-    this.trails = new Map();
-    this.maxPoints = maxPoints;
-    this.fadeRate = fadeRate;
-  }
-
-  addPoint(projectileId: number, position: Vec2, timestamp: number): void {
-    if (!this.trails.has(projectileId)) {
-      this.trails.set(projectileId, []);
-    }
-
-    const trail = this.trails.get(projectileId)!;
-    trail.push(createTrailPoint(position, timestamp, 1.0));
-
-    if (trail.length > this.maxPoints) {
-      trail.shift();
-    }
-  }
-
-  updateTrails(deltaTime: number): void {
-    const fadeFactor = Math.pow(this.fadeRate, deltaTime / 100);
-
-    for (const [projectileId, trail] of this.trails) {
-      const updatedTrail: TrailPoint[] = [];
-
-      for (const point of trail) {
-        const fadedPoint = updateTrailPointOpacity(point, fadeFactor);
-        if (shouldKeepTrailPoint(fadedPoint)) {
-          updatedTrail.push(fadedPoint);
-        }
-      }
-
-      if (updatedTrail.length === 0) {
-        this.trails.delete(projectileId);
-      } else {
-        this.trails.set(projectileId, updatedTrail);
-      }
-    }
-  }
-
-  getTrail(projectileId: number): TrailPoint[] {
-    return this.trails.get(projectileId) || [];
-  }
-
-  removeTrail(projectileId: number): void {
-    this.trails.delete(projectileId);
-  }
-
-  clearDeadProjectiles(aliveProjectileIds: Set<number>): void {
-    for (const projectileId of this.trails.keys()) {
-      if (!aliveProjectileIds.has(projectileId)) {
-        this.trails.delete(projectileId);
-      }
-    }
-  }
-
-  getAllTrails(): Map<number, TrailPoint[]> {
-    return new Map(this.trails);
-  }
-}
-
-export function createProjectileTrailTracker(maxPoints?: number, fadeRate?: number): ProjectileTrailTracker {
-  return new ProjectileTrailTracker(maxPoints, fadeRate);
-}
-
-export function getProjectilesRenderData(
-  projectiles: Projectile[],
-  previousPositions: Map<number, Vec2>,
-  trailTracker: ProjectileTrailTracker
-): ProjectileRenderData[] {
-  return projectiles
-    .filter(p => p.alive)
-    .map(p => {
-      const renderData = getProjectileRenderData(p, previousPositions.get(p.id));
-      renderData.trailPoints = trailTracker.getTrail(p.id);
-      renderData.hasTrail = renderData.trailPoints.length > 0;
-      return renderData;
-    });
+/** Creates reusable projectile render storage whose frame view is borrowed until its next update. */
+export function createProjectileRenderBuffer(): ProjectileRenderBuffer {
+  return new ProjectileRenderBuffer(getProjectileRenderData);
 }
 
 export interface TrailSegment {
