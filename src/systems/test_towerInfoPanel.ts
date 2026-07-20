@@ -1,11 +1,13 @@
 import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TowerType } from '../entities/tower';
+import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 import { TargetingMode } from './targeting';
 import {
   EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR,
   createTowerInfoPanelAnimator,
   getAnimatedTowerInfoPanel,
   getEvolutionCardStatusColor,
+  getSpecialEffectLabel,
   getTowerGrowthActionAtPosition,
   getTowerInfoPanelRenderData,
   hideTowerInfoPanel,
@@ -65,6 +67,8 @@ console.log('\n=== native tower growth panel tests ===\n');
   equal(panel.towerId, tower.id, 'Panel preserves tower identity');
   equal(panel.towerName, 'Thorn Sniper', 'Panel uses the canonical display name');
   equal(panel.towerType, TowerType.ThornSniper, 'Panel preserves tower type');
+  equal(panel.position, { x: RELEASE_HUD_LAYOUT.towerPanel.x, y: RELEASE_HUD_LAYOUT.towerPanel.y }, 'Panel uses release HUD position');
+  equal(panel.size, { width: RELEASE_HUD_LAYOUT.towerPanel.width, height: RELEASE_HUD_LAYOUT.towerPanel.height }, 'Panel uses release HUD size');
   equal(panel.stats.map(stat => stat.label), ['Damage', 'Range', 'Fire Rate'], 'Panel preserves the three canonical stat labels');
   equal(panel.stats.map(stat => stat.value), ['500', '75', '2000ms'], 'Panel preserves compact stat values');
   equal(panel.stats.map(stat => stat.currentValue), [500, 75, 2000], 'Panel preserves numeric stat values');
@@ -99,13 +103,17 @@ console.log('\n=== native tower growth panel tests ===\n');
 }
 
 {
-  // Given towers with retained slow and area-damage effects
+  // Given towers with retained release effects
   const slowTower = createTower(TowerType.Slimefungus);
   const areaTower = createTower(TowerType.BulbShooter);
+  const precisionTower = createTower(TowerType.ThornSniper);
+  const detectionTower = createTower(TowerType.LumenOracle);
 
   // When their panel data is built
   const slowPanel = getTowerInfoPanelRenderData(slowTower, true, 500, true);
   const areaPanel = getTowerInfoPanelRenderData(areaTower, true, 500, true);
+  const precisionPanel = getTowerInfoPanelRenderData(precisionTower, true, 500, true);
+  const detectionPanel = getTowerInfoPanelRenderData(detectionTower, true, 500, true);
 
   // Then special-effect types, labels, and descriptions remain mapped
   equal(slowPanel.specialEffect?.type, 'slow', 'Slimefungus retains its slow effect type');
@@ -113,6 +121,13 @@ console.log('\n=== native tower growth panel tests ===\n');
   check((slowPanel.specialEffect?.description.length ?? 0) > 0, 'Slow effect retains a readable description');
   equal(areaPanel.specialEffect?.type, 'area_damage', 'Bulb Shooter retains its area-damage effect type');
   equal(areaPanel.specialEffect?.label, 'Area Damage', 'Bulb Shooter retains its area-damage effect label');
+  equal(precisionPanel.specialEffect?.label, 'Precision', 'Thorn Sniper uses explicit special-effect metadata');
+  equal(detectionPanel.specialEffect?.label, 'Detection', 'Lumen Oracle uses explicit special-effect metadata');
+  equal(
+    getSpecialEffectLabel('future_internal_effect'),
+    'Special Effect',
+    'Unknown identifiers never become player-facing copy',
+  );
 }
 
 {
@@ -151,6 +166,8 @@ console.log('\n=== native tower growth panel tests ===\n');
   // Then all three bespoke Evolutions are available
   equal(panel.matureAction, null, 'Mature tower no longer exposes the Mature action');
   equal(panel.evolutionCards.length, 3, 'Mature tower exposes three Evolution cards');
+  equal(panel.evolutionCards.map(card => card.pathLabel), ['Predator', 'Specialist', 'Symbiote'], 'Evolution paths use release labels');
+  check(panel.evolutionCards.every(card => !card.pathLabel.includes('_')), 'Evolution labels never expose internal underscores');
   equal(panel.evolutionCards.map(card => card.path), [
     EvolutionPath.Predator,
     EvolutionPath.Specialist,

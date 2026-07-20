@@ -86,6 +86,17 @@ const renderData3 = game3.getGameOverVictoryRenderData();
 assertEqual(renderData3.state, GameOverVictoryState.GameOver, 'Should show game over state');
 assert(renderData3.isVisible, 'Game over should be visible');
 assertEqual(renderData3.title, 'Game Over', 'Title should be Game Over');
+game3.update(2200);
+assert(
+  game3.getGameOverVictoryRenderData().backgroundOpacity > 0,
+  'GameRunner should continue the terminal fade-in after gameplay stops',
+);
+game3.update(7200);
+assertEqual(
+  game3.getGameOverVictoryRenderData().backgroundOpacity,
+  1,
+  'GameRunner should keep the terminal fully opaque until explicit dismissal',
+);
 console.log('  PASS');
 
 console.log('Test 8: Render data structure during game over');
@@ -95,8 +106,8 @@ updateGameOverVictory(game4.getGameOverVictoryAnimator(), 1000, 2000);
 const renderData4 = game4.getGameOverVictoryRenderData();
 assertEqual(renderData4.state, GameOverVictoryState.GameOver, 'State should be GameOver');
 assert(renderData4.isVisible, 'Should be visible');
-assertEqual(renderData4.position.x, 400, 'Position X should be 400');
-assertEqual(renderData4.position.y, 300, 'Position Y should be 300');
+assertEqual(renderData4.position.x, 640, 'Position X should be 640');
+assertEqual(renderData4.position.y, 360, 'Position Y should be 360');
 assertEqual(renderData4.size.width, 500, 'Size width should be 500');
 assertEqual(renderData4.size.height, 400, 'Size height should be 400');
 assert(renderData4.backgroundColor.includes('rgba'), 'Background should have rgba color');
@@ -129,7 +140,7 @@ const quitButton = renderData6.buttons.find(b => b.id === 'quit');
 assert(restartButton !== undefined, 'Should have restart button');
 assert(quitButton !== undefined, 'Should have quit button');
 assertEqual(restartButton!.label, 'Restart', 'Restart button label');
-assertEqual(quitButton!.label, 'Quit', 'Quit button label');
+assertEqual(quitButton!.label, 'Quit to Menu', 'Quit button label');
 assertEqual(restartButton!.size.width, 180, 'Button width should be 180');
 assertEqual(restartButton!.size.height, 45, 'Button height should be 45');
 assert(restartButton!.isEnabled, 'Restart should be enabled');

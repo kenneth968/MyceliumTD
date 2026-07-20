@@ -1,15 +1,20 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
+import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
+import { formatNutrients } from './livesMoneyDisplayRender';
 
 export interface TowerPurchaseButton {
   towerType: TowerType;
   position: Vec2;
   size: { width: number; height: number };
   cost: number;
+  costText: string;
   canAfford: boolean;
   isSelected: boolean;
   hotkey: string;
   label: string;
+  maxLabelCharacters: number;
+  maxTacticalHintCharacters: number;
   description: string;
   role: string;
   counterTags: string[];
@@ -19,7 +24,7 @@ export interface TowerPurchaseButton {
 export interface TowerPurchaseRenderData {
   isVisible: boolean;
   buttons: TowerPurchaseButton[];
-  currentMoney: number;
+  nutrients: number;
   anchorPosition: Vec2;
 }
 
@@ -56,12 +61,12 @@ const TOWER_COUNTER_TAGS: Record<TowerType, string[]> = {
 };
 
 const TOWER_TACTICAL_HINTS: Record<TowerType, string> = {
-  [TowerType.Puffball]: 'Best when clustered enemies bunch on bends.',
-  [TowerType.Slimefungus]: 'Slows fast threats and strips trait pressure.',
-  [TowerType.ThornSniper]: 'Covers long lanes and focuses durable priority targets.',
-  [TowerType.LumenOracle]: 'Reveals camo lanes so other towers can fire.',
-  [TowerType.BulbShooter]: 'Bursts clustered armored threats at choke points.',
-  [TowerType.Sporecap]: 'A dependable early tower for flexible lane coverage.',
+  [TowerType.Puffball]: 'Clustered bends',
+  [TowerType.Slimefungus]: 'Fast trait foes',
+  [TowerType.ThornSniper]: 'Long elite lanes',
+  [TowerType.LumenOracle]: 'Reveal camo',
+  [TowerType.BulbShooter]: 'Armored groups',
+  [TowerType.Sporecap]: 'Flexible starter',
 };
 
 const HOTKEYS: Record<TowerType, string> = {
@@ -73,40 +78,24 @@ const HOTKEYS: Record<TowerType, string> = {
   [TowerType.Sporecap]: '6',
 };
 
-export interface TowerPurchaseLayoutConfig {
-  buttonWidth: number;
-  buttonHeight: number;
-  buttonSpacing: number;
-  panelPadding: number;
-  anchorX: number;
-  anchorY: number;
-}
-
-export const DEFAULT_TOWER_PURCHASE_LAYOUT: TowerPurchaseLayoutConfig = {
-  buttonWidth: 120,
-  buttonHeight: 80,
-  buttonSpacing: 10,
-  panelPadding: 15,
-  anchorX: 640,
-  anchorY: 600,
-};
-
 export function getTowerPurchaseButton(
   towerType: TowerType,
-  position: Vec2,
+  rect: Rect,
   canAfford: boolean,
   isSelected: boolean,
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): TowerPurchaseButton {
   return {
     towerType,
-    position: { ...position },
-    size: { width: config.buttonWidth, height: config.buttonHeight },
+    position: { x: rect.x, y: rect.y },
+    size: { width: rect.width, height: rect.height },
     cost: TOWER_STATS[towerType].cost,
+    costText: formatNutrients(TOWER_STATS[towerType].cost),
     canAfford,
     isSelected,
     hotkey: HOTKEYS[towerType],
     label: TOWER_STATS[towerType].displayName,
+    maxLabelCharacters: Math.floor((rect.width - 16) / 8),
+    maxTacticalHintCharacters: Math.floor((rect.width - 38) / 6.5),
     description: TOWER_STATS[towerType].description,
     role: TOWER_ROLES[towerType],
     counterTags: [...TOWER_COUNTER_TAGS[towerType]],
@@ -117,7 +106,6 @@ export function getTowerPurchaseButton(
 export function getTowerPurchaseButtons(
   canAffordFn: (towerType: TowerType) => boolean,
   selectedTowerType: TowerType | null,
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): TowerPurchaseButton[] {
   const towerTypes = [
     TowerType.Puffball,
@@ -128,21 +116,14 @@ export function getTowerPurchaseButtons(
     TowerType.Sporecap,
   ];
 
-  const totalWidth = towerTypes.length * config.buttonWidth + (towerTypes.length - 1) * config.buttonSpacing;
-  const startX = config.anchorX - totalWidth / 2;
-
   return towerTypes.map((towerType, index) => {
-    const position: Vec2 = {
-      x: startX + index * (config.buttonWidth + config.buttonSpacing),
-      y: config.anchorY,
-    };
+    const rect = RELEASE_HUD_LAYOUT.towerCards[index];
 
     return getTowerPurchaseButton(
       towerType,
-      position,
+      rect,
       canAffordFn(towerType),
       towerType === selectedTowerType,
-      config
     );
   });
 }
@@ -150,47 +131,45 @@ export function getTowerPurchaseButtons(
 export function getTowerPurchaseRenderData(
   isPlacing: boolean,
   selectedTowerType: TowerType | null,
-  currentMoney: number,
+  nutrients: number,
   canAffordFn: (towerType: TowerType) => boolean,
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): TowerPurchaseRenderData {
+  const { towerBar } = RELEASE_HUD_LAYOUT;
+  const anchorPosition = {
+    x: towerBar.x + towerBar.width / 2,
+    y: towerBar.y,
+  };
+
   if (isPlacing) {
     return {
       isVisible: false,
       buttons: [],
-      currentMoney,
-      anchorPosition: { x: config.anchorX, y: config.anchorY },
+      nutrients,
+      anchorPosition,
     };
   }
 
-  const buttons = getTowerPurchaseButtons(canAffordFn, selectedTowerType, config);
+  const buttons = getTowerPurchaseButtons(canAffordFn, selectedTowerType);
 
   return {
     isVisible: true,
     buttons,
-    currentMoney,
-    anchorPosition: { x: config.anchorX, y: config.anchorY },
+    nutrients,
+    anchorPosition,
   };
 }
 
-export function getTowerPurchasePanelSize(
-  buttonCount: number,
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
-): { width: number; height: number } {
-  const totalButtonWidth = buttonCount * config.buttonWidth + (buttonCount - 1) * config.buttonSpacing;
+export function getTowerPurchasePanelSize(): { width: number; height: number } {
   return {
-    width: totalButtonWidth + config.panelPadding * 2,
-    height: config.buttonHeight + config.panelPadding * 2,
+    width: RELEASE_HUD_LAYOUT.towerBar.width,
+    height: RELEASE_HUD_LAYOUT.towerBar.height,
   };
 }
 
-export function getTowerPurchasePanelPosition(
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
-): Vec2 {
-  const size = getTowerPurchasePanelSize(6, config);
+export function getTowerPurchasePanelPosition(): Vec2 {
   return {
-    x: config.anchorX - size.width / 2,
-    y: config.anchorY - config.panelPadding,
+    x: RELEASE_HUD_LAYOUT.towerBar.x,
+    y: RELEASE_HUD_LAYOUT.towerBar.y,
   };
 }
 
@@ -215,10 +194,9 @@ export function getTowerPurchaseButtonAtPosition(
 export function isTowerPurchasePanelAtPosition(
   x: number,
   y: number,
-  config: TowerPurchaseLayoutConfig = DEFAULT_TOWER_PURCHASE_LAYOUT
 ): boolean {
-  const panelPos = getTowerPurchasePanelPosition(config);
-  const panelSize = getTowerPurchasePanelSize(6, config);
+  const panelPos = getTowerPurchasePanelPosition();
+  const panelSize = getTowerPurchasePanelSize();
 
   return (
     x >= panelPos.x &&

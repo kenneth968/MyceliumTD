@@ -1,6 +1,7 @@
 import { EVOLUTION_DEFINITIONS, EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import type { Vec2 } from '../utils/vec2';
+import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 import { TargetingMode } from './targeting';
 import { getGrowthCosts, getTotalSellValue, SpecialEffectType, type TowerWithGrowth } from './upgrade';
 
@@ -116,14 +117,12 @@ export function getEvolutionCardStatusColor(
   return card.isEnabled ? enabledColor : EVOLUTION_CARD_DISABLED_STATUS_COLOR;
 }
 
-const PANEL_POSITION = { x: 20, y: 100 } as const;
-const PANEL_SIZE = { width: 390, height: 480 } as const;
-const ACTION_X = PANEL_POSITION.x + 15;
-const ACTION_Y = PANEL_POSITION.y + 190;
-const ACTION_WIDTH = PANEL_SIZE.width - 30;
-const MATURE_ACTION_HEIGHT = 86;
-const EVOLUTION_CARD_HEIGHT = 72;
-const EVOLUTION_CARD_GAP = 8;
+const ACTION_X = RELEASE_HUD_LAYOUT.towerPanel.x + 12;
+const ACTION_Y = RELEASE_HUD_LAYOUT.towerPanel.y + 160;
+const ACTION_WIDTH = RELEASE_HUD_LAYOUT.towerPanel.width - 24;
+const MATURE_ACTION_HEIGHT = 76;
+const EVOLUTION_CARD_HEIGHT = 52;
+const EVOLUTION_CARD_GAP = 4;
 const EVOLUTION_PATHS = [
   EvolutionPath.Predator,
   EvolutionPath.Specialist,
@@ -151,8 +150,8 @@ export function getTowerInfoPanelRenderData(
     towerId: tower.id,
     towerName: TOWER_STATS[tower.towerType].displayName,
     towerType: tower.towerType,
-    position: { ...PANEL_POSITION },
-    size: { ...PANEL_SIZE },
+    position: { x: RELEASE_HUD_LAYOUT.towerPanel.x, y: RELEASE_HUD_LAYOUT.towerPanel.y },
+    size: { width: RELEASE_HUD_LAYOUT.towerPanel.width, height: RELEASE_HUD_LAYOUT.towerPanel.height },
     stats: getStatDisplays(tower),
     growth: {
       stage: tower.growth.stage,
@@ -202,8 +201,8 @@ function getHiddenPanelData(): TowerInfoPanelRenderData {
     towerId: 0,
     towerName: '',
     towerType: TowerType.Puffball,
-    position: { ...PANEL_POSITION },
-    size: { ...PANEL_SIZE },
+    position: { x: RELEASE_HUD_LAYOUT.towerPanel.x, y: RELEASE_HUD_LAYOUT.towerPanel.y },
+    size: { width: RELEASE_HUD_LAYOUT.towerPanel.width, height: RELEASE_HUD_LAYOUT.towerPanel.height },
     stats: [],
     growth: {
       stage: TowerStage.Seedling,
@@ -297,7 +296,7 @@ function getSpecialEffectDisplay(tower: TowerWithGrowth): TowerSpecialEffectDisp
   }
   return {
     type: tower.specialEffect,
-    label: formatSpecialEffectType(tower.specialEffect),
+    label: getSpecialEffectLabel(tower.specialEffect),
     strength: tower.effectStrength,
     duration: tower.effectDuration > 0 ? tower.effectDuration : null,
     areaRadius: tower.areaRadius ?? null,
@@ -315,23 +314,20 @@ function getTargetingDisplay(mode: TargetingMode): TowerInfoPanelRenderData['tar
   return { mode, ...displays[mode] };
 }
 
-function formatSpecialEffectType(type: string): string {
-  switch (type) {
-    case SpecialEffectType.AreaDamage:
-      return 'Area Damage';
-    case SpecialEffectType.Slow:
-      return 'Slow';
-    case SpecialEffectType.Poison:
-      return 'Poison';
-    case SpecialEffectType.Stun:
-      return 'Stun';
-    case SpecialEffectType.Instakill:
-      return 'Precision';
-    case SpecialEffectType.RevealCamo:
-      return 'Reveal Camo';
-    default:
-      return type.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
-  }
+const SPECIAL_EFFECT_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  [SpecialEffectType.AreaDamage]: 'Area Damage',
+  [SpecialEffectType.Slow]: 'Slow',
+  [SpecialEffectType.Poison]: 'Poison',
+  [SpecialEffectType.Stun]: 'Stun',
+  [SpecialEffectType.Instakill]: 'Precision',
+  [SpecialEffectType.RevealCamo]: 'Reveal Camo',
+  [SpecialEffectType.NetworkBuff]: 'Network Support',
+  precision: 'Precision',
+  detection: 'Detection',
+});
+
+export function getSpecialEffectLabel(type: string): string {
+  return SPECIAL_EFFECT_LABELS[type] ?? 'Special Effect';
 }
 
 export function getTowerGrowthActionAtPosition(

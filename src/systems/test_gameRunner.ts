@@ -19,6 +19,52 @@ function assertEqual(actual: any, expected: any, message: string) {
   }
 }
 
+type PlacementTower = NonNullable<ReturnType<GameRunner['placeTower']>>;
+type RunnerEvents = ReturnType<GameRunner['drainEvents']>;
+
+function assertPlacementConnectionSequence(
+  events: RunnerEvents,
+  tower: PlacementTower,
+  expectedTimestamp: number,
+  label: string,
+): void {
+  assertEqual(events.length, 2, `${label} should emit exactly two events`);
+
+  const placementEvent = events[0];
+  assert(placementEvent.type === 'tower_placed', `${label} should emit tower_placed first`);
+  assertEqual(
+    Object.keys(placementEvent).sort().join(','),
+    'position,timestamp,towerId,towerType,type',
+    `${label} placement event should expose the exact payload`,
+  );
+  assertEqual(placementEvent.timestamp, expectedTimestamp, `${label} placement timestamp`);
+  assertEqual(placementEvent.position.x, tower.position.x, `${label} placement x`);
+  assertEqual(placementEvent.position.y, tower.position.y, `${label} placement y`);
+  assertEqual(placementEvent.towerId, tower.id, `${label} placement tower ID`);
+  assertEqual(placementEvent.towerType, tower.towerType, `${label} placement tower type`);
+  assert(placementEvent.position !== tower.position, `${label} placement position should be copied`);
+
+  const connectionEvent = events[1];
+  assert(
+    connectionEvent.type === 'network_connection_created',
+    `${label} should emit network_connection_created second`,
+  );
+  assertEqual(
+    Object.keys(connectionEvent).sort().join(','),
+    'position,timestamp,towerId,type',
+    `${label} connection event should expose the exact payload`,
+  );
+  assertEqual(connectionEvent.timestamp, expectedTimestamp, `${label} connection timestamp`);
+  assertEqual(connectionEvent.position.x, tower.position.x, `${label} connection x`);
+  assertEqual(connectionEvent.position.y, tower.position.y, `${label} connection y`);
+  assertEqual(connectionEvent.towerId, tower.id, `${label} connection tower ID`);
+  assert(connectionEvent.position !== tower.position, `${label} connection position should be copied`);
+  assert(
+    connectionEvent.position !== placementEvent.position,
+    `${label} events should not share mutable positions`,
+  );
+}
+
 console.log('Testing GameRunner...');
 
 const game = createGameRunner();
@@ -57,6 +103,85 @@ assert(canPlace.canPlace === true, 'Should be able to place Puffball Fungus');
 const tower = game.placeTower(TowerType.Puffball, 100, 100, TargetingMode.First);
 assert(tower !== null, 'Should be able to place tower');
 assertEqual(game.getPlacedTowers().length, 1, 'Should have 1 placed tower');
+const placementEvent = game.drainEvents().find(event => event.type === 'tower_placed');
+assert(placementEvent !== undefined, 'Successful placement should emit tower_placed');
+assertEqual(placementEvent.towerId, tower.id, 'Placement event should identify the confirmed tower');
+assert(
+  placementEvent.position !== tower.position,
+  'Placement event should copy its position instead of retaining the mutable tower position',
+);
+
+const confirmedPlacementGame = createGameRunner();
+assert(
+  confirmedPlacementGame.startTowerPlacement(TowerType.Sporecap),
+  'Should start interactive Sporecap placement',
+);
+confirmedPlacementGame.updatePlacementPosition(100, 100);
+const confirmedTower = confirmedPlacementGame.confirmPlacement(TargetingMode.First);
+assert(confirmedTower !== null, 'Interactive placement should succeed');
+assert(
+  confirmedPlacementGame.drainEvents().some(event => event.type === 'tower_placed'),
+  'Confirmed interactive placement should emit tower_placed',
+);
+
+const directConnectionGame = createGameRunner({ startingMoney: 5000 });
+directConnectionGame.start();
+directConnectionGame.update(1234);
+const directConnectionTower = directConnectionGame.placeTower(
+  TowerType.Sporecap,
+  720,
+  180,
+  TargetingMode.First,
+);
+assert(directConnectionTower !== null, 'Direct connected placement should succeed');
+assertPlacementConnectionSequence(
+  directConnectionGame.drainEvents(),
+  directConnectionTower,
+  1234,
+  'direct connected placement',
+);
+
+const interactiveConnectionGame = createGameRunner({ startingMoney: 5000 });
+interactiveConnectionGame.start();
+interactiveConnectionGame.update(2345);
+assert(
+  interactiveConnectionGame.startTowerPlacement(TowerType.Sporecap),
+  'Interactive connected placement should start',
+);
+interactiveConnectionGame.updatePlacementPosition(720, 180);
+const interactiveConnectionTower = interactiveConnectionGame.confirmPlacement(TargetingMode.First);
+assert(interactiveConnectionTower !== null, 'Interactive connected placement should succeed');
+assertPlacementConnectionSequence(
+  interactiveConnectionGame.drainEvents(),
+  interactiveConnectionTower,
+  2345,
+  'interactive connected placement',
+);
+
+const invalidPlacementGame = createGameRunner({ startingMoney: 5000 });
+assert(
+  invalidPlacementGame.startTowerPlacement(TowerType.Sporecap),
+  'Invalid placement scenario should enter placement mode',
+);
+invalidPlacementGame.updatePlacementPosition(100, 300);
+assert(
+  invalidPlacementGame.confirmPlacement(TargetingMode.First) === null,
+  'Placement on the path should fail validation',
+);
+assert(
+  invalidPlacementGame.drainEvents().every(event => event.type !== 'tower_placed'),
+  'Invalid placement should emit no tower_placed event',
+);
+
+const unaffordablePlacementGame = createGameRunner({ startingMoney: 0 });
+assert(
+  unaffordablePlacementGame.placeTower(TowerType.Sporecap, 720, 180) === null,
+  'Unaffordable direct placement should fail',
+);
+assert(
+  unaffordablePlacementGame.drainEvents().every(event => event.type !== 'tower_placed'),
+  'Unaffordable placement should emit no tower_placed event',
+);
 
 const newStats = game.getGameStats();
 assertEqual(newStats.money, 320, 'Should have 320 Nutrients after placing Puffball (cost 180)');
@@ -65,7 +190,6 @@ assertEqual(newStats.towers, 1, 'Should have 1 tower');
 const growthInfo = game.getTowerGrowthInfo(tower.id);
 assert(growthInfo !== null, 'Should get growth info');
 assertEqual(growthInfo.stage, TowerStage.Seedling, 'Placed tower should start as a Seedling');
-game.drainEvents();
 
 const moneyBeforeInvalidEvolution = game.getEconomy().getMoney();
 const invalidEvolution = game.evolveTower(tower.id, EvolutionPath.Predator);
@@ -87,9 +211,10 @@ const evolutionResult = game.evolveTower(tower.id, EvolutionPath.Predator);
 assert(evolutionResult.success === true, 'Mature tower should evolve');
 const evolutionEvents = game.drainEvents();
 assertEqual(evolutionEvents.length, 1, 'Successful evolution should emit one event');
-assertEqual(evolutionEvents[0].type, 'tower_evolved', 'Successful evolution should emit tower_evolved');
-assertEqual(evolutionEvents[0].path, EvolutionPath.Predator, 'Evolution event should carry its path');
-assertEqual(evolutionEvents[0].effect, EvolutionEffect.BurstSac, 'Evolution event should carry its effect');
+const evolutionEvent = evolutionEvents.find(event => event.type === 'tower_evolved');
+assert(evolutionEvent !== undefined, 'Successful evolution should emit tower_evolved');
+assertEqual(evolutionEvent.path, EvolutionPath.Predator, 'Evolution event should carry its path');
+assertEqual(evolutionEvent.effect, EvolutionEffect.BurstSac, 'Evolution event should carry its effect');
 
 const unaffordableGrowthGame = createGameRunner({ startingMoney: 180 });
 const unaffordableTower = unaffordableGrowthGame.placeTower(TowerType.Sporecap, 100, 100);

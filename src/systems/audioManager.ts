@@ -16,12 +16,14 @@ export enum MusicTrack {
 
 export interface AudioManagerConfig {
   musicVolume: number;       // 0-1
+  soundVolume: number;
   crossfadeDuration: number; // ms
   basePath: string;          // path to music files
 }
 
 const DEFAULT_CONFIG: AudioManagerConfig = {
   musicVolume: 0.4,
+  soundVolume: 0.7,
   crossfadeDuration: 2000,
   basePath: './assets/music',
 };
@@ -238,6 +240,14 @@ export class AudioManager {
   }
 
   setVolume(volume: number): void {
+    this.setMusicVolume(volume);
+  }
+
+  getVolume(): number {
+    return this.getMusicVolume();
+  }
+
+  setMusicVolume(volume: number): void {
     this.config.musicVolume = Math.max(0, Math.min(1, volume));
     if (!this.muted) {
       for (const audio of this.getActiveAudios()) {
@@ -246,8 +256,16 @@ export class AudioManager {
     }
   }
 
-  getVolume(): number {
+  getMusicVolume(): number {
     return this.config.musicVolume;
+  }
+
+  setSoundVolume(volume: number): void {
+    this.config.soundVolume = Math.max(0, Math.min(1, volume));
+  }
+
+  getSoundVolume(): number {
+    return this.config.soundVolume;
   }
 
   getCurrentTrack(): MusicTrack | null {

@@ -33,6 +33,17 @@ assertEqual(
   'menu has highest precedence'
 );
 assertEqual(canHandleGameplayInput(gameplay), true, 'gameplay layer accepts gameplay input');
-assertEqual(canHandleGameplayInput({ ...gameplay, tutorialBlocking: true }), false, 'overlay blocks gameplay input');
+assertEqual(
+  canHandleGameplayInput({ ...gameplay, tutorialBlocking: true }),
+  true,
+  'contextual tutorial routes action-gated gameplay input',
+);
+assertEqual(canHandleGameplayInput({ ...gameplay, pauseVisible: true }), false, 'pause blocks gameplay input');
+assertEqual(
+  canHandleGameplayInput({ ...gameplay, gameState: GameState.Victory }),
+  false,
+  'terminal blocks gameplay input',
+);
+assertEqual(canHandleGameplayInput({ ...gameplay, menuVisible: true }), false, 'menu blocks gameplay input');
 
 console.log('UI input gate tests passed');

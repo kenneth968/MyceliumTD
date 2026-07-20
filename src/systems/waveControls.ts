@@ -1,4 +1,5 @@
 import { GameRunner, GameState } from './gameRunner';
+import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
 
 export enum WaveControlState {
   Waiting = 'waiting',
@@ -28,15 +29,8 @@ export interface WaveUIState {
   enemiesRemaining: number;
 }
 
-export interface StartWaveButtonRect {
-  readonly x: number;
-  readonly y: number;
-  readonly w: number;
-  readonly h: number;
-}
-
-export function getStartWaveButtonRect(canvasWidth: number, canvasHeight: number): StartWaveButtonRect {
-  return { x: canvasWidth / 2 - 80, y: canvasHeight - 170, w: 160, h: 36 };
+export function getStartWaveButtonRect(): Rect {
+  return RELEASE_HUD_LAYOUT.startWaveButton;
 }
 
 export function getStartWaveLabel(state: WaveUIState): string | null {

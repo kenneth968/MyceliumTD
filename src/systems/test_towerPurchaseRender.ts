@@ -18,9 +18,8 @@ import {
   getTowerPurchaseButtonHotkey,
   getTowerPurchaseButtonLabel,
   getTowerPurchaseButtonDescription,
-  DEFAULT_TOWER_PURCHASE_LAYOUT,
 } from './towerPurchaseRender';
-import { getStartWaveButtonRect } from './waveControls';
+import { RELEASE_HUD_LAYOUT, rectsOverlap } from './releaseHudLayout';
 import { getTowerInfoPanelRenderData } from './towerInfoPanel';
 
 function assert(condition: boolean, message: string): void {
@@ -62,28 +61,18 @@ function testStartWaveLayoutAvoidsHudPanels(): void {
   console.log('  testStartWaveLayoutAvoidsHudPanels');
 
   // Given the fixed 1280x720 gameplay canvas and its visible purchase/info surfaces
-  const startWave = getStartWaveButtonRect(1280, 720);
+  const startWave = RELEASE_HUD_LAYOUT.startWaveButton;
   const purchaseButtons = getTowerPurchaseButtons(() => true, null);
   const infoPanel = getTowerInfoPanelRenderData(null, false, 0, false);
 
   // When the HUD rectangles are compared
-  const overlaps = (
-    first: { x: number; y: number; width: number; height: number },
-    second: { x: number; y: number; width: number; height: number },
-  ): boolean => (
-    first.x < second.x + second.width
-    && first.x + first.width > second.x
-    && first.y < second.y + second.height
-    && first.y + first.height > second.y
-  );
-  const startWaveRect = { x: startWave.x, y: startWave.y, width: startWave.w, height: startWave.h };
-  const purchaseOverlap = purchaseButtons.some(button => overlaps(startWaveRect, {
+  const purchaseOverlap = purchaseButtons.some(button => rectsOverlap(startWave, {
     x: button.position.x,
     y: button.position.y,
     width: button.size.width,
     height: button.size.height,
   }));
-  const infoOverlap = overlaps(startWaveRect, {
+  const infoOverlap = rectsOverlap(startWave, {
     x: infoPanel.position.x,
     y: infoPanel.position.y,
     width: infoPanel.size.width,
@@ -100,7 +89,7 @@ function testGetTowerPurchaseButton(): void {
   
   const button = getTowerPurchaseButton(
     TowerType.Puffball,
-    { x: 100, y: 200 },
+    { x: 100, y: 200, width: 148, height: 88 },
     true,
     false
   );
@@ -108,16 +97,22 @@ function testGetTowerPurchaseButton(): void {
   assertEqual(button.towerType, TowerType.Puffball, 'towerType matches');
   assertEqual(button.position.x, 100, 'position x');
   assertEqual(button.position.y, 200, 'position y');
-  assertEqual(button.size.width, 120, 'button width');
-  assertEqual(button.size.height, 80, 'button height');
+  assertEqual(button.size.width, 148, 'button width');
+  assertEqual(button.size.height, 88, 'button height');
   assertEqual(button.cost, 180, 'cost from TOWER_STATS');
+  assertEqual(button.costText, '180 Nutrients', 'cost uses release economy copy');
   assertEqual(button.canAfford, true, 'canAfford');
   assertEqual(button.isSelected, false, 'isSelected');
   assertEqual(button.hotkey, '1', 'hotkey');
   assertEqual(button.label, 'Puffball', 'label');
+  assert(button.label.length <= button.maxLabelCharacters, 'label fits its measured card capacity');
   assertEqual(button.role, 'Splash', 'role');
   assert(button.counterTags.includes('Swarm'), 'counter tags include Swarm');
-  assert(button.tacticalHint.includes('clustered'), 'tactical hint explains use case');
+  assert(button.tacticalHint.includes('Clustered'), 'tactical hint explains use case');
+  assert(
+    button.tacticalHint.length <= button.maxTacticalHintCharacters,
+    'tactical hint fits its measured one-line card capacity without truncation',
+  );
 }
 
 function testGetTowerPurchaseButtons(): void {
@@ -128,6 +123,19 @@ function testGetTowerPurchaseButtons(): void {
   const buttons = getTowerPurchaseButtons(canAffordFn, null);
 
   assertEqual(buttons.length, 6, 'six canonical tower types');
+  assert(buttons.every(candidate => !candidate.label.includes('_')), 'tower labels never expose internal underscores');
+  assert(
+    buttons.every(candidate => candidate.label.length <= candidate.maxLabelCharacters),
+    'every tower label fits its measured card capacity',
+  );
+  assert(
+    buttons.every(candidate => candidate.tacticalHint.length <= candidate.maxTacticalHintCharacters),
+    'every tactical hint fits its measured one-line capacity without ellipses',
+  );
+  assert(
+    buttons.every(candidate => !candidate.tacticalHint.includes('...')),
+    'tower-card copy never uses truncation markers',
+  );
   
   assertEqual(buttons[0].towerType, TowerType.Puffball, 'first is Puffball');
   assertEqual(buttons[0].canAfford, true, 'Puffball can afford');
@@ -135,11 +143,9 @@ function testGetTowerPurchaseButtons(): void {
   assertEqual(buttons[2].towerType, TowerType.ThornSniper, 'third is Thorn Sniper');
   assertEqual(buttons[2].canAfford, false, 'Thorn Sniper cannot afford');
   
-  const totalWidth = 6 * 120 + 5 * 10;
-  const startX = 640 - totalWidth / 2;
-  assertEqual(buttons[0].position.x, startX, 'first button x position');
+  assertEqual(buttons[0].position.x, 16, 'first button x position');
   assertEqual(buttons[5].towerType, TowerType.Sporecap, 'last is Sporecap');
-  assertEqual(buttons[5].position.x, startX + 5 * (120 + 10), 'last button x position');
+  assertEqual(buttons[5].position.x, 796, 'last button x position');
 }
 
 function testGetTowerPurchaseRenderData(): void {
@@ -151,7 +157,7 @@ function testGetTowerPurchaseRenderData(): void {
   
   assertEqual(data.isVisible, true, 'visible when not placing');
   assertEqual(data.buttons.length, 6, 'six buttons');
-  assertEqual(data.currentMoney, 500, 'current money passed');
+  assertEqual(data.nutrients, 500, 'current nutrients passed');
   
   const placingData = getTowerPurchaseRenderData(true, TowerType.Puffball, 500, canAffordFn);
   assertEqual(placingData.isVisible, false, 'hidden when placing');
@@ -161,12 +167,10 @@ function testGetTowerPurchaseRenderData(): void {
 function testGetTowerPurchasePanelSize(): void {
   console.log('  testGetTowerPurchasePanelSize');
   
-  const size = getTowerPurchasePanelSize(6);
-  const expectedWidth = 6 * 120 + 5 * 10 + 30;
-  const expectedHeight = 80 + 30;
-  
-  assertEqual(size.width, expectedWidth, 'panel width');
-  assertEqual(size.height, expectedHeight, 'panel height');
+  const size = getTowerPurchasePanelSize();
+
+  assertEqual(size.width, 1280, 'panel width');
+  assertEqual(size.height, 112, 'panel height');
 }
 
 function testGetTowerPurchasePanelPosition(): void {
@@ -174,11 +178,8 @@ function testGetTowerPurchasePanelPosition(): void {
   
   const pos = getTowerPurchasePanelPosition();
   
-  const totalWidth = 6 * 120 + 5 * 10 + 30;
-  const expectedX = 640 - totalWidth / 2;
-  
-  assertEqual(pos.x, expectedX, 'panel x');
-  assertEqual(pos.y, 600 - 15, 'panel y');
+  assertEqual(pos.x, 0, 'panel x');
+  assertEqual(pos.y, 608, 'panel y');
 }
 
 function testGetTowerPurchaseButtonAtPosition(): void {
@@ -212,7 +213,7 @@ function testIsTowerPurchasePanelAtPosition(): void {
   console.log('  testIsTowerPurchasePanelAtPosition');
   
   const panelPos = getTowerPurchasePanelPosition();
-  const panelSize = getTowerPurchasePanelSize(6);
+  const panelSize = getTowerPurchasePanelSize();
   
   const inside = isTowerPurchasePanelAtPosition(
     panelPos.x + 10,
@@ -274,14 +275,14 @@ function testButtonLayout(): void {
   const canAffordFn = (_tt: TowerType) => true;
   const buttons = getTowerPurchaseButtons(canAffordFn, null);
   
-  const spacing = 10;
+  const spacing = 8;
   for (let i = 0; i < buttons.length - 1; i++) {
     const gap = buttons[i + 1].position.x - (buttons[i].position.x + buttons[i].size.width);
     assertEqual(gap, spacing, `gap between buttons ${i} and ${i + 1}`);
   }
   
   for (const button of buttons) {
-    assertEqual(button.position.y, 600, 'all buttons same y');
+    assertEqual(button.position.y, 616, 'all buttons same y');
   }
 }
 

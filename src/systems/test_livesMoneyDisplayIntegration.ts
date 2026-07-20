@@ -49,26 +49,26 @@ function getLivesMoneyDisplayRenderDataTests() {
   let data = game.getLivesMoneyDisplayRenderData();
   assert(data !== undefined, 'data should be defined');
   assert(data.isVisible === true, 'isVisible should be true');
-  assert(data.lives !== undefined, 'lives should be defined');
-  assert(data.money !== undefined, 'money should be defined');
+  assert(data.kernelIntegrity !== undefined, 'kernel integrity should be defined');
+  assert(data.nutrients !== undefined, 'nutrients should be defined');
   
-  assertEqual(data.lives.currentLives, 20, 'initial lives should be 20');
-  assertEqual(data.lives.maxLives, 20, 'max lives should be 20');
+  assertEqual(data.kernelIntegrity.current, 20, 'initial kernel integrity should be 20');
+  assertEqual(data.kernelIntegrity.maximum, 20, 'maximum kernel integrity should be 20');
   
-  assertEqual(data.money.currentMoney, 500, 'initial money should be 500');
+  assertEqual(data.nutrients.current, 500, 'initial nutrients should be 500');
   
   game.start();
   game.placeTower(TowerType.Puffball, 200, 200);
   
   data = game.getLivesMoneyDisplayRenderData();
-  assert(data.money.currentMoney < 500, 'money should decrease after purchase');
+  assert(data.nutrients.current < 500, 'nutrients should decrease after purchase');
   
-  const initialLives = data.lives.currentLives;
+  const initialLives = data.kernelIntegrity.current;
   const economy = game.getEconomy();
   economy.loseLife(5);
   
   data = game.getLivesMoneyDisplayRenderData();
-  assertEqual(data.lives.currentLives, initialLives - 5, 'lives should decrease after loseLife');
+  assertEqual(data.kernelIntegrity.current, initialLives - 5, 'kernel integrity should decrease after loseLife');
   
   const animator = game.getLivesMoneyDisplayAnimator();
   animator.state = 'hidden';
@@ -108,8 +108,8 @@ function resetBehaviorTests() {
   game.reset();
   
   const data = game.getLivesMoneyDisplayRenderData();
-  assertEqual(data.lives.currentLives, 20, 'lives should be 20 after reset');
-  assertEqual(data.money.currentMoney, 500, 'money should be 500 after reset');
+  assertEqual(data.kernelIntegrity.current, 20, 'kernel integrity should be 20 after reset');
+  assertEqual(data.nutrients.current, 500, 'nutrients should be 500 after reset');
   
   console.log('  PASS');
   passed++;

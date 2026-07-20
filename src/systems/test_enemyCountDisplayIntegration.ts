@@ -54,7 +54,7 @@ function testInitialState() {
   
   assert(renderData.isVisible === false, 'isVisible should be false initially');
   assertEqual(renderData.enemyCount.currentCount, 0, 'initial enemy count should be 0');
-  assertEqual(renderData.enemyCount.countText, '0', 'countText should be "0"');
+  assertEqual(renderData.enemyCount.countText, 'Enemies 0', 'countText should use the Enemies label');
   console.log('  PASS');
   passed++;
 }

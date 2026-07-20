@@ -230,7 +230,7 @@ export function getWaveProgressRenderData(
   }
 
   const progress = enemiesTotal > 0 ? enemiesDefeated / enemiesTotal : 0;
-  const waveText = `Wave ${currentWave}/${totalWaves}`;
+  const waveText = `Wave ${currentWave} / ${totalWaves}`;
   const progressText = enemiesTotal > 0
     ? `${enemiesDefeated}/${enemiesTotal}`
     : `${enemiesRemaining} remaining`;

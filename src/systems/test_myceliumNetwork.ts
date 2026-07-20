@@ -369,10 +369,10 @@ test('Seeded Payload arms on the third connected follow-up and emits one typed d
   assertEqual(game.getSeededPayloads().length, 1, 'third connected follow-up should arm one payload');
 
   game.update(2404);
-  const events = game.drainEvents().filter(event => hasEventType(event, 'seeded_payload_detonated'));
+  const events = game.drainEvents().filter(event => event.type === 'seeded_payload_detonated');
   assertEqual(events.length, 1, 'detonation should emit once');
-  assertEqual(events[0].towerId, source.id, 'event should identify source tower');
-  assertEqual(events[0].enemyId, target.id, 'event should identify seeded target');
+  assertEqual(events[0].sourceTowerId, source.id, 'event should identify source tower');
+  assertEqual(events[0].targetEnemyId, target.id, 'event should identify seeded target');
   assertEqual(events[0].timestamp, 2404, 'event should include detonation timestamp');
   assertEqual(game.getSeededPayloads().length, 0, 'detonated payload should be removed');
   game.update(3404);

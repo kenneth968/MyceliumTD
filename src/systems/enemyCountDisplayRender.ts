@@ -9,6 +9,7 @@ export interface EnemyCountDisplay {
   position: Vec2;
   size: { width: number; height: number };
   currentCount: number;
+  label: 'Enemies';
   countText: string;
   opacity: number;
   fillColor: string;
@@ -119,7 +120,8 @@ export function getEnemyCountDisplayRenderData(
     position,
     size: { ...DEFAULT_ENEMY_COUNT_SIZE },
     currentCount,
-    countText: `${currentCount}`,
+    label: 'Enemies',
+    countText: `Enemies ${currentCount}`,
     opacity,
     fillColor: ENEMY_COUNT_STYLES.fillColor,
     backgroundColor: ENEMY_COUNT_STYLES.backgroundColor,

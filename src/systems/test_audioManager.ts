@@ -19,6 +19,21 @@ const failures = new AudioFailureRegistry();
 assertEqual(failures.record(MusicTrack.Chantarelle), true, 'first failure is reported');
 assertEqual(failures.record(MusicTrack.Chantarelle), false, 'duplicate failure is suppressed');
 
+// Given independently configured music and sound channels
+const volumeManager = new AudioManager({ musicVolume: 0.25, soundVolume: 0.75 });
+
+// When each channel is changed
+volumeManager.setMusicVolume(0.6);
+volumeManager.setSoundVolume(0.35);
+
+// Then each channel preserves its own clamped value
+assertEqual(volumeManager.getMusicVolume(), 0.6, 'music volume changes independently');
+assertEqual(volumeManager.getSoundVolume(), 0.35, 'sound volume changes independently');
+volumeManager.setMusicVolume(2);
+volumeManager.setSoundVolume(-1);
+assertEqual(volumeManager.getMusicVolume(), 1, 'music volume clamps to one');
+assertEqual(volumeManager.getSoundVolume(), 0, 'sound volume clamps to zero');
+
 class FakeAudio {
   static readonly instances: FakeAudio[] = [];
 

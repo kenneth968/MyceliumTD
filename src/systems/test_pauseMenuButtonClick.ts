@@ -32,7 +32,7 @@ game.start();
 game.pause();
 assert(game.getState() === GameState.Paused, 'Game should be paused');
 
-const resumeResult = game.handlePauseMenuButtonClick(400, 280);
+const resumeResult = game.handlePauseMenuButtonClick(640, 340);
 assert(resumeResult.handled === true, 'Resume button click should be handled');
 assert(resumeResult.buttonId === 'resume', 'Button ID should be resume');
 assert(game.getState() === GameState.Playing, 'Game should resume after resume button click');
@@ -43,7 +43,7 @@ game.start();
 game.pause();
 assert(game.getState() === GameState.Paused, 'Game should be paused');
 
-const restartResult = game.handlePauseMenuButtonClick(400, 330);
+const restartResult = game.handlePauseMenuButtonClick(640, 390);
 assert(restartResult.handled === true, 'Restart button click should be handled');
 assert(restartResult.buttonId === 'restart', 'Button ID should be restart');
 assert(game.getState() === GameState.Playing, 'Game should be playing after restart');
@@ -54,7 +54,7 @@ game.start();
 game.pause();
 assert(game.getState() === GameState.Paused, 'Game should be paused');
 
-const quitResult = game.handlePauseMenuButtonClick(400, 380);
+const quitResult = game.handlePauseMenuButtonClick(640, 440);
 assert(quitResult.handled === true, 'Quit button click should be handled');
 assert(quitResult.buttonId === 'quit', 'Button ID should be quit');
 assert(game.getState() === GameState.Idle, 'Game should be idle after quit');
@@ -77,8 +77,8 @@ const renderData = game.getPauseMenuRenderData();
 
 const resumeButton = renderData.buttons.find(b => b.id === 'resume');
 assert(resumeButton !== undefined, 'Resume button should exist');
-assert(resumeButton!.position.x === 400, 'Resume button should be at x=400');
-assert(resumeButton!.position.y === 280, 'Resume button should be at y=280');
+assert(resumeButton!.position.x === 640, 'Resume button should be at x=640');
+assert(resumeButton!.position.y === 340, 'Resume button should be at y=340');
 
 const clickResult = game.handlePauseMenuButtonClick(resumeButton!.position.x, resumeButton!.position.y);
 assert(clickResult.handled === true, 'Clicking on resume button position should work');
@@ -90,7 +90,7 @@ game.pause();
 game.resume();
 game.pause();
 
-const resumeResult2 = game.handlePauseMenuButtonClick(400, 280);
+const resumeResult2 = game.handlePauseMenuButtonClick(640, 340);
 assert(resumeResult2.handled === true, 'Second pause should also respond to resume');
 assert(game.getState() === GameState.Playing, 'Second resume should work');
 console.log('  multiple pause cycles button handling tests passed');

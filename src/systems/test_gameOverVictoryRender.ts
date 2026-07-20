@@ -49,8 +49,8 @@ console.log('  PASS');
 
 console.log('Test 2: getGameOverVictoryPosition');
 const position = getGameOverVictoryPosition();
-assertEqual(position.x, 400, 'Position X should be 400');
-assertEqual(position.y, 300, 'Position Y should be 300');
+assertEqual(position.x, 640, 'Position X should be 640');
+assertEqual(position.y, 360, 'Position Y should be 360');
 console.log('  PASS');
 
 console.log('Test 3: getGameOverVictorySize');
@@ -122,11 +122,12 @@ const gameOverRenderData = getGameOverVictoryRenderData(gameOverAnimator);
 assertEqual(gameOverRenderData.state, GameOverVictoryState.GameOver, 'State should be GameOver');
 assert(gameOverRenderData.isVisible, 'GameOver render data should be visible');
 assertEqual(gameOverRenderData.title, 'Game Over', 'Title should be Game Over');
+assertEqual(gameOverRenderData.subtitle, 'Kernel integrity failed!', 'Defeat copy should use Kernel terminology');
 assertEqual(gameOverRenderData.finalScore, 1500, 'FinalScore should be 1500');
 assertEqual(gameOverRenderData.finalWave, 5, 'FinalWave should be 5');
 assertEqual(gameOverRenderData.buttons.length, 2, 'Should have 2 buttons');
 assertEqual(gameOverRenderData.buttons[0].label, 'Restart', 'First button should be Restart');
-assertEqual(gameOverRenderData.buttons[1].label, 'Quit', 'Second button should be Quit');
+assertEqual(gameOverRenderData.buttons[1].label, 'Quit to Menu', 'Second button should be Quit to Menu');
 console.log('  PASS');
 
 console.log('Test 12: getGameOverVictoryRenderData victory state');
@@ -213,7 +214,7 @@ const buttonAtPosAnimator = createGameOverVictoryAnimator();
 showGameOver(buttonAtPosAnimator, 1000, 3, 1000);
 updateGameOverVictory(buttonAtPosAnimator, 1000, 2000);
 const renderData = getGameOverVictoryRenderData(buttonAtPosAnimator);
-const hitButton = getGameOverVictoryButtonAtPosition(renderData, 400, 340);
+const hitButton = getGameOverVictoryButtonAtPosition(renderData, 640, 400);
 assert(hitButton !== null, 'Should find button at position');
 assertEqual(hitButton!.id, 'restart', 'Should find restart button');
 console.log('  PASS');
@@ -229,10 +230,10 @@ showGameOver(buttonPositionsAnimator, 1000, 3, 1000);
 const buttonPositionsRenderData = getGameOverVictoryRenderData(buttonPositionsAnimator);
 const firstButton = buttonPositionsRenderData.buttons[0];
 const secondButton = buttonPositionsRenderData.buttons[1];
-assertEqual(firstButton.position.x, 400, 'First button x should be 400');
-assertEqual(secondButton.position.x, 400, 'Second button x should be 400');
-assertEqual(firstButton.position.y, 340, 'First button y should be 340');
-assertEqual(secondButton.position.y, 400, 'Second button y should be 400');
+assertEqual(firstButton.position.x, 640, 'First button x should be 640');
+assertEqual(secondButton.position.x, 640, 'Second button x should be 640');
+assertEqual(firstButton.position.y, 400, 'First button y should be 400');
+assertEqual(secondButton.position.y, 460, 'Second button y should be 460');
 console.log('  PASS');
 
 console.log('Test 25: Animation progress during fade in');
@@ -246,13 +247,13 @@ assert(fadeInRenderData.titleOpacity > 0, 'Title should be fading in');
 assert(fadeInRenderData.titleOpacity < 1, 'Title should not be fully opaque yet');
 console.log('  PASS');
 
-console.log('Test 26: Animation during hold phase');
+console.log('Test 26: Animation remains settled after fade in');
 const holdAnimator = createGameOverVictoryAnimator();
 showVictory(holdAnimator, 3000, 8, 1000);
 updateGameOverVictory(holdAnimator, 1000, 2000);
 const holdRenderData = getGameOverVictoryRenderData(holdAnimator);
-assertEqual(holdRenderData.backgroundOpacity, 1, 'Background should be fully opaque during hold');
-assertEqual(holdRenderData.titleOpacity, 1, 'Title should be fully opaque during hold');
+assertEqual(holdRenderData.backgroundOpacity, 1, 'Background should remain fully opaque after fade in');
+assertEqual(holdRenderData.titleOpacity, 1, 'Title should remain fully opaque after fade in');
 console.log('  PASS');
 
 console.log('Test 27: Colors for game over');
@@ -292,4 +293,20 @@ assertEqual(customRenderData.finalScore, 9999, 'FinalScore should be custom');
 assertEqual(customRenderData.finalWave, 99, 'FinalWave should be custom');
 console.log('  PASS');
 
-console.log('\n=== All 30 tests passed! ===');
+console.log('Test 31: terminal presentation persists until an explicit action');
+const persistentAnimator = createGameOverVictoryAnimator();
+showVictory(persistentAnimator, 9000, 10, 1000);
+updateGameOverVictory(persistentAnimator, 60 * 60 * 1000, 60 * 60 * 1000 + 1000);
+const persistentRenderData = getGameOverVictoryRenderData(persistentAnimator);
+assert(persistentRenderData.isVisible, 'Terminal remains visible after a long elapsed time');
+assertEqual(persistentRenderData.backgroundOpacity, 1, 'Terminal background remains opaque');
+assertEqual(persistentRenderData.titleOpacity, 1, 'Terminal title remains opaque');
+assertEqual(persistentRenderData.buttons[0].opacity, 1, 'Terminal actions remain opaque');
+assertEqual(
+  getGameOverVictoryButtonAtPosition(persistentRenderData, 640, 400)?.id,
+  'restart',
+  'Persistent terminal actions remain hittable',
+);
+console.log('  PASS');
+
+console.log('\n=== All 31 tests passed! ===');

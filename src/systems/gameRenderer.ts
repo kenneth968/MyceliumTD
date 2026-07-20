@@ -19,6 +19,17 @@ import { TargetingMode } from './targeting';
 import { TowerWithGrowth, getGrowthVisualTier, getGrowthVisualValue, getTotalSellValue } from './upgrade';
 import { TowerPurchaseRenderData, getTowerPurchaseRenderData } from './towerPurchaseRender';
 import { MapSelectionRenderData } from './mapSelectionRender';
+import { RoundState } from './roundManager';
+import { RELEASE_WAVES } from '../content/waveDefinitions';
+import {
+  getWavePreviewRenderData,
+  type WavePreviewRenderData,
+} from './wavePreviewRender';
+import {
+  getOnboardingRenderData as buildOnboardingRenderData,
+  type OnboardingRenderData,
+} from './onboardingRender';
+import { createOnboardingState, type OnboardingState } from './onboarding';
 
 export interface PathRenderData {
   points: Vec2[];
@@ -60,6 +71,8 @@ export interface GameFrameRenderData {
   towerInfoPanel: TowerInfoPanelRenderData | null;
   livesMoneyDisplay: LivesMoneyDisplayRenderData;
   enemyCountDisplay: EnemyCountDisplayRenderData;
+  wavePreview: WavePreviewRenderData | null;
+  onboarding: OnboardingRenderData;
   
   targetingModeButtons: TargetingModeButtonRenderData[];
   sellButton: SellButtonRenderData | null;
@@ -156,6 +169,7 @@ const DEFAULT_VIEWPORT: ViewportSize = {
 const PATH_COLOR = '#4A4A4A';
 const PATH_HIGHLIGHT_COLOR = '#FFD700';
 const PATH_WIDTH = 20;
+const DISABLED_ONBOARDING = Object.freeze(createOnboardingState(false));
 
 export class GameRenderer {
   private trailTracker: ProjectileTrailTracker;
@@ -190,6 +204,22 @@ export class GameRenderer {
 
   getTrailTracker(): ProjectileTrailTracker {
     return this.trailTracker;
+  }
+
+  getOnboardingRenderData(
+    game: GameRunner,
+    state: OnboardingState,
+    promptPulsing: boolean,
+  ): OnboardingRenderData {
+    const path = game.getPath();
+    const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
+    const firstTowerPosition = game.getPlacedTowers()[0]?.tower.position ?? null;
+    return buildOnboardingRenderData({
+      state,
+      kernelPosition,
+      firstTowerPosition,
+      promptPulsing,
+    });
   }
 
   updateTrails(projectiles: Projectile[], deltaTime: number): void {
@@ -350,6 +380,18 @@ export class GameRenderer {
     const towerInfoPanel = game.getTowerInfoPanelRenderData();
     const livesMoneyDisplay = game.getLivesMoneyDisplayRenderData();
     const enemyCountDisplay = game.getEnemyCountDisplayRenderData();
+    const roundManager = game.getRoundManager();
+    const roundState = roundManager.getState();
+    const nextWaveIndex = roundState === RoundState.Idle
+      ? 0
+      : roundState === RoundState.Intermission
+        ? roundManager.getRoundNumber() - 1
+        : -1;
+    const nextWave = RELEASE_WAVES[nextWaveIndex];
+    const wavePreview = nextWave === undefined
+      ? null
+      : getWavePreviewRenderData(nextWave, nextWave.completionBonus);
+    const onboarding = this.getOnboardingRenderData(game, DISABLED_ONBOARDING, false);
 
     const targetingModeButtons = this.getTargetingModeButtons(game);
     const sellButton = this.getSellButton(game);
@@ -378,6 +420,8 @@ export class GameRenderer {
       towerInfoPanel,
       livesMoneyDisplay,
       enemyCountDisplay,
+      wavePreview,
+      onboarding,
       targetingModeButtons,
       sellButton,
       towerPurchase,
