@@ -21,6 +21,7 @@ import {
 } from './towerPurchaseRender';
 import { RELEASE_HUD_LAYOUT, rectsOverlap } from './releaseHudLayout';
 import { getTowerInfoPanelRenderData } from './towerInfoPanel';
+import { getTowerSpriteIcon } from '../presentation/towerSpriteAtlas';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -146,6 +147,10 @@ function testGetTowerPurchaseButtons(): void {
   assertEqual(buttons[0].position.x, 16, 'first button x position');
   assertEqual(buttons[5].towerType, TowerType.Sporecap, 'last is Sporecap');
   assertEqual(buttons[5].position.x, 796, 'last button x position');
+  assert(
+    buttons.every(button => getTowerSpriteIcon(button.towerType).cellIndex === 15),
+    'every purchase card uses cell 16 from its own tower atlas',
+  );
 }
 
 function testGetTowerPurchaseRenderData(): void {

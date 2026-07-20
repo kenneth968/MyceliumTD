@@ -8,7 +8,7 @@ import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys
 import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
 import { Vec2 } from './utils/vec2';
-import { TowerGrowthStage, getTowerBodyShape } from './systems/towerRender';
+import { TowerGrowthStage } from './systems/towerRender';
 import {
     getSellButtonAtPosition,
     PlacementPreviewWithTargetingRenderData,
@@ -73,6 +73,12 @@ import {
     type OnboardingRenderData,
 } from './systems/onboardingRender';
 import { paintEnvironment } from './presentation/environmentPainter';
+import { TowerSpriteImageCache } from './presentation/towerSpriteCache';
+import {
+    paintTowerIdentity,
+    paintTowerIconIdentity,
+} from './presentation/towerSpritePainter';
+import { paintTowerSelectionOutline } from './presentation/towerOverlayPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
@@ -500,6 +506,7 @@ class Game {
     private mouse: MouseState;
     private audio: AudioManager;
     private particles: ParticleSystem;
+    private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
     private lastRenderTime: number = 0;
     private showingMenu: boolean = true;
@@ -520,6 +527,7 @@ class Game {
         this.mouse = { x: 0, y: 0, down: false };
         this.audio = createAudioManager();
         this.particles = new ParticleSystem();
+        this.towerSpriteCache = new TowerSpriteImageCache();
 
         this.setupEventListeners();
         this.renderer.setCamera(RELEASE_CAMERA);
@@ -1183,7 +1191,7 @@ class Game {
         this.drawLingeringFields(renderData.lingeringFields);
         this.drawSeededPayloads(renderData.seededPayloads);
         this.drawNetworkConnections(renderData.networkConnections);
-        this.drawPlacementPreview(renderData.placementPreview);
+        this.drawPlacementPreview(renderData.placementPreview, renderData.timestamp);
         this.drawTowers(renderData);
         this.drawEnemies(renderData);
         this.drawProjectiles(renderData.projectiles);
@@ -1197,7 +1205,10 @@ class Game {
         this.drawHUD(renderData);
     }
 
-    private drawPlacementPreview(preview: PlacementPreviewWithTargetingRenderData | null): void {
+    private drawPlacementPreview(
+        preview: PlacementPreviewWithTargetingRenderData | null,
+        timestamp: number,
+    ): void {
         if (!preview || !preview.ghost) return;
         
         const ghost = preview.ghost;
@@ -1218,10 +1229,6 @@ class Game {
         const size = ghost.size;
         const halfSize = size / 2;
         
-        this.ctx.fillStyle = ghost.isValid ? 'rgba(100, 255, 100, 0.3)' : 'rgba(255, 100, 100, 0.3)';
-        this.ctx.strokeStyle = ghost.isValid ? '#00ff00' : '#ff0000';
-        this.ctx.lineWidth = 2;
-        
         const typeMap: Record<TowerType, 'circle' | 'square' | 'diamond'> = {
             [TowerType.Puffball]: 'circle',
             [TowerType.Slimefungus]: 'diamond',
@@ -1231,25 +1238,20 @@ class Game {
             [TowerType.Sporecap]: 'circle',
         };
         const shapeType = typeMap[ghost.towerType] || 'circle';
-        
-        if (shapeType === 'circle') {
-            this.ctx.beginPath();
-            this.ctx.arc(ghost.position.x, ghost.position.y, halfSize, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-        } else if (shapeType === 'square') {
-            this.ctx.fillRect(ghost.position.x - halfSize, ghost.position.y - halfSize, size, size);
-            this.ctx.strokeRect(ghost.position.x - halfSize, ghost.position.y - halfSize, size, size);
-        } else if (shapeType === 'diamond') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(ghost.position.x, ghost.position.y - halfSize);
-            this.ctx.lineTo(ghost.position.x + halfSize, ghost.position.y);
-            this.ctx.lineTo(ghost.position.x, ghost.position.y + halfSize);
-            this.ctx.lineTo(ghost.position.x - halfSize, ghost.position.y);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-        }
+        const spriteSize = Math.max(56, size * 3);
+        paintTowerIdentity(
+            this.ctx,
+            this.towerSpriteCache,
+            ghost.towerType,
+            ghost.stage,
+            ghost.evolution,
+            timestamp,
+            {
+                anchorX: ghost.position.x,
+                anchorY: ghost.position.y,
+                size: spriteSize,
+            },
+        );
         
         this.ctx.strokeStyle = ghost.glowColor;
         this.ctx.lineWidth = 3;
@@ -1335,37 +1337,26 @@ class Game {
     private drawTowers(renderData: GameFrameRenderData): void {
         for (const tower of renderData.towers.towers) {
             const isSelected = tower.isSelected;
-            const primaryColor = tower.primaryColor;
-            const secondaryColor = tower.secondaryColor;
             const glowColor = tower.glowColor;
             const bodyRadius = tower.bodyRadius;
             const baseRadius = tower.baseRadius;
-            const bodyShape = getTowerBodyShape(tower.towerType);
             const growthStage = tower.growthStage;
             const growthProgress = tower.growthProgress;
             
-            this.ctx.beginPath();
-            switch (bodyShape) {
-                case 'circle':
-                    this.ctx.arc(tower.position.x, tower.position.y, bodyRadius, 0, Math.PI * 2);
-                    break;
-                case 'hexagon':
-                    this.drawHexagon(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                case 'diamond':
-                    this.drawDiamond(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                case 'star':
-                    this.drawStar(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                default:
-                    this.ctx.arc(tower.position.x, tower.position.y, bodyRadius, 0, Math.PI * 2);
-            }
-            this.ctx.fillStyle = primaryColor;
-            this.ctx.fill();
-            this.ctx.strokeStyle = secondaryColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+            const spriteSize = Math.max(56, baseRadius * 3);
+            paintTowerIdentity(
+                this.ctx,
+                this.towerSpriteCache,
+                tower.towerType,
+                tower.stage,
+                tower.evolution,
+                renderData.timestamp,
+                {
+                    anchorX: tower.position.x,
+                    anchorY: tower.position.y,
+                    size: spriteSize,
+                },
+            );
             
             if (growthStage === TowerGrowthStage.FullyMatured || growthStage === TowerGrowthStage.Mature) {
                 this.ctx.beginPath();
@@ -1388,26 +1379,13 @@ class Game {
             }
             
             if (isSelected) {
-                this.ctx.strokeStyle = '#FFD700';
-                this.ctx.lineWidth = 3;
-                this.ctx.beginPath();
-                switch (bodyShape) {
-                    case 'circle':
-                        this.ctx.arc(tower.position.x, tower.position.y, bodyRadius + 4, 0, Math.PI * 2);
-                        break;
-                    case 'hexagon':
-                        this.drawHexagon(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    case 'diamond':
-                        this.drawDiamond(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    case 'star':
-                        this.drawStar(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    default:
-                        this.ctx.arc(tower.position.x, tower.position.y, bodyRadius + 4, 0, Math.PI * 2);
-                }
-                this.ctx.stroke();
+                paintTowerSelectionOutline(
+                    this.ctx,
+                    tower.towerType,
+                    tower.position.x,
+                    tower.position.y,
+                    bodyRadius + 4,
+                );
             }
             
             if (tower.isFiring) {
@@ -1546,38 +1524,6 @@ class Game {
             ctx.fill();
             ctx.restore();
         }
-    }
-
-    private drawHexagon(x: number, y: number, radius: number): void {
-        this.ctx.moveTo(x + radius * Math.cos(0), y + radius * Math.sin(0));
-        for (let i = 1; i <= 6; i++) {
-            const angle = (i * Math.PI) / 3;
-            this.ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
-        }
-        this.ctx.closePath();
-    }
-    
-    private drawDiamond(x: number, y: number, radius: number): void {
-        this.ctx.moveTo(x, y - radius);
-        this.ctx.lineTo(x + radius, y);
-        this.ctx.lineTo(x, y + radius);
-        this.ctx.lineTo(x - radius, y);
-        this.ctx.closePath();
-    }
-    
-    private drawStar(x: number, y: number, radius: number): void {
-        const points = 5;
-        const innerRadius = radius * 0.5;
-        for (let i = 0; i < points * 2; i++) {
-            const r = i % 2 === 0 ? radius : innerRadius;
-            const angle = (i * Math.PI) / points - Math.PI / 2;
-            if (i === 0) {
-                this.ctx.moveTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-            } else {
-                this.ctx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-            }
-        }
-        this.ctx.closePath();
     }
 
     private isEnemyRevealed(ex: number, ey: number): boolean {
@@ -1986,22 +1932,6 @@ class Game {
 
     }
 
-    private drawTargetingModeButtons(buttons: any[]): void {
-        for (const btn of buttons) {
-            this.ctx.fillStyle = btn.isSelected ? btn.color : '#333';
-            this.ctx.fillRect(btn.position.x, btn.position.y, btn.size.width, btn.size.height);
-            this.ctx.strokeStyle = btn.isSelected ? '#fff' : '#555';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(btn.position.x, btn.position.y, btn.size.width, btn.size.height);
-            
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '12px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(btn.label, btn.position.x + btn.size.width / 2, btn.position.y + btn.size.height / 2);
-        }
-    }
-
     private drawSellButton(button: any | null): void {
         if (!button) return;
         
@@ -2021,7 +1951,7 @@ class Game {
     private drawHUD(renderData: GameFrameRenderData): void {
         this.drawWaveAnnouncement(renderData.waveAnnouncement);
         this.drawWaveProgress(renderData.waveProgress);
-        this.drawTowerInfoPanel(renderData.towerInfoPanel);
+        this.drawTowerInfoPanel(renderData.towerInfoPanel, renderData.timestamp);
         this.drawLivesMoney(renderData.livesMoneyDisplay);
         this.drawEnemyCount(renderData.enemyCountDisplay);
         this.drawTowerPurchase(renderData.towerPurchase);
@@ -2558,7 +2488,10 @@ class Game {
         this.ctx.restore();
     }
 
-    private drawTowerInfoPanel(panel: TowerInfoPanelRenderData | null): void {
+    private drawTowerInfoPanel(
+        panel: TowerInfoPanelRenderData | null,
+        timestamp: number,
+    ): void {
         if (!panel || !panel.isVisible) return;
 
         const width = panel.size.width;
@@ -2578,7 +2511,22 @@ class Game {
         this.ctx.font = 'bold 18px sans-serif';
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'top';
-        this.ctx.fillText(this.truncateText(panel.towerName, width - 30), x + 15, y + 14);
+        this.ctx.fillText(this.truncateText(panel.towerName, width - 90), x + 15, y + 14);
+
+        const previewSize = 44;
+        paintTowerIdentity(
+            this.ctx,
+            this.towerSpriteCache,
+            panel.towerType,
+            panel.growth.stage,
+            panel.growth.evolution,
+            timestamp,
+            {
+                anchorX: x + width - 30,
+                anchorY: y + 52,
+                size: previewSize,
+            },
+        );
 
         this.ctx.font = '14px sans-serif';
         this.ctx.fillStyle = '#aaa';
@@ -2776,14 +2724,25 @@ class Game {
             this.ctx.fillStyle = button.canAfford ? '#9EE6C8' : '#777';
             this.ctx.font = 'bold 11px sans-serif';
             this.ctx.fillText(button.role, x + width / 2, y + 21);
+
+            const iconSize = 32;
+            paintTowerIconIdentity(
+                this.ctx,
+                this.towerSpriteCache,
+                button.towerType,
+                x + 8,
+                y + 33,
+                iconSize,
+            );
             
             this.ctx.fillStyle = button.canAfford ? '#4CAF50' : '#F44336';
             this.ctx.font = 'bold 13px sans-serif';
-            this.ctx.fillText(button.costText, x + width / 2, y + 36);
+            this.ctx.textAlign = 'right';
+            this.ctx.fillText(button.costText, x + width - 7, y + 36);
 
             this.ctx.fillStyle = button.canAfford ? '#B8C7D9' : '#666';
             this.ctx.font = '10px sans-serif';
-            this.ctx.fillText(button.counterTags.join(' / '), x + width / 2, y + 53);
+            this.ctx.fillText(button.counterTags.join(' / '), x + width - 7, y + 53);
             
             this.ctx.fillStyle = button.canAfford ? '#aaa' : '#666';
             this.ctx.font = '10px sans-serif';

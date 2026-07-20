@@ -279,7 +279,7 @@ export class GameRenderer {
     const towers = placedTowers.map(pt => ({
       ...pt.tower,
       position: { x: pt.x, y: pt.y },
-    } as Tower));
+    }));
 
     return getTowersRenderData(towers, {
       showRangeForSelected: true,
