@@ -4,6 +4,8 @@ import {
   MusicTrack,
   resolveMusicTrackUrl,
 } from './audioManager';
+import { BrowserGameAudio } from './gameAudioDirector';
+import { GameState } from './gameRunner';
 
 function assertEqual<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) throw new Error(`FAIL: ${message}`);
@@ -114,6 +116,7 @@ class FakeAudioContext {
   destination = {};
   state: AudioContextState = 'suspended';
   resumeCalls = 0;
+  suspendCalls = 0;
   oscillator = new FakeOscillator();
   gain = new FakeGain();
 
@@ -126,6 +129,11 @@ class FakeAudioContext {
   resume(): Promise<void> {
     this.resumeCalls++;
     this.state = 'running';
+    return Promise.resolve();
+  }
+  suspend(): Promise<void> {
+    this.suspendCalls++;
+    this.state = 'suspended';
     return Promise.resolve();
   }
 }
@@ -156,6 +164,7 @@ function runAudioIntegrationTest(): void {
 
   try {
     FakeAudio.instances.length = 0;
+    FakeAudioContext.instances.length = 0;
     Object.defineProperty(globalThis, 'Audio', {
       configurable: true,
       value: FakeAudio,
@@ -199,8 +208,7 @@ function runAudioIntegrationTest(): void {
     assertEqual(chantarelle.playCalls, 2, 'same track resumes after pause');
 
     manager.ensureInitialized();
-    const soundContext = FakeAudioContext.instances[0];
-    assertEqual(soundContext?.resumeCalls, 1, 'user initialization resumes the sound context');
+    assertEqual(FakeAudioContext.instances.length, 0, 'music initialization does not create a legacy sound context');
     manager.setSoundVolume(0.5);
     const playedCue = manager.processGameEvents([{
       type: 'network_connection_created',
@@ -209,12 +217,26 @@ function runAudioIntegrationTest(): void {
       towerId: 2,
       sourceTowerId: 1,
     }]);
+    const soundContext = FakeAudioContext.instances[0];
+    assertEqual(soundContext?.resumeCalls, 1, 'legacy cue lazily resumes its compatibility context');
     assertEqual(playedCue, true, 'network event plays a sound-channel cue');
     assertEqual(soundContext?.oscillator.startCalls, 1, 'sound cue starts an oscillator');
     assertEqual(soundContext?.oscillator.stopCalls, 1, 'sound cue schedules oscillator stop');
     assertEqual(soundContext?.gain.gain.values[0], 0.04, 'sound cue gain follows sound volume');
     manager.setSoundVolume(0);
     assertEqual(manager.processGameEvents([{ type: 'wave_started', timestamp: 2, waveNumber: 1 }]), false, 'zero sound volume suppresses cues');
+
+    const contextsBeforeFacade = FakeAudioContext.instances.length;
+    const browserAudio = new BrowserGameAudio(new AudioManager());
+    browserAudio.unlock();
+    browserAudio.unlock();
+    assertEqual(FakeAudioContext.instances.length, contextsBeforeFacade + 1, 'browser facade owns one semantic sound context');
+    const semanticContext = FakeAudioContext.instances.at(-1);
+    assertEqual(semanticContext?.resumeCalls, 1, 'repeated unlock reuses the semantic sound context');
+    browserAudio.director.update([], GameState.Paused, -1);
+    assertEqual(semanticContext?.suspendCalls, 1, 'pause suspends the semantic sound context');
+    browserAudio.director.update([], GameState.Playing, 0);
+    assertEqual(semanticContext?.resumeCalls, 2, 'resume restarts the semantic sound context');
   } finally {
     console.warn = originalWarn;
     restoreGlobal('Audio', originalAudio);

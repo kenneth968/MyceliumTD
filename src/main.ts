@@ -14,7 +14,7 @@ import {
     TowerSelectionPreviewRenderData,
 } from './systems/placementPreview';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
-import { getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
+import { getPauseAudioSettings, getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
 import { getGameOverVictoryButtonAtPosition, GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
 import {
@@ -35,7 +35,7 @@ import {
 } from './systems/towerPurchaseRender';
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
-import { AudioManager, createAudioManager, isBossWave } from './systems/audioManager';
+import { BrowserGameAudio, createGameAudioDirector } from './systems/gameAudioDirector';
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 import {
@@ -54,7 +54,7 @@ import {
     type OnboardingState,
 } from './systems/onboarding';
 import {
-    drainGameEventsForOnboarding,
+    drainGameEventsForPresentation,
     isNewOnboardingCompletion,
 } from './systems/onboardingIntegration';
 import {
@@ -103,14 +103,13 @@ class Game {
     private renderer: GameRenderer;
     private loop: GameLoop;
     private mouse: MouseState;
-    private audio: AudioManager;
+    private audio: BrowserGameAudio;
     private combatEffects: CombatEffectPool;
     private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
     private lastRenderTime: number = 0;
     private showingMenu: boolean = true;
     private menuAnimTime: number = 0;
-    private lastTrackedWaveIndex: number = -1;
     private onboarding: OnboardingState = createOnboardingState(true);
     private onboardingPulseUntil: number = 0;
 
@@ -124,7 +123,7 @@ class Game {
         this.loop = createGameLoop(this.game, this.renderer);
 
         this.mouse = { x: 0, y: 0, down: false };
-        this.audio = createAudioManager();
+        this.audio = createGameAudioDirector();
         this.combatEffects = new CombatEffectPool();
         this.towerSpriteCache = new TowerSpriteImageCache();
 
@@ -219,8 +218,6 @@ class Game {
     private startGame(): void {
         if (!this.showingMenu) return;
         this.startReleaseRun();
-        this.audio.ensureInitialized();
-        this.audio.playNormalTrack();
         this.loop.start();
         this.loop.setRenderCallback(this.render.bind(this));
         // Player places towers first, then clicks "Start Wave"
@@ -313,6 +310,7 @@ class Game {
 
     private setupEventListeners(): void {
         this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+        this.canvas.addEventListener('pointerdown', () => this.audio.unlock(), { once: true });
         this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         window.addEventListener('keydown', this.onKeyDown.bind(this));
@@ -378,7 +376,6 @@ class Game {
                 if (btnId === 'resume') {
                     this.runOnboardingCommand(OnboardingAction.Pause, () => {
                         this.game.resume();
-                        this.audio.resume();
                     });
                 }
                 else if (btnId === 'restart') this.restartGame();
@@ -585,6 +582,7 @@ class Game {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
+        this.audio.unlock();
         const layer = getActiveUiLayer(this.getUiGateState());
 
         if (layer === UiLayer.Menu) {
@@ -612,7 +610,6 @@ class Game {
             if (action === HotkeyAction.Pause || action === HotkeyAction.Cancel) {
                 this.runOnboardingCommand(OnboardingAction.Pause, () => {
                     this.game.resume();
-                    this.audio.resume();
                 });
             }
             return;
@@ -639,7 +636,6 @@ class Game {
         if (action === HotkeyAction.Pause) {
             this.runOnboardingCommand(OnboardingAction.Pause, () => {
                 this.game.pause();
-                this.audio.pause();
             });
             return;
         }
@@ -723,8 +719,6 @@ class Game {
         }
         this.game.reset();
         this.game.start();
-        this.lastTrackedWaveIndex = -1;
-        this.audio.playNormalTrack();
         this.combatEffects.clear();
     }
 
@@ -735,51 +729,33 @@ class Game {
         this.showingMenu = true;
         this.loop.stop();
         this.game.reset();
-        this.lastTrackedWaveIndex = -1;
-        this.audio.stop();
+        this.audio.enterMenu();
         this.combatEffects.clear();
         this.drawMenu();
     }
 
     private render(renderData: GameFrameRenderData): void {
-        // Switch music based on wave changes
         const waveIndex = this.game.getCurrentWaveIndex();
-        if (waveIndex !== this.lastTrackedWaveIndex && waveIndex >= 0) {
-            this.lastTrackedWaveIndex = waveIndex;
-            const totalWaves = this.game.getGameStats().totalWaves ?? 10;
-            if (isBossWave(waveIndex, totalWaves)) {
-                this.audio.playBossTrack();
-            } else if (waveIndex > 0) {
-                // Only switch back to normal if we were on a boss track
-                this.audio.playNormalTrack();
-            }
-        }
-
-        // Stop music on game over / victory
         const state = this.game.getState();
-        if (state === GameState.GameOver || state === GameState.Victory) {
-            if (this.lastTrackedWaveIndex !== -2) {
-                this.audio.stop();
-                this.lastTrackedWaveIndex = -2; // sentinel to avoid repeated stops
-            }
-        }
 
         // Update particles
         const now = performance.now() / 1000;
         const particleDt = this.lastRenderTime > 0 ? Math.min(now - this.lastRenderTime, 0.05) : 0.016;
         this.lastRenderTime = now;
-        const eventResult = drainGameEventsForOnboarding(
+        const eventResult = drainGameEventsForPresentation(
             this.onboarding,
             () => this.game.drainEvents(),
-            events => {
-                if (events.length > 0) {
-                    this.combatEffects.processEvents(
-                        events,
-                        renderData.towers.towers,
-                        renderData.environment.kernel.position,
-                    );
-                }
-                this.audio.processGameEvents(events);
+            {
+                combat: events => {
+                    if (events.length > 0) {
+                        this.combatEffects.processEvents(
+                            events,
+                            renderData.towers.towers,
+                            renderData.environment.kernel.position,
+                        );
+                    }
+                },
+                audio: events => this.audio.director.update(events, state, waveIndex),
             },
         );
         this.transitionOnboarding(eventResult.state, eventResult.completionBloom);
@@ -1477,9 +1453,14 @@ class Game {
         }
 
         const { musicVolumeBar, soundVolumeBar, muteButton, speedButtons } = RELEASE_HUD_LAYOUT.pauseSettings;
+        const audioSettings = getPauseAudioSettings(
+            this.audio.getMusicVolume(),
+            this.audio.getSoundVolume(),
+            this.audio.isMuted(),
+        );
         const volumeControls = [
-            { label: 'Music Volume', volume: this.audio.getMusicVolume(), rect: musicVolumeBar },
-            { label: 'Sound Volume', volume: this.audio.getSoundVolume(), rect: soundVolumeBar },
+            { label: 'Music Volume', volume: audioSettings.musicVolume, rect: musicVolumeBar },
+            { label: 'Sound Volume', volume: audioSettings.soundVolume, rect: soundVolumeBar },
         ] as const;
 
         for (const control of volumeControls) {
@@ -1503,7 +1484,7 @@ class Game {
             this.ctx.stroke();
         }
 
-        this.ctx.fillStyle = this.audio.isMuted() ? '#E74C3C' : '#2a2a3e';
+        this.ctx.fillStyle = audioSettings.musicMuted ? '#E74C3C' : '#2a2a3e';
         this.ctx.fillRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
         this.ctx.strokeStyle = '#666';
         this.ctx.strokeRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
@@ -1511,7 +1492,7 @@ class Game {
         this.ctx.font = '13px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(
-            this.audio.isMuted() ? 'Unmute Music' : 'Mute Music',
+            audioSettings.musicMuted ? 'Unmute Music' : 'Mute Music',
             muteButton.x + muteButton.width / 2,
             muteButton.y + muteButton.height / 2 + 1,
         );

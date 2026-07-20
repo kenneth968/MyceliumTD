@@ -19,6 +19,10 @@ export type DrainedOnboardingEvents = OnboardingIntegrationResult & Readonly<{
 
 type EventDrain = () => readonly GameEvent[];
 type EventConsumer = (events: readonly GameEvent[]) => void;
+type PresentationConsumers = Readonly<{
+  combat: EventConsumer;
+  audio: EventConsumer;
+}>;
 
 export function applyGameEventsToOnboarding(
   state: OnboardingState,
@@ -51,6 +55,25 @@ export function drainGameEventsForOnboarding(
 ): DrainedOnboardingEvents {
   const events = drainEvents();
   consumeEvents(events);
+  return createDrainedResult(state, events);
+}
+
+/** Drains once and shares the exact readonly batch with combat, audio, and onboarding. */
+export function drainGameEventsForPresentation(
+  state: OnboardingState,
+  drainEvents: EventDrain,
+  consumers: PresentationConsumers,
+): DrainedOnboardingEvents {
+  const events = drainEvents();
+  consumers.combat(events);
+  consumers.audio(events);
+  return createDrainedResult(state, events);
+}
+
+function createDrainedResult(
+  state: OnboardingState,
+  events: readonly GameEvent[],
+): DrainedOnboardingEvents {
   return Object.freeze({
     ...integrateGameEventsWithOnboarding(state, events),
     events,
