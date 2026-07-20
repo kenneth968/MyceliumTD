@@ -43,6 +43,7 @@ import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from '
 import {
     getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
+    RELEASE_CAMERA,
     RELEASE_HUD_LAYOUT,
     type Rect,
 } from './systems/releaseHudLayout';
@@ -62,6 +63,7 @@ import {
     applyOnboardingControl,
     getOnboardingKeyboardControl,
     getOnboardingPointerControl,
+    isOnboardingPromptAtPosition,
     routeOnboardingCommand,
     type OnboardingCommandRoute,
     type OnboardingControl,
@@ -519,7 +521,7 @@ class Game {
         this.particles = new ParticleSystem();
 
         this.setupEventListeners();
-        this.renderer.setCamera({ x: 400, y: 300, zoom: 1.2 });
+        this.renderer.setCamera(RELEASE_CAMERA);
         this.drawMenu();
     }
 
@@ -780,8 +782,9 @@ class Game {
             return;
         }
 
+        const onboardingRenderData = this.getCurrentOnboardingRenderData();
         const onboardingControl = getOnboardingPointerControl(
-            this.getCurrentOnboardingRenderData(),
+            onboardingRenderData,
             screenX,
             screenY,
         );
@@ -789,6 +792,7 @@ class Game {
             this.handleOnboardingControl(onboardingControl);
             return;
         }
+        if (isOnboardingPromptAtPosition(onboardingRenderData, screenX, screenY)) return;
 
         if (this.game.getPlacementState() === PlacementState.Selecting) {
             const panel = this.game.getTowerInfoPanelRenderData();

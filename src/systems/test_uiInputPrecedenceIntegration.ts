@@ -240,7 +240,7 @@ try {
   forcedPlacementState = PlacementState.None;
   forcedTowerInfoPanel = hiddenPanel;
   selectionCalls = 0;
-  clickCanvas(640, 360);
+  clickCanvas(480, 360);
   assertEqual(selectionCalls, 1, 'harmless tower selection remains available during onboarding');
 
   createRunningGame();
@@ -274,10 +274,10 @@ try {
   forcedSelectionPreview = selectionPreview;
   forcedTowerInfoPanel = hiddenPanel;
   sellCalls = 0;
-  clickCanvas(640, 360);
+  clickCanvas(480, 360);
   assertEqual(sellCalls, 0, 'sell and confirmed sell invoke no simulation calls during onboarding');
   pressKey('s');
-  clickCanvas(640, 360);
+  clickCanvas(480, 360);
   assertEqual(sellCalls, 2, 'sell and confirmed sell become available after Skip');
 
   createRunningGame();

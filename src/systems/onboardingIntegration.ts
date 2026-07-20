@@ -79,7 +79,12 @@ function findRelevantEvent(
       const placed = events.find((
         event,
       ): event is Extract<GameEvent, { type: 'tower_placed' }> =>
-        event.type === 'tower_placed' && event.towerType === TowerType.Sporecap,
+        event.type === 'tower_placed'
+          && event.towerType === TowerType.Sporecap
+          && events.some(connection => (
+            connection.type === 'network_connection_created'
+              && connection.towerId === event.towerId
+          )),
       );
       return placed === undefined
         ? null

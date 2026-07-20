@@ -60,6 +60,14 @@ export const RELEASE_HUD_LAYOUT = Object.freeze({
   towerCards,
 });
 
+const RELEASE_CAMERA_ZOOM = 1.2;
+
+export const RELEASE_CAMERA = Object.freeze({
+  x: 400 + (RELEASE_HUD_LAYOUT.canvas.width - RELEASE_HUD_LAYOUT.playfield.width) / (2 * RELEASE_CAMERA_ZOOM),
+  y: 300,
+  zoom: RELEASE_CAMERA_ZOOM,
+});
+
 export function rectsOverlap(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width
     && a.x + a.width > b.x

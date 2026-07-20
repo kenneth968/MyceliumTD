@@ -26,6 +26,14 @@ export function getOnboardingPointerControl(
   return preview && rectContains(preview.rect, x, y) ? 'open_preview' : null;
 }
 
+export function isOnboardingPromptAtPosition(
+  renderData: OnboardingRenderData,
+  x: number,
+  y: number,
+): boolean {
+  return renderData.promptRect !== null && rectContains(renderData.promptRect, x, y);
+}
+
 export function getOnboardingKeyboardControl(
   state: OnboardingState,
   key: string,
