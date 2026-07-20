@@ -2195,10 +2195,12 @@ export class GameRunner {
       if (previouslyConnectedTowerIds.has(towerId)) continue;
       const placed = this.placedTowers.find(entry => entry.tower.id === towerId);
       if (!placed) continue;
+      const sourceId = this.networkState.parentByTowerId.get(towerId);
       this.eventQueue.push({
         type: 'network_connection_created',
         position: { ...placed.tower.position },
         towerId,
+        sourceTowerId: typeof sourceId === 'number' ? sourceId : null,
         timestamp: this.currentTime,
       });
     }

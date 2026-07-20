@@ -2,6 +2,7 @@ export const OnboardingStep = {
   Disabled: 'disabled',
   PlaceSporecap: 'place_sporecap',
   StartFirstWave: 'start_first_wave',
+  ObserveFirstWave: 'observe_first_wave',
   ReviewThreat: 'review_threat',
   CreateConnection: 'create_connection',
   Complete: 'complete',
@@ -38,9 +39,10 @@ export type OnboardingAction = (typeof OnboardingAction)[keyof typeof Onboarding
 export type OnboardingState = Readonly<{
   enabled: boolean;
   step: OnboardingStep;
+  firstTowerId: number | null;
 }>;
 
-type OnboardingTransition = Readonly<{ type: OnboardingEvent }>;
+type OnboardingTransition = Readonly<{ type: OnboardingEvent; towerId?: number }>;
 
 const PROMPTS: Partial<Record<OnboardingStep, string>> = {
   [OnboardingStep.PlaceSporecap]: 'Grow a Sporecap inside the glowing mycelium.',
@@ -53,6 +55,7 @@ export function createOnboardingState(enabled: boolean): OnboardingState {
   return {
     enabled,
     step: enabled ? OnboardingStep.PlaceSporecap : OnboardingStep.Disabled,
+    firstTowerId: null,
   };
 }
 
@@ -63,26 +66,28 @@ export function reduceOnboarding(
   switch (event.type) {
     case OnboardingEvent.SporecapPlaced:
       return state.step === OnboardingStep.PlaceSporecap
-        ? { enabled: state.enabled, step: OnboardingStep.StartFirstWave }
+        ? { ...state, step: OnboardingStep.StartFirstWave, firstTowerId: event.towerId ?? null }
         : state;
     case OnboardingEvent.FirstWaveStarted:
-      return state;
-    case OnboardingEvent.FirstWaveCompleted:
       return state.step === OnboardingStep.StartFirstWave
-        ? { enabled: state.enabled, step: OnboardingStep.ReviewThreat }
+        ? { ...state, step: OnboardingStep.ObserveFirstWave }
+        : state;
+    case OnboardingEvent.FirstWaveCompleted:
+      return state.step === OnboardingStep.ObserveFirstWave
+        ? { ...state, step: OnboardingStep.ReviewThreat }
         : state;
     case OnboardingEvent.ThreatPreviewOpened:
       return state.step === OnboardingStep.ReviewThreat
-        ? { enabled: state.enabled, step: OnboardingStep.CreateConnection }
+        ? { ...state, step: OnboardingStep.CreateConnection }
         : state;
     case OnboardingEvent.UsefulConnectionCreated:
       return state.step === OnboardingStep.CreateConnection
-        ? { enabled: state.enabled, step: OnboardingStep.Complete }
+        ? { ...state, step: OnboardingStep.Complete }
         : state;
     case OnboardingEvent.Skip:
-      return { enabled: state.enabled, step: OnboardingStep.Complete };
+      return { ...state, step: OnboardingStep.Complete };
     case OnboardingEvent.Replay:
-      return { enabled: true, step: OnboardingStep.PlaceSporecap };
+      return { enabled: true, step: OnboardingStep.PlaceSporecap, firstTowerId: null };
     default:
       return assertNever(event.type);
   }
@@ -104,6 +109,8 @@ export function isActionAllowed(state: OnboardingState, action: OnboardingAction
       return action === OnboardingAction.PlaceSporecap;
     case OnboardingStep.StartFirstWave:
       return action === OnboardingAction.StartWave;
+    case OnboardingStep.ObserveFirstWave:
+      return false;
     case OnboardingStep.ReviewThreat:
       return action === OnboardingAction.OpenThreatPreview;
     case OnboardingStep.CreateConnection:

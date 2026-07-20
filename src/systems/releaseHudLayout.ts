@@ -18,6 +18,8 @@ export type PauseSettingsControl =
   | 'speed_fast'
   | 'speed_faster';
 
+export type ReleaseHudRegion = 'top_bar' | 'tower_panel' | 'wave_preview' | 'tower_bar';
+
 function freezeRect(rect: Rect): Rect {
   return Object.freeze(rect);
 }
@@ -70,6 +72,15 @@ function rectContainsPoint(rect: Rect, point: Point): boolean {
     && point.x <= rect.x + rect.width
     && point.y >= rect.y
     && point.y <= rect.y + rect.height;
+}
+
+export function getReleaseHudRegionAtPosition(x: number, y: number): ReleaseHudRegion | null {
+  const point = { x, y };
+  if (rectContainsPoint(RELEASE_HUD_LAYOUT.topBar, point)) return 'top_bar';
+  if (rectContainsPoint(RELEASE_HUD_LAYOUT.towerPanel, point)) return 'tower_panel';
+  if (rectContainsPoint(RELEASE_HUD_LAYOUT.wavePreview, point)) return 'wave_preview';
+  if (rectContainsPoint(RELEASE_HUD_LAYOUT.towerBar, point)) return 'tower_bar';
+  return null;
 }
 
 export function getPauseSettingsControlAtPosition(x: number, y: number): PauseSettingsControl | null {

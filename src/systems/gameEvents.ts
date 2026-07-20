@@ -29,6 +29,7 @@ export type GameEvent =
       timestamp: number;
       position: Vec2;
       towerId: number;
+      sourceTowerId: number | null;
     }>
   | Readonly<{
       type: 'tower_matured';

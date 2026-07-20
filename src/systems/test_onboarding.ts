@@ -53,6 +53,7 @@ let state = createOnboardingState(true);
 // Then: placement is the first guided action with its exact prompt and action gate.
 assert(state.enabled === true, 'enabled onboarding remains enabled');
 assert(state.step === OnboardingStep.PlaceSporecap, 'tutorial begins with placement');
+assert(state.firstTowerId === null, 'new onboarding has no relay anchor');
 assert(
   getOnboardingPrompt(state) === 'Grow a Sporecap inside the glowing mycelium.',
   'placement step uses the exact prompt',
@@ -72,7 +73,7 @@ assert(
 );
 
 // When: the simulation confirms Sporecap placement.
-state = reduceOnboarding(state, { type: OnboardingEvent.SporecapPlaced });
+state = reduceOnboarding(state, { type: OnboardingEvent.SporecapPlaced, towerId: 41 });
 
 // Then: Wave 1 start is the only progression action.
 assert(state.step === OnboardingStep.StartFirstWave, 'placement advances tutorial');
@@ -81,10 +82,15 @@ assert(
   'wave start step uses the exact prompt',
 );
 assertAllowedActions(state, [OnboardingAction.StartWave, ...harmlessActions], 'wave start step');
-assert(
-  reduceOnboarding(state, { type: OnboardingEvent.FirstWaveStarted }) === state,
-  'FirstWaveStarted preserves the current state object',
-);
+assert(state.firstTowerId === 41, 'confirmed Sporecap becomes the relay anchor');
+
+// When: Wave 1 starts.
+state = reduceOnboarding(state, { type: OnboardingEvent.FirstWaveStarted });
+
+// Then: the start instruction and highlight disappear while progression waits for completion.
+assert(state.step === OnboardingStep.ObserveFirstWave, 'wave start hides the start-wave lesson');
+assert(getOnboardingPrompt(state) === null, 'active Wave 1 has no overlapping tutorial banner');
+assertAllowedActions(state, [...harmlessActions], 'active Wave 1 observation');
 
 // When: Wave 1 completes.
 state = reduceOnboarding(state, { type: OnboardingEvent.FirstWaveCompleted });
@@ -126,7 +132,10 @@ assertAllowedActions(state, Object.values(OnboardingAction), 'completed onboardi
 
 // Given: a blocking tutorial step.
 const reviewState = reduceOnboarding(
-  reduceOnboarding(createOnboardingState(true), { type: OnboardingEvent.SporecapPlaced }),
+  reduceOnboarding(
+    reduceOnboarding(createOnboardingState(true), { type: OnboardingEvent.SporecapPlaced, towerId: 41 }),
+    { type: OnboardingEvent.FirstWaveStarted },
+  ),
   { type: OnboardingEvent.FirstWaveCompleted },
 );
 
@@ -139,6 +148,7 @@ assert(skippedState.step === OnboardingStep.Complete, 'Skip completes onboarding
 assert(getOnboardingPrompt(skippedState) === null, 'skipped onboarding has no prompt');
 assert(replayedState.enabled === true, 'Replay enables onboarding');
 assert(replayedState.step === OnboardingStep.PlaceSporecap, 'Replay restarts at placement');
+assert(replayedState.firstTowerId === null, 'Replay clears the previous relay anchor');
 assert(
   getOnboardingPrompt(replayedState) === 'Grow a Sporecap inside the glowing mycelium.',
   'Replay restores the exact placement prompt',

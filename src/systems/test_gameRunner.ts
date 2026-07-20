@@ -51,13 +51,14 @@ function assertPlacementConnectionSequence(
   );
   assertEqual(
     Object.keys(connectionEvent).sort().join(','),
-    'position,timestamp,towerId,type',
+    'position,sourceTowerId,timestamp,towerId,type',
     `${label} connection event should expose the exact payload`,
   );
   assertEqual(connectionEvent.timestamp, expectedTimestamp, `${label} connection timestamp`);
   assertEqual(connectionEvent.position.x, tower.position.x, `${label} connection x`);
   assertEqual(connectionEvent.position.y, tower.position.y, `${label} connection y`);
   assertEqual(connectionEvent.towerId, tower.id, `${label} connection tower ID`);
+  assertEqual(connectionEvent.sourceTowerId, null, `${label} Kernel connection has no source tower`);
   assert(connectionEvent.position !== tower.position, `${label} connection position should be copied`);
   assert(
     connectionEvent.position !== placementEvent.position,

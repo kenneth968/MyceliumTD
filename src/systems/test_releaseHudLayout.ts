@@ -1,5 +1,6 @@
 import {
   getPauseSettingsControlAtPosition,
+  getReleaseHudRegionAtPosition,
   RELEASE_HUD_LAYOUT,
   rectsOverlap,
   type Rect,
@@ -21,7 +22,7 @@ function isContainedBy(inner: Rect, outer: Rect): boolean {
 }
 
 // Given the contractual fixed release canvas
-const { canvas, topBar, towerPanel, wavePreview, towerBar, startWaveButton, towerCards } = RELEASE_HUD_LAYOUT;
+const { canvas, topBar, playfield, towerPanel, wavePreview, towerBar, startWaveButton, towerCards } = RELEASE_HUD_LAYOUT;
 
 // When the named HUD regions and interactive siblings are compared
 const interactiveCardsOverlap = towerCards.some(card => rectsOverlap(card, startWaveButton));
@@ -36,6 +37,24 @@ assert(isContainedBy(startWaveButton, towerBar), 'start-wave button fits the tow
 assert(!interactiveCardsOverlap, 'tower cards do not overlap the start-wave button');
 assert(towerCards[5]?.x + towerCards[5].width === 944, 'sixth card ends at x=944');
 assert(startWaveButton.x - (towerCards[5]?.x + towerCards[5].width) === 8, 'sixth card has an eight-pixel action gap');
+
+const reservedHudCases = [
+  { rect: topBar, expected: 'top_bar' },
+  { rect: towerPanel, expected: 'tower_panel' },
+  { rect: wavePreview, expected: 'wave_preview' },
+  { rect: towerBar, expected: 'tower_bar' },
+] as const;
+
+for (const { rect, expected } of reservedHudCases) {
+  assert(
+    getReleaseHudRegionAtPosition(rect.x + rect.width / 2, rect.y + rect.height / 2) === expected,
+    `${expected} consumes its noninteractive interior`,
+  );
+}
+assert(
+  getReleaseHudRegionAtPosition(playfield.x + 100, playfield.y + 100) === null,
+  'playfield remains available to world input',
+);
 
 // Given callers receive the shared release geometry
 const originalCanvasWidth = canvas.width;

@@ -1,3 +1,5 @@
+import type { GameEvent } from './gameEvents';
+
 /**
  * Audio Manager for Mycelium TD
  * Handles background music with crossfading between normal and boss tracks.
@@ -57,6 +59,7 @@ export class AudioManager {
   private muted: boolean = false;
   private initialized: boolean = false;
   private pendingTrack: MusicTrack | null = null;
+  private soundContext: AudioContext | null = null;
   private readonly failures = new AudioFailureRegistry();
 
   constructor(config: Partial<AudioManagerConfig> = {}) {
@@ -266,6 +269,47 @@ export class AudioManager {
 
   getSoundVolume(): number {
     return this.config.soundVolume;
+  }
+
+  processGameEvents(events: readonly GameEvent[]): boolean {
+    const cue = events.some(event => event.type === 'network_connection_created')
+      ? 'connection'
+      : events.some(event => event.type === 'tower_placed')
+        ? 'placement'
+        : events.some(event => event.type === 'wave_started')
+          ? 'wave'
+          : null;
+    return cue === null ? false : this.playSoundCue(cue);
+  }
+
+  private playSoundCue(cue: 'connection' | 'placement' | 'wave'): boolean {
+    if (this.config.soundVolume <= 0) return false;
+    const context = this.getSoundContext();
+    if (context === null) return false;
+
+    if (context.state === 'suspended') void context.resume().catch(() => {});
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const frequency = cue === 'connection' ? 660 : cue === 'placement' ? 520 : 420;
+    const now = context.currentTime;
+
+    oscillator.type = cue === 'wave' ? 'triangle' : 'sine';
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(this.config.soundVolume * 0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.12);
+    return true;
+  }
+
+  private getSoundContext(): AudioContext | null {
+    if (this.soundContext !== null) return this.soundContext;
+    const AudioContextConstructor = globalThis.AudioContext;
+    if (typeof AudioContextConstructor !== 'function') return null;
+    this.soundContext = new AudioContextConstructor();
+    return this.soundContext;
   }
 
   getCurrentTrack(): MusicTrack | null {

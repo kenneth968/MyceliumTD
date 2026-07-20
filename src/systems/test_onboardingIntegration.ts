@@ -66,9 +66,9 @@ const afterRealWaveStart = applyGameEventsToOnboarding(
   placementGame.drainEvents(),
 );
 assertSame(
-  afterRealWaveStart,
-  afterPlacement,
-  'real wave start does not skip the completion lesson',
+  afterRealWaveStart.step,
+  OnboardingStep.ObserveFirstWave,
+  'real wave start hides the start instruction while awaiting completion',
 );
 
 // Given onboarding waiting for Wave 1 completion
@@ -90,13 +90,13 @@ const firstWaveBatch = [{
   total: 1,
 }] as const;
 
-// When unrelated start and wrong-wave events arrive
+// When Wave 1 starts and an unrelated completion arrives
 const afterWaveStart = applyGameEventsToOnboarding(afterPlacement, waveStartBatch);
 const afterWrongWave = applyGameEventsToOnboarding(afterWaveStart, wrongWaveBatch);
 
-// Then no tutorial state is mutated
-assertSame(afterWaveStart, afterPlacement, 'wave start preserves the exact state object');
-assertSame(afterWrongWave, afterPlacement, 'only Wave 1 completion is recognized');
+// Then the visible start lesson clears and only Wave 1 completion advances again
+assertSame(afterWaveStart.step, OnboardingStep.ObserveFirstWave, 'wave start enters hidden observation');
+assertSame(afterWrongWave, afterWaveStart, 'only Wave 1 completion is recognized');
 assertSame(
   applyGameEventsToOnboarding(afterWrongWave, firstWaveBatch).step,
   OnboardingStep.ReviewThreat,
@@ -107,19 +107,29 @@ assertSame(
 const createConnection: OnboardingState = {
   enabled: true,
   step: OnboardingStep.CreateConnection,
+  firstTowerId: placedTower?.id ?? null,
 };
 const connectionBatch = [{
   type: 'network_connection_created',
   timestamp: 4,
   position: { x: 500, y: 180 },
   towerId: 2,
+  sourceTowerId: placedTower?.id ?? null,
+}] as const;
+const kernelConnectionBatch = [{
+  ...connectionBatch[0],
+  towerId: 3,
+  sourceTowerId: null,
 }] as const;
 
-// When the connection is integrated twice
+// When a Kernel-only connection and then the highlighted relay connection are integrated
+const rejectedKernelConnection = integrateGameEventsWithOnboarding(createConnection, kernelConnectionBatch);
 const completion = integrateGameEventsWithOnboarding(createConnection, connectionBatch);
 const repeated = integrateGameEventsWithOnboarding(completion.state, connectionBatch);
 
 // Then completion presents exactly one bloom at the confirmed connection
+assertSame(rejectedKernelConnection.state, createConnection, 'Kernel-only connection cannot complete relay lesson');
+assertSame(rejectedKernelConnection.completionBloom, null, 'rejected connection emits no bloom');
 assertSame(completion.state.step, OnboardingStep.Complete, 'later useful connection completes onboarding');
 assert(completion.completionBloom !== null, 'first completion emits a bloom presentation');
 assertSame(completion.completionBloom?.x, 500, 'bloom uses the confirmed connection x');
@@ -180,7 +190,12 @@ const renderContext = {
 // Given each active onboarding step and stable world anchors
 const placeRender = getOnboardingRenderData({ state: initial, ...renderContext });
 const startRender = getOnboardingRenderData({ state: afterPlacement, ...renderContext });
-const reviewState: OnboardingState = { enabled: true, step: OnboardingStep.ReviewThreat };
+const activeWaveRender = getOnboardingRenderData({ state: afterRealWaveStart, ...renderContext });
+const reviewState: OnboardingState = {
+  enabled: true,
+  step: OnboardingStep.ReviewThreat,
+  firstTowerId: placedTower?.id ?? null,
+};
 const reviewRender = getOnboardingRenderData({ state: reviewState, ...renderContext });
 const connectionRender = getOnboardingRenderData({ state: createConnection, ...renderContext });
 const completeRender = getOnboardingRenderData({ state: completion.state, ...renderContext });
@@ -199,6 +214,8 @@ assertSame(placeRender.reach?.shape, 'circle', 'Kernel reach has a shape cue');
 assertSame(placeRender.reach?.lineStyle, 'dashed', 'Kernel reach has a line-style cue');
 assertSame(placeRender.reach?.radius, 180, 'Kernel reach uses the simulation radius');
 assertSame(startRect, RELEASE_HUD_LAYOUT.startWaveButton, 'Start Wave highlight reuses its hit rectangle');
+assertSame(activeWaveRender.isVisible, false, 'active Wave 1 removes tutorial banner and highlight');
+assertSame(activeWaveRender.highlights.length, 0, 'active Wave 1 reserves no HUD highlight');
 assertSame(reviewRect, RELEASE_HUD_LAYOUT.wavePreview, 'Wave 2 preview highlight reuses its hit rectangle');
 assertSame(connectionRender.highlights.length, 5, 'connection lesson highlights every non-Sporecap card');
 assert(

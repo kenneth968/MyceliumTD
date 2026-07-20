@@ -97,6 +97,8 @@ const originalStartTowerPlacement = GameRunner.prototype.startTowerPlacement;
 const originalStartWave = GameRunner.prototype.startWave;
 const originalResume = GameRunner.prototype.resume;
 const originalGetPlacementState = GameRunner.prototype.getPlacementState;
+const originalUpdatePlacementPosition = GameRunner.prototype.updatePlacementPosition;
+const originalConfirmPlacement = GameRunner.prototype.confirmPlacement;
 const originalGetTowerSelectionPreview = GameRunner.prototype.getTowerSelectionPreviewRenderData;
 const originalGetTowerInfoPanel = GameRunner.prototype.getTowerInfoPanelRenderData;
 const originalSelectTowerAtPosition = GameRunner.prototype.selectTowerAtPosition;
@@ -124,6 +126,7 @@ let showMapCalls = 0;
 let hideMapCalls = 0;
 let selectMapCalls = 0;
 let forcedPlacementState: PlacementState | null = null;
+let worldPlacementCalls = 0;
 let forcedSelectionPreview: ReturnType<GameRunner['getTowerSelectionPreviewRenderData']> | null = null;
 let forcedTowerInfoPanel: ReturnType<GameRunner['getTowerInfoPanelRenderData']> | null = null;
 
@@ -152,6 +155,13 @@ GameRunner.prototype.resume = function (): boolean {
 };
 GameRunner.prototype.getPlacementState = function (): PlacementState {
   return forcedPlacementState ?? originalGetPlacementState.call(this);
+};
+GameRunner.prototype.updatePlacementPosition = function (): void {
+  worldPlacementCalls++;
+};
+GameRunner.prototype.confirmPlacement = function () {
+  worldPlacementCalls++;
+  return null;
 };
 GameRunner.prototype.getTowerSelectionPreviewRenderData = function () {
   return forcedSelectionPreview ?? originalGetTowerSelectionPreview.call(this);
@@ -367,6 +377,23 @@ try {
 
   createRunningGame();
   pressKey('s');
+  forcedPlacementState = PlacementState.Placing;
+  worldPlacementCalls = 0;
+  for (const point of [
+    { x: 40, y: 28 },
+    { x: 1100, y: 200 },
+    { x: 1100, y: 500 },
+    { x: 700, y: 710 },
+  ]) {
+    clickCanvas(point.x, point.y);
+  }
+  assertEqual(worldPlacementCalls, 0, 'reserved HUD interiors consume world placement clicks');
+  clickCanvas(500, 300);
+  assertEqual(worldPlacementCalls, 2, 'playfield click still reaches placement update and confirmation');
+  forcedPlacementState = null;
+
+  createRunningGame();
+  pressKey('s');
   pressKey('Space');
   clickCanvas(640, 440);
   towerPlacementCalls = 0;
@@ -419,6 +446,8 @@ try {
   GameRunner.prototype.startWave = originalStartWave;
   GameRunner.prototype.resume = originalResume;
   GameRunner.prototype.getPlacementState = originalGetPlacementState;
+  GameRunner.prototype.updatePlacementPosition = originalUpdatePlacementPosition;
+  GameRunner.prototype.confirmPlacement = originalConfirmPlacement;
   GameRunner.prototype.getTowerSelectionPreviewRenderData = originalGetTowerSelectionPreview;
   GameRunner.prototype.getTowerInfoPanelRenderData = originalGetTowerInfoPanel;
   GameRunner.prototype.selectTowerAtPosition = originalSelectTowerAtPosition;

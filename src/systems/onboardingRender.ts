@@ -130,6 +130,7 @@ function getHighlights(step: OnboardingStep): readonly OnboardingHighlight[] {
           .map(rect => createHighlight(rect, 'Connection tower card', '#4ADE80')),
       );
     case OnboardingStep.Disabled:
+    case OnboardingStep.ObserveFirstWave:
     case OnboardingStep.Complete:
       return Object.freeze([]);
     default:
@@ -156,6 +157,7 @@ function getReach(context: OnboardingRenderContext): OnboardingReach | null {
           );
     case OnboardingStep.Disabled:
     case OnboardingStep.StartFirstWave:
+    case OnboardingStep.ObserveFirstWave:
     case OnboardingStep.ReviewThreat:
     case OnboardingStep.Complete:
       return null;

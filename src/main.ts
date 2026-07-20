@@ -41,6 +41,7 @@ import { AudioManager, createAudioManager, isBossWave } from './systems/audioMan
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 import {
+    getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
     RELEASE_HUD_LAYOUT,
     type Rect,
@@ -842,6 +843,8 @@ class Game {
             return;
         }
 
+        if (getReleaseHudRegionAtPosition(screenX, screenY) !== null) return;
+
         const world = this.screenToWorld(e.clientX, e.clientY);
         this.runOnboardingCommand(
             this.getWorldClickOnboardingAction(world.x, world.y),
@@ -1156,7 +1159,10 @@ class Game {
         const eventResult = drainGameEventsForOnboarding(
             this.onboarding,
             () => this.game.drainEvents(),
-            events => this.particles.processEvents(events),
+            events => {
+                this.particles.processEvents(events);
+                this.audio.processGameEvents(events);
+            },
         );
         this.transitionOnboarding(eventResult.state, eventResult.completionBloom);
         this.particles.update(particleDt);

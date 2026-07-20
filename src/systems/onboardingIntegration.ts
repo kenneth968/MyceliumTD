@@ -34,7 +34,10 @@ export function integrateGameEventsWithOnboarding(
   const event = findRelevantEvent(state, events);
   if (event === null) return Object.freeze({ state, completionBloom: null });
 
-  const nextState = reduceOnboarding(state, { type: event.onboardingType });
+  const nextState = reduceOnboarding(state, {
+    type: event.onboardingType,
+    towerId: event.towerId ?? undefined,
+  });
   const completionBloom = event.position === null
     ? null
     : Object.freeze({ ...event.position });
@@ -64,6 +67,7 @@ export function isNewOnboardingCompletion(
 type RelevantEvent = Readonly<{
   onboardingType: OnboardingEvent;
   position: Readonly<Vec2> | null;
+  towerId?: number;
 }>;
 
 function findRelevantEvent(
@@ -72,14 +76,28 @@ function findRelevantEvent(
 ): RelevantEvent | null {
   switch (state.step) {
     case OnboardingStep.PlaceSporecap: {
-      const placed = events.find(
-        event => event.type === 'tower_placed' && event.towerType === TowerType.Sporecap,
+      const placed = events.find((
+        event,
+      ): event is Extract<GameEvent, { type: 'tower_placed' }> =>
+        event.type === 'tower_placed' && event.towerType === TowerType.Sporecap,
       );
       return placed === undefined
         ? null
-        : { onboardingType: OnboardingEvent.SporecapPlaced, position: null };
+        : {
+            onboardingType: OnboardingEvent.SporecapPlaced,
+            position: null,
+            towerId: placed.towerId,
+          };
     }
     case OnboardingStep.StartFirstWave: {
+      const started = events.some(
+        event => event.type === 'wave_started' && event.waveNumber === 1,
+      );
+      return started
+        ? { onboardingType: OnboardingEvent.FirstWaveStarted, position: null }
+        : null;
+    }
+    case OnboardingStep.ObserveFirstWave: {
       const completed = events.some(
         event => event.type === 'wave_completed' && event.waveNumber === 1,
       );
@@ -88,7 +106,12 @@ function findRelevantEvent(
         : null;
     }
     case OnboardingStep.CreateConnection: {
-      const connection = events.find(event => event.type === 'network_connection_created');
+      const connection = events.find((
+        event,
+      ): event is Extract<GameEvent, { type: 'network_connection_created' }> =>
+        event.type === 'network_connection_created'
+          && event.sourceTowerId === state.firstTowerId,
+      );
       return connection === undefined
         ? null
         : {
