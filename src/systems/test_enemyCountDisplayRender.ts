@@ -127,7 +127,8 @@ function getEnemyCountDisplayRenderDataTests() {
   assertEqual(data.size.width, 100, 'width should be 100');
   assertEqual(data.size.height, 30, 'height should be 30');
   assertEqual(data.currentCount, 42, 'currentCount should be 42');
-  assertEqual(data.countText, '42', 'countText should be "42"');
+  assertEqual(data.label, 'Enemies', 'enemy count exposes its release label');
+  assertEqual(data.countText, 'Enemies 42', 'countText should use the Enemies label');
   assertEqual(data.opacity, 1, 'opacity should be 1');
   assertEqual(data.fillColor, '#9370DB', 'fillColor should be #9370DB');
   assertEqual(data.backgroundColor, 'rgba(60, 40, 80, 0.9)', 'backgroundColor should be rgba(60, 40, 80, 0.9)');
@@ -148,7 +149,7 @@ function getEnemyCountDisplayRenderDataFullTests() {
   assert(data.state === EnemyCountDisplayState.Hidden, 'state should be Hidden');
   assert(!data.isVisible, 'isVisible should be false');
   assertEqual(data.enemyCount.currentCount, 42, 'currentCount should be 42');
-  assertEqual(data.enemyCount.countText, '42', 'countText should be "42"');
+  assertEqual(data.enemyCount.countText, 'Enemies 42', 'countText should use the Enemies label');
   
   showEnemyCountDisplay(animator, 1000);
   data = getEnemyCountDisplayRenderDataFull(animator, {
@@ -158,7 +159,7 @@ function getEnemyCountDisplayRenderDataFullTests() {
   assert(data.state === EnemyCountDisplayState.Visible, 'state should be Visible');
   assert(data.isVisible, 'isVisible should be true');
   assertEqual(data.enemyCount.currentCount, 42, 'currentCount should be 42');
-  assertEqual(data.enemyCount.countText, '42', 'countText should be "42"');
+  assertEqual(data.enemyCount.countText, 'Enemies 42', 'countText should use the Enemies label');
   
   hideEnemyCountDisplay(animator, 2000);
   data = getEnemyCountDisplayRenderDataFull(animator, {

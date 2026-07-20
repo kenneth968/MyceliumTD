@@ -101,8 +101,8 @@ assert(animator.state === 'hidden', 'State should transition to hidden after fad
 console.log('  updatePauseMenu exiting transition tests passed');
 
 const pos = getPauseMenuPosition();
-assertEqual(pos.x, 400, 'Position x should be 400');
-assertEqual(pos.y, 300, 'Position y should be 300');
+assertEqual(pos.x, 640, 'Position x should be 640');
+assertEqual(pos.y, 360, 'Position y should be 360');
 console.log('  getPauseMenuPosition tests passed');
 
 const size = getPauseMenuSize();
@@ -133,7 +133,7 @@ assertEqual(data.buttons[0].label, 'Resume', 'First button label should be Resum
 assertEqual(data.buttons[1].id, 'restart', 'Second button should be restart');
 assertEqual(data.buttons[1].label, 'Restart', 'Second button label should be Restart');
 assertEqual(data.buttons[2].id, 'quit', 'Third button should be quit');
-assertEqual(data.buttons[2].label, 'Quit', 'Third button label should be Quit');
+assertEqual(data.buttons[2].label, 'Quit to Menu', 'Third button label should be Quit to Menu');
 console.log('  button rendering tests passed');
 
 animator = createPauseMenuAnimator();

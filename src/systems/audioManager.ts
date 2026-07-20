@@ -1,3 +1,5 @@
+import type { GameEvent } from './gameEvents';
+
 /**
  * Audio Manager for Mycelium TD
  * Handles background music with crossfading between normal and boss tracks.
@@ -16,12 +18,14 @@ export enum MusicTrack {
 
 export interface AudioManagerConfig {
   musicVolume: number;       // 0-1
+  soundVolume: number;
   crossfadeDuration: number; // ms
   basePath: string;          // path to music files
 }
 
 const DEFAULT_CONFIG: AudioManagerConfig = {
   musicVolume: 0.4,
+  soundVolume: 0.7,
   crossfadeDuration: 2000,
   basePath: './assets/music',
 };
@@ -55,6 +59,7 @@ export class AudioManager {
   private muted: boolean = false;
   private initialized: boolean = false;
   private pendingTrack: MusicTrack | null = null;
+  private soundContext: AudioContext | null = null;
   private readonly failures = new AudioFailureRegistry();
 
   constructor(config: Partial<AudioManagerConfig> = {}) {
@@ -238,6 +243,14 @@ export class AudioManager {
   }
 
   setVolume(volume: number): void {
+    this.setMusicVolume(volume);
+  }
+
+  getVolume(): number {
+    return this.getMusicVolume();
+  }
+
+  setMusicVolume(volume: number): void {
     this.config.musicVolume = Math.max(0, Math.min(1, volume));
     if (!this.muted) {
       for (const audio of this.getActiveAudios()) {
@@ -246,8 +259,57 @@ export class AudioManager {
     }
   }
 
-  getVolume(): number {
+  getMusicVolume(): number {
     return this.config.musicVolume;
+  }
+
+  setSoundVolume(volume: number): void {
+    this.config.soundVolume = Math.max(0, Math.min(1, volume));
+  }
+
+  getSoundVolume(): number {
+    return this.config.soundVolume;
+  }
+
+  processGameEvents(events: readonly GameEvent[]): boolean {
+    const cue = events.some(event => event.type === 'network_connection_created')
+      ? 'connection'
+      : events.some(event => event.type === 'tower_placed')
+        ? 'placement'
+        : events.some(event => event.type === 'wave_started')
+          ? 'wave'
+          : null;
+    return cue === null ? false : this.playSoundCue(cue);
+  }
+
+  private playSoundCue(cue: 'connection' | 'placement' | 'wave'): boolean {
+    if (this.config.soundVolume <= 0) return false;
+    const context = this.getSoundContext();
+    if (context === null) return false;
+
+    if (context.state === 'suspended') void context.resume().catch(() => {});
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const frequency = cue === 'connection' ? 660 : cue === 'placement' ? 520 : 420;
+    const now = context.currentTime;
+
+    oscillator.type = cue === 'wave' ? 'triangle' : 'sine';
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(this.config.soundVolume * 0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.12);
+    return true;
+  }
+
+  private getSoundContext(): AudioContext | null {
+    if (this.soundContext !== null) return this.soundContext;
+    const AudioContextConstructor = globalThis.AudioContext;
+    if (typeof AudioContextConstructor !== 'function') return null;
+    this.soundContext = new AudioContextConstructor();
+    return this.soundContext;
   }
 
   getCurrentTrack(): MusicTrack | null {
@@ -262,6 +324,10 @@ export class AudioManager {
         this.play(this.pendingTrack);
         this.pendingTrack = null;
       }
+    }
+    const soundContext = this.getSoundContext();
+    if (soundContext?.state === 'suspended') {
+      void soundContext.resume().catch(() => {});
     }
   }
 }

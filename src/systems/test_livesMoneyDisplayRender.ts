@@ -132,9 +132,10 @@ function getLivesDisplayRenderDataTests() {
   assertEqual(data.position.y, 20, 'y position should be 20');
   assertEqual(data.size.width, 70, 'width should be 70');
   assertEqual(data.size.height, 30, 'height should be 30');
-  assertEqual(data.currentLives, 15, 'currentLives should be 15');
-  assertEqual(data.maxLives, 20, 'maxLives should be 20');
-  assertEqual(data.livesText, '15', 'livesText should be "15"');
+  assertEqual(data.current, 15, 'current kernel integrity should be 15');
+  assertEqual(data.maximum, 20, 'maximum kernel integrity should be 20');
+  assertEqual(data.label, 'Kernel', 'kernel display should expose its release label');
+  assertEqual(data.integrityText, 'Kernel 15 / 20', 'kernel text should use release copy');
   assertEqual(data.opacity, 1, 'opacity should be 1');
   assertEqual(data.fillColor, '#FF4444', 'fillColor should be #FF4444');
   assertEqual(data.backgroundColor, 'rgba(80, 30, 30, 0.9)', 'backgroundColor should be rgba(80, 30, 30, 0.9)');
@@ -154,8 +155,9 @@ function getMoneyDisplayRenderDataTests() {
   assertEqual(data.position.y, 20, 'y position should be 20');
   assertEqual(data.size.width, 90, 'width should be 90');
   assertEqual(data.size.height, 30, 'height should be 30');
-  assertEqual(data.currentMoney, 650, 'currentMoney should be 650');
-  assertEqual(data.moneyText, '650 Nutrients', 'moneyText should use the explicit Nutrients label');
+  assertEqual(data.current, 650, 'current nutrients should be 650');
+  assertEqual(data.label, 'Nutrients', 'nutrient display should expose its release label');
+  assertEqual(data.nutrientText, '650 Nutrients', 'nutrient text should use the explicit Nutrients label');
   assertEqual(formatNutrients(180), '180 Nutrients', 'purchase amounts should use Nutrients');
   assertEqual(`Sell ${formatNutrients(126)}`, 'Sell 126 Nutrients', 'sell amounts should use Nutrients');
   assertEqual(formatNutrients('Standard'), 'Standard Nutrients', 'map economy labels should use Nutrients');
@@ -180,6 +182,8 @@ function getLivesMoneyDisplayRenderDataTests() {
   
   assert(data.state === LivesMoneyDisplayState.Visible, 'state should be Visible');
   assert(data.isVisible, 'isVisible should be true');
+  assertEqual(data.kernelIntegrity.label, 'Kernel', 'root render data exposes Kernel integrity');
+  assertEqual(data.nutrients.label, 'Nutrients', 'root render data exposes Nutrients');
   
   hideLivesMoneyDisplay(animator, 1000);
   data = getLivesMoneyDisplayRenderData(animator, {

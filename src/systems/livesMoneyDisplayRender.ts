@@ -8,9 +8,10 @@ export enum LivesMoneyDisplayState {
 export interface LivesDisplay {
   position: Vec2;
   size: { width: number; height: number };
-  currentLives: number;
-  maxLives: number;
-  livesText: string;
+  current: number;
+  maximum: number;
+  label: 'Kernel';
+  integrityText: string;
   opacity: number;
   fillColor: string;
   backgroundColor: string;
@@ -21,8 +22,9 @@ export interface LivesDisplay {
 export interface MoneyDisplay {
   position: Vec2;
   size: { width: number; height: number };
-  currentMoney: number;
-  moneyText: string;
+  current: number;
+  label: 'Nutrients';
+  nutrientText: string;
   opacity: number;
   fillColor: string;
   backgroundColor: string;
@@ -35,8 +37,8 @@ export interface LivesMoneyDisplayRenderData {
   isVisible: boolean;
   position: Vec2;
   size: { width: number; height: number };
-  lives: LivesDisplay;
-  money: MoneyDisplay;
+  kernelIntegrity: LivesDisplay;
+  nutrients: MoneyDisplay;
   elapsed: number;
 }
 
@@ -142,9 +144,10 @@ export function getLivesDisplayRenderData(
   return {
     position: { x: position.x + LIVES_OFFSET_X, y: position.y },
     size: { width: LIVES_WIDTH, height: LIVES_HEIGHT },
-    currentLives,
-    maxLives,
-    livesText: `${currentLives}`,
+    current: currentLives,
+    maximum: maxLives,
+    label: 'Kernel',
+    integrityText: `Kernel ${currentLives} / ${maxLives}`,
     opacity,
     fillColor: LIVES_MONEY_STYLES.livesFillColor,
     backgroundColor: LIVES_MONEY_STYLES.livesBackgroundColor,
@@ -165,8 +168,9 @@ export function getMoneyDisplayRenderData(
   return {
     position: { x: position.x + MONEY_OFFSET_X, y: position.y },
     size: { width: MONEY_WIDTH, height: MONEY_HEIGHT },
-    currentMoney,
-    moneyText: formatNutrients(currentMoney),
+    current: currentMoney,
+    label: 'Nutrients',
+    nutrientText: formatNutrients(currentMoney),
     opacity,
     fillColor: LIVES_MONEY_STYLES.moneyFillColor,
     backgroundColor: LIVES_MONEY_STYLES.moneyBackgroundColor,
@@ -199,8 +203,8 @@ export function getLivesMoneyDisplayRenderData(
       isVisible: false,
       position,
       size,
-      lives: getLivesDisplayRenderData(position, currentLives, maxLives, 0),
-      money: getMoneyDisplayRenderData(position, currentMoney, 0),
+      kernelIntegrity: getLivesDisplayRenderData(position, currentLives, maxLives, 0),
+      nutrients: getMoneyDisplayRenderData(position, currentMoney, 0),
       elapsed: 0,
     };
   }
@@ -216,8 +220,8 @@ export function getLivesMoneyDisplayRenderData(
     isVisible: true,
     position,
     size,
-    lives: getLivesDisplayRenderData(position, currentLives, maxLives, opacity),
-    money: getMoneyDisplayRenderData(position, currentMoney, opacity),
+    kernelIntegrity: getLivesDisplayRenderData(position, currentLives, maxLives, opacity),
+    nutrients: getMoneyDisplayRenderData(position, currentMoney, opacity),
     elapsed: animator.elapsed,
   };
 }

@@ -4,6 +4,11 @@ import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './
 import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
 
+export const ONBOARDING_REACH_RADIUS = Object.freeze({
+  kernel: 180,
+  relay: 160,
+});
+
 export interface TargetingModeButton {
   mode: TargetingMode;
   label: string;

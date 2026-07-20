@@ -1,5 +1,6 @@
 import { Vec2 } from '../utils/vec2';
 import { GameState } from './gameRunner';
+import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 
 export enum PauseMenuState {
   Hidden = 'hidden',
@@ -70,7 +71,6 @@ const PAUSE_MENU_STYLES = {
   buttonDisabledTextColor: '#666666',
 };
 
-const DEFAULT_MENU_SIZE = { width: 400, height: 420 };
 const TITLE_OFFSET_Y = -100;
 const SUBTITLE_OFFSET_Y = -60;
 const BUTTON_START_Y = -20;
@@ -79,11 +79,18 @@ const BUTTON_WIDTH = 200;
 const BUTTON_HEIGHT = 40;
 
 export function getPauseMenuPosition(): Vec2 {
-  return { x: 400, y: 300 };
+  const { pausePanel } = RELEASE_HUD_LAYOUT;
+  return {
+    x: pausePanel.x + pausePanel.width / 2,
+    y: pausePanel.y + pausePanel.height / 2,
+  };
 }
 
 export function getPauseMenuSize(): { width: number; height: number } {
-  return { ...DEFAULT_MENU_SIZE };
+  return {
+    width: RELEASE_HUD_LAYOUT.pausePanel.width,
+    height: RELEASE_HUD_LAYOUT.pausePanel.height,
+  };
 }
 
 export function createPauseMenuAnimator(): PauseMenuAnimator {
@@ -255,7 +262,7 @@ export function getPauseMenuRenderData(
   }
 
   const buttons: PauseMenuButton[] = [];
-  const buttonLabels = ['Resume', 'Restart', 'Quit'];
+  const buttonLabels = ['Resume', 'Restart', 'Quit to Menu'];
   const buttonIds = ['resume', 'restart', 'quit'];
 
   for (let i = 0; i < buttonLabels.length; i++) {

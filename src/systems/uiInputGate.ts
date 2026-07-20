@@ -1,18 +1,20 @@
 import { GameState } from './gameRunner';
 
-export enum UiLayer {
-  Menu = 'menu',
-  Terminal = 'terminal',
-  Pause = 'pause',
-  Tutorial = 'tutorial',
-  Gameplay = 'gameplay',
-}
+export const UiLayer = {
+  Menu: 'menu',
+  Terminal: 'terminal',
+  Pause: 'pause',
+  Tutorial: 'tutorial',
+  Gameplay: 'gameplay',
+} as const;
+
+export type UiLayer = (typeof UiLayer)[keyof typeof UiLayer];
 
 export interface UiGateState {
-  gameState: GameState;
-  menuVisible: boolean;
-  pauseVisible: boolean;
-  tutorialBlocking: boolean;
+  readonly gameState: GameState;
+  readonly menuVisible: boolean;
+  readonly pauseVisible: boolean;
+  readonly tutorialBlocking: boolean;
 }
 
 export function getActiveUiLayer(state: UiGateState): UiLayer {
@@ -24,5 +26,17 @@ export function getActiveUiLayer(state: UiGateState): UiLayer {
 }
 
 export function canHandleGameplayInput(state: UiGateState): boolean {
-  return getActiveUiLayer(state) === UiLayer.Gameplay;
+  const layer = getActiveUiLayer(state);
+  switch (layer) {
+    case UiLayer.Gameplay:
+    case UiLayer.Tutorial:
+      return true;
+    case UiLayer.Menu:
+    case UiLayer.Terminal:
+    case UiLayer.Pause:
+      return false;
+    default:
+      layer satisfies never;
+      return false;
+  }
 }

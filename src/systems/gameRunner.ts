@@ -127,6 +127,7 @@ import {
   type MyceliumNetworkConfig,
   type MyceliumNetworkState,
 } from './myceliumNetwork';
+import type { GameEvent } from './gameEvents';
 
 export enum GameSpeed {
   Normal = 1,
@@ -146,27 +147,6 @@ export enum GameState {
   Paused = 'paused',
   GameOver = 'game_over',
   Victory = 'victory',
-}
-
-export interface GameEvent {
-  type: 'hit' | 'death' | 'area_hit' | 'layer_broken' | 'trait_broken' | 'seeded_payload_detonated' | 'wave_started' | 'enemy_leaked' | 'wave_completed' | 'victory' | 'defeat' | 'network_connection_created' | 'tower_matured' | 'tower_evolved';
-  position: Vec2;
-  towerType?: TowerType;
-  towerId?: number;
-  enemyId?: number;
-  enemyType?: string;
-  layersBroken?: number;
-  enemyColor?: string;
-  radius?: number;
-  effectType?: string;
-  trait?: EnemyTrait;
-  waveNumber?: number;
-  completion?: number;
-  perfect?: number;
-  total?: number;
-  timestamp?: number;
-  path?: EvolutionPath;
-  effect?: EvolutionEffect;
 }
 
 export interface PlacedTower {
@@ -373,7 +353,6 @@ export class GameRunner {
         this.leaksThisWave = 0;
         this.eventQueue.push({
           type: 'wave_started',
-          position: { ...this.path.getPointAtDistance(0).position },
           waveNumber: wave.id,
           timestamp: this.currentTime,
         });
@@ -385,7 +364,6 @@ export class GameRunner {
         const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? roundNumber;
         this.eventQueue.push({
           type: 'wave_completed',
-          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
           waveNumber,
           completion: bonus.completion,
           perfect: bonus.perfect,
@@ -402,7 +380,6 @@ export class GameRunner {
         const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? finalRound;
         this.eventQueue.push({
           type: 'victory',
-          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
           waveNumber,
           timestamp: this.currentTime,
         });
@@ -415,7 +392,6 @@ export class GameRunner {
         const waveNumber = this.waveSpawner.getCurrentWave()?.id ?? roundReached;
         this.eventQueue.push({
           type: 'defeat',
-          position: { ...this.path.getPointAtDistance(this.path.getTotalLength()).position },
           waveNumber,
           timestamp: this.currentTime,
         });
@@ -734,6 +710,13 @@ export class GameRunner {
     const tower = createTowerWithGrowth(this.nextTowerId++, x, y, towerType, targetingMode);
     this.placedTowers.push({ tower, x, y });
     this.towers.push(tower);
+    this.eventQueue.push({
+      type: 'tower_placed',
+      timestamp: this.currentTime,
+      position: { ...tower.position },
+      towerId: tower.id,
+      towerType: tower.towerType,
+    });
     this.recomputeNetwork(true);
     return tower;
   }
@@ -818,7 +801,6 @@ export class GameRunner {
     if (result.success) {
       this.eventQueue.push({
         type: 'tower_matured',
-        position: { ...placed.tower.position },
         towerId,
         towerType: placed.tower.towerType,
         timestamp: this.currentTime,
@@ -852,7 +834,6 @@ export class GameRunner {
     if (result.success) {
       this.eventQueue.push({
         type: 'tower_evolved',
-        position: { ...placed.tower.position },
         towerId,
         towerType: placed.tower.towerType,
         path,
@@ -928,6 +909,7 @@ export class GameRunner {
           type: 'death',
           position: { ...enemy.position },
           enemyType: enemy.enemyType,
+          timestamp: this.currentTime,
         });
         this.economy.addKillReward(getReward(enemy), `Killed ${enemy.enemyType}`);
         this.activeEnemies.splice(i, 1);
@@ -964,6 +946,7 @@ export class GameRunner {
         enemyId: enemy.id,
         enemyType: enemy.enemyType,
         layersBroken: resolution.layersBroken,
+        timestamp: this.currentTime,
       });
     }
 
@@ -1123,8 +1106,8 @@ export class GameRunner {
     this.eventQueue.push({
       type: 'seeded_payload_detonated',
       position: { ...payload.position },
-      towerId: payload.sourceTowerId,
-      enemyId: payload.targetEnemyId,
+      sourceTowerId: payload.sourceTowerId,
+      targetEnemyId: payload.targetEnemyId,
       timestamp: this.currentTime,
     });
     this.eventQueue.push({
@@ -1132,6 +1115,7 @@ export class GameRunner {
       position: { ...payload.position },
       towerType: TowerType.BulbShooter,
       radius: payload.radius,
+      timestamp: this.currentTime,
     });
 
     for (const enemy of this.activeEnemies) {
@@ -1231,6 +1215,7 @@ export class GameRunner {
           position: { ...projectile.position },
           towerType: projectile.towerType,
           effectType: TOWER_STATS[projectile.towerType].specialEffect,
+          timestamp: this.currentTime,
         });
 
         this.resolveProjectileAreas(projectile, enemy);
@@ -1374,7 +1359,8 @@ export class GameRunner {
   }
 
   update(currentTime?: number): void {
-    if (this.state !== GameState.Playing && this.state !== GameState.Paused) {
+    const isTerminal = this.state === GameState.GameOver || this.state === GameState.Victory;
+    if (this.state !== GameState.Playing && this.state !== GameState.Paused && !isTerminal) {
       return;
     }
 
@@ -1395,6 +1381,11 @@ export class GameRunner {
     this.currentTime = this.state === GameState.Playing ? this.simulationTime : frameTime;
     this.lastUpdateTime = frameTime;
     this.hasUpdateTimestamp = true;
+
+    if (isTerminal) {
+      updateGameOverVictory(this.gameOverVictoryAnimator, deltaTime, this.currentTime);
+      return;
+    }
 
     if (this.state === GameState.Playing) {
       this.spawnEnemyFromWave();
@@ -1541,6 +1532,13 @@ export class GameRunner {
     );
     this.placedTowers.push({ tower, x: this.placementPosition.x, y: this.placementPosition.y });
     this.towers.push(tower);
+    this.eventQueue.push({
+      type: 'tower_placed',
+      timestamp: this.currentTime,
+      position: { ...tower.position },
+      towerId: tower.id,
+      towerType: tower.towerType,
+    });
     this.recomputeNetwork(true);
     this.cancelPlacement();
     return tower;
@@ -2074,6 +2072,7 @@ export class GameRunner {
         towerType: projectile.towerType,
         radius,
         effectType: EvolutionEffect.RevelationField,
+        timestamp: this.currentTime,
       });
       for (const enemy of this.activeEnemies) {
         if (enemy.alive && vec2Distance(enemy.position, projectile.position) <= radius) {
@@ -2131,6 +2130,7 @@ export class GameRunner {
         position: { ...impact.position },
         towerType: impact.towerType,
         radius: impact.radius,
+        timestamp: this.currentTime,
       });
       const areaResult = calculateAreaDamage(
         impact.position,
@@ -2172,6 +2172,7 @@ export class GameRunner {
         position: { ...center },
         towerType: projectile.towerType,
         radius,
+        timestamp: this.currentTime,
       });
       const areaResult = calculateAreaDamage(center, this.activeEnemies, areaDamage, radius);
       for (const areaHit of areaResult.hits) {
@@ -2194,11 +2195,12 @@ export class GameRunner {
       if (previouslyConnectedTowerIds.has(towerId)) continue;
       const placed = this.placedTowers.find(entry => entry.tower.id === towerId);
       if (!placed) continue;
+      const sourceId = this.networkState.parentByTowerId.get(towerId);
       this.eventQueue.push({
         type: 'network_connection_created',
         position: { ...placed.tower.position },
         towerId,
-        towerType: placed.tower.towerType,
+        sourceTowerId: typeof sourceId === 'number' ? sourceId : null,
         timestamp: this.currentTime,
       });
     }

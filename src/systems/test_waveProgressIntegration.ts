@@ -77,7 +77,7 @@ function getWaveProgressRenderDataTests() {
   assertEqual(renderData.currentWave, 0, 'current wave is 0 before any wave starts');
   assertEqual(renderData.totalWaves, 10, 'total waves is 10');
   assertEqual(renderData.bar.progress, 0, 'bar progress is 0');
-  assertEqual(renderData.waveText, 'Wave 0/10', 'wave text is correct before any wave starts');
+  assertEqual(renderData.waveText, 'Wave 0 / 10', 'wave text is correct before any wave starts');
 
   game.reset();
   passed++;

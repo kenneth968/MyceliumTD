@@ -189,7 +189,7 @@ function getWaveProgressRenderDataTests() {
   assertEqual(data.enemiesTotal, 20, 'enemiesTotal');
   assertEqual(data.enemiesDefeated, 10, 'enemiesDefeated');
   assertEqual(data.enemiesRemaining, 10, 'enemiesRemaining');
-  assertEqual(data.waveText, 'Wave 3/10', 'waveText');
+  assertEqual(data.waveText, 'Wave 3 / 10', 'waveText uses release spacing');
   assertEqual(data.progressText, '10/20', 'progressText');
   assertEqual(data.progress, 0.5, 'progress');
   assertEqual(data.isFastForward, false, 'isFastForward default');

@@ -1,5 +1,6 @@
 import { Vec2 } from '../utils/vec2';
 import { GameState } from './gameRunner';
+import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 
 export enum GameOverVictoryState {
   Hidden = 'hidden',
@@ -53,9 +54,7 @@ export interface GameOverVictoryUIState {
 
 const GAME_OVER_VICTORY_ANIMATION_TIMES = {
   fadeInDuration: 500,
-  holdDuration: 3000,
-  fadeOutDuration: 500,
-  totalDuration: 4000,
+  totalDuration: 500,
 };
 
 const GAME_OVER_VICTORY_STYLES = {
@@ -90,7 +89,11 @@ const BUTTON_WIDTH = 180;
 const BUTTON_HEIGHT = 45;
 
 export function getGameOverVictoryPosition(): Vec2 {
-  return { x: 400, y: 300 };
+  const { canvas } = RELEASE_HUD_LAYOUT;
+  return {
+    x: canvas.x + canvas.width / 2,
+    y: canvas.y + canvas.height / 2,
+  };
 }
 
 export function getGameOverVictorySize(): { width: number; height: number } {
@@ -171,17 +174,10 @@ export function updateGameOverVictory(
 
   animator.elapsed += deltaTime;
   animator.progress = Math.min(1, animator.elapsed / GAME_OVER_VICTORY_ANIMATION_TIMES.totalDuration);
-
-  if (animator.elapsed >= GAME_OVER_VICTORY_ANIMATION_TIMES.totalDuration) {
-  }
 }
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-function easeInCubic(t: number): number {
-  return t * t * t;
 }
 
 export function getGameOverVictoryButtonRenderData(
@@ -221,7 +217,7 @@ export function getGameOverVictoryRenderData(
   const isVictory = animator.state === 'victory';
   
   const title = options?.title ?? (isGameOver ? 'Game Over' : isVictory ? 'Victory!' : '');
-  const subtitle = options?.subtitle ?? (isGameOver ? 'You ran out of lives!' : isVictory ? 'You survived all waves!' : '');
+  const subtitle = options?.subtitle ?? (isGameOver ? 'Kernel integrity failed!' : isVictory ? 'You survived all waves!' : '');
   const finalScore = options?.finalScore ?? animator.finalScore;
   const finalWave = options?.finalWave ?? animator.finalWave;
 
@@ -254,50 +250,12 @@ export function getGameOverVictoryRenderData(
 
   const styles = isGameOver ? GAME_OVER_VICTORY_STYLES.gameOver : GAME_OVER_VICTORY_STYLES.victory;
 
-  let backgroundOpacity = 1;
-  let borderOpacity = 1;
-  let titleOpacity = 1;
-  let subtitleOpacity = 1;
-  let buttonOpacity = 1;
-  let scale = 1;
-
-  if (animator.elapsed < GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration) {
-    const t = animator.elapsed / GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration;
-    const easedT = easeOutCubic(t);
-    backgroundOpacity = easedT;
-    borderOpacity = easedT;
-    titleOpacity = easedT;
-    subtitleOpacity = easedT;
-    buttonOpacity = easedT;
-    scale = 0.5 + 0.5 * easedT;
-  } else if (animator.elapsed < GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration + GAME_OVER_VICTORY_ANIMATION_TIMES.holdDuration) {
-    backgroundOpacity = 1;
-    borderOpacity = 1;
-    titleOpacity = 1;
-    subtitleOpacity = 1;
-    buttonOpacity = 1;
-    scale = 1;
-  } else if (animator.elapsed < GAME_OVER_VICTORY_ANIMATION_TIMES.totalDuration) {
-    const fadeOutStart = GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration + GAME_OVER_VICTORY_ANIMATION_TIMES.holdDuration;
-    const t = (animator.elapsed - fadeOutStart) / GAME_OVER_VICTORY_ANIMATION_TIMES.fadeOutDuration;
-    const easedT = easeInCubic(t);
-    backgroundOpacity = 1 - easedT;
-    borderOpacity = 1 - easedT;
-    titleOpacity = 1 - easedT;
-    subtitleOpacity = 1 - easedT;
-    buttonOpacity = 1 - easedT;
-    scale = 1;
-  } else {
-    backgroundOpacity = 0;
-    borderOpacity = 0;
-    titleOpacity = 0;
-    subtitleOpacity = 0;
-    buttonOpacity = 0;
-    scale = 1;
-  }
+  const opacity = animator.elapsed < GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration
+    ? easeOutCubic(animator.elapsed / GAME_OVER_VICTORY_ANIMATION_TIMES.fadeInDuration)
+    : 1;
 
   const buttons: GameOverVictoryButton[] = [];
-  const buttonLabels = ['Restart', 'Quit'];
+  const buttonLabels = ['Restart', 'Quit to Menu'];
   const buttonIds = ['restart', 'quit'];
 
   for (let i = 0; i < buttonLabels.length; i++) {
@@ -310,7 +268,7 @@ export function getGameOverVictoryRenderData(
       btnPos,
       true,
       true,
-      buttonOpacity
+      opacity
     ));
   }
 
@@ -320,16 +278,16 @@ export function getGameOverVictoryRenderData(
     position,
     size,
     backgroundColor: styles.background,
-    backgroundOpacity: Math.max(0, Math.min(1, backgroundOpacity)),
+    backgroundOpacity: opacity,
     borderColor: styles.border,
     borderWidth: 3,
     title,
     titleColor: styles.titleColor,
-    titleOpacity: Math.max(0, Math.min(1, titleOpacity)),
+    titleOpacity: opacity,
     titlePosition: { x: position.x, y: position.y + TITLE_OFFSET_Y },
     subtitle,
     subtitleColor: styles.subtitleColor,
-    subtitleOpacity: Math.max(0, Math.min(1, subtitleOpacity)),
+    subtitleOpacity: opacity,
     subtitlePosition: { x: position.x, y: position.y + SUBTITLE_OFFSET_Y },
     finalScore,
     finalWave,

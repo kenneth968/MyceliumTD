@@ -19,6 +19,21 @@ const failures = new AudioFailureRegistry();
 assertEqual(failures.record(MusicTrack.Chantarelle), true, 'first failure is reported');
 assertEqual(failures.record(MusicTrack.Chantarelle), false, 'duplicate failure is suppressed');
 
+// Given independently configured music and sound channels
+const volumeManager = new AudioManager({ musicVolume: 0.25, soundVolume: 0.75 });
+
+// When each channel is changed
+volumeManager.setMusicVolume(0.6);
+volumeManager.setSoundVolume(0.35);
+
+// Then each channel preserves its own clamped value
+assertEqual(volumeManager.getMusicVolume(), 0.6, 'music volume changes independently');
+assertEqual(volumeManager.getSoundVolume(), 0.35, 'sound volume changes independently');
+volumeManager.setMusicVolume(2);
+volumeManager.setSoundVolume(-1);
+assertEqual(volumeManager.getMusicVolume(), 1, 'music volume clamps to one');
+assertEqual(volumeManager.getSoundVolume(), 0, 'sound volume clamps to zero');
+
 class FakeAudio {
   static readonly instances: FakeAudio[] = [];
 
@@ -65,8 +80,58 @@ class FakeAudio {
   }
 }
 
+class FakeAudioParam {
+  values: number[] = [];
+
+  setValueAtTime(value: number): void {
+    this.values.push(value);
+  }
+
+  exponentialRampToValueAtTime(value: number): void {
+    this.values.push(value);
+  }
+}
+
+class FakeOscillator {
+  type: OscillatorType = 'sine';
+  frequency = { value: 0 };
+  startCalls = 0;
+  stopCalls = 0;
+
+  connect(): void {}
+  start(): void { this.startCalls++; }
+  stop(): void { this.stopCalls++; }
+}
+
+class FakeGain {
+  gain = new FakeAudioParam();
+  connect(): void {}
+}
+
+class FakeAudioContext {
+  static readonly instances: FakeAudioContext[] = [];
+  currentTime = 10;
+  destination = {};
+  state: AudioContextState = 'suspended';
+  resumeCalls = 0;
+  oscillator = new FakeOscillator();
+  gain = new FakeGain();
+
+  constructor() {
+    FakeAudioContext.instances.push(this);
+  }
+
+  createOscillator(): FakeOscillator { return this.oscillator; }
+  createGain(): FakeGain { return this.gain; }
+  resume(): Promise<void> {
+    this.resumeCalls++;
+    this.state = 'running';
+    return Promise.resolve();
+  }
+}
+
 function restoreGlobal(
-  name: 'Audio' | 'window',
+  name: 'Audio' | 'AudioContext' | 'window',
   descriptor: PropertyDescriptor | undefined
 ): void {
   if (descriptor) {
@@ -85,6 +150,7 @@ function getFakeAudio(filename: string): FakeAudio {
 function runAudioIntegrationTest(): void {
   const originalAudio = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalAudioContext = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
   const originalWarn = console.warn;
   const warnings: string[] = [];
 
@@ -93,6 +159,10 @@ function runAudioIntegrationTest(): void {
     Object.defineProperty(globalThis, 'Audio', {
       configurable: true,
       value: FakeAudio,
+    });
+    Object.defineProperty(globalThis, 'AudioContext', {
+      configurable: true,
+      value: FakeAudioContext,
     });
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
@@ -127,9 +197,28 @@ function runAudioIntegrationTest(): void {
     assertEqual(chantarelle.pauseCalls, 1, 'normal track pauses');
     manager.playNormalTrack();
     assertEqual(chantarelle.playCalls, 2, 'same track resumes after pause');
+
+    manager.ensureInitialized();
+    const soundContext = FakeAudioContext.instances[0];
+    assertEqual(soundContext?.resumeCalls, 1, 'user initialization resumes the sound context');
+    manager.setSoundVolume(0.5);
+    const playedCue = manager.processGameEvents([{
+      type: 'network_connection_created',
+      timestamp: 1,
+      position: { x: 10, y: 20 },
+      towerId: 2,
+      sourceTowerId: 1,
+    }]);
+    assertEqual(playedCue, true, 'network event plays a sound-channel cue');
+    assertEqual(soundContext?.oscillator.startCalls, 1, 'sound cue starts an oscillator');
+    assertEqual(soundContext?.oscillator.stopCalls, 1, 'sound cue schedules oscillator stop');
+    assertEqual(soundContext?.gain.gain.values[0], 0.04, 'sound cue gain follows sound volume');
+    manager.setSoundVolume(0);
+    assertEqual(manager.processGameEvents([{ type: 'wave_started', timestamp: 2, waveNumber: 1 }]), false, 'zero sound volume suppresses cues');
   } finally {
     console.warn = originalWarn;
     restoreGlobal('Audio', originalAudio);
+    restoreGlobal('AudioContext', originalAudioContext);
     restoreGlobal('window', originalWindow);
   }
 }

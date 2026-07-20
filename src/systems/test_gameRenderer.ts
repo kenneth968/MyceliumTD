@@ -5,6 +5,7 @@ import { TargetingMode } from './targeting';
 import { EvolutionPath } from '../content/evolutionDefinitions';
 import { createEnemy } from '../entities/enemy';
 import { EnemyType } from './wave';
+import { RoundState } from './roundManager';
 
 console.log('=== GameRenderer Tests ===\n');
 
@@ -24,6 +25,19 @@ function test(name: string, fn: () => boolean): void {
     failed++;
     console.log(`  ✗ ${name}: ${e}`);
   }
+}
+
+function completeCurrentWave(game: GameRunner, startTime: number): number {
+  let currentTime = startTime;
+  for (let step = 0; step < 30 && game.getRoundManager().getState() === RoundState.Active; step++) {
+    game.update(currentTime);
+    game.getActiveEnemies().splice(0);
+    currentTime += 1000;
+  }
+  if (game.getRoundManager().getState() === RoundState.Active) {
+    throw new Error('Wave did not complete within the deterministic test window');
+  }
+  return currentTime;
 }
 
 // Creation tests
@@ -81,6 +95,62 @@ test('waveAnnouncement is defined', () => renderData.waveAnnouncement !== undefi
 test('waveProgress is defined', () => renderData.waveProgress !== undefined);
 test('livesMoneyDisplay is defined', () => renderData.livesMoneyDisplay !== undefined);
 test('network connections are defined', () => Array.isArray(renderData.networkConnections));
+
+const previewGame = new GameRunner();
+previewGame.start();
+const idlePreview = renderer.render(previewGame).wavePreview;
+test('idle frame includes the complete next-wave preview payload', () =>
+  idlePreview?.waveNumber === 1 &&
+  idlePreview.name === 'First Footsteps' &&
+  idlePreview.enemies.length === 1 &&
+  idlePreview.enemies[0]?.type === EnemyType.ScoutBeetle &&
+  idlePreview.enemies[0]?.displayName === 'Scout Beetle' &&
+  idlePreview.enemies[0]?.count === 8 &&
+  idlePreview.enemies[0]?.traits.length === 0 &&
+  idlePreview.traits.length === 0 &&
+  idlePreview.rewardLabel === '+75 Nutrients'
+);
+previewGame.getRoundManager().startFirstRound();
+const firstIntermissionPreview = renderer.render(previewGame).wavePreview;
+test('first intermission keeps Wave 1 preview visible', () => firstIntermissionPreview?.waveNumber === 1);
+previewGame.getRoundManager().skipIntermission();
+test('active Wave 1 frame hides the preview', () => renderer.render(previewGame).wavePreview === null);
+
+let lifecycleTime = completeCurrentWave(previewGame, 0);
+const secondIntermissionPreview = renderer.render(previewGame).wavePreview;
+test('completed Wave 1 transitions to an intermission previewing Wave 2', () =>
+  previewGame.getRoundManager().getState() === RoundState.Intermission &&
+  secondIntermissionPreview?.waveNumber === 2 &&
+  secondIntermissionPreview.name === 'Wings on the Path' &&
+  secondIntermissionPreview.rewardLabel === '+85 Nutrients'
+);
+
+for (let waveNumber = 2; waveNumber <= 9; waveNumber++) {
+  previewGame.getRoundManager().skipIntermission();
+  lifecycleTime = completeCurrentWave(previewGame, lifecycleTime);
+}
+const finalIntermissionPreview = renderer.render(previewGame).wavePreview;
+test('intermission before the final wave previews Wave 10 without stale prior data', () =>
+  previewGame.getRoundManager().getState() === RoundState.Intermission &&
+  finalIntermissionPreview?.waveNumber === 10 &&
+  finalIntermissionPreview.name === 'Elder Ward' &&
+  finalIntermissionPreview.rewardLabel === '+0 Nutrients'
+);
+previewGame.getRoundManager().skipIntermission();
+test('active final-wave frame hides the preview', () => renderer.render(previewGame).wavePreview === null);
+lifecycleTime = completeCurrentWave(previewGame, lifecycleTime);
+test('victory after the final wave returns no stale preview', () =>
+  previewGame.getState() === GameState.Victory &&
+  renderer.render(previewGame).wavePreview === null
+);
+
+const terminalPreviewGame = new GameRunner({ startingLives: 0 });
+terminalPreviewGame.start();
+terminalPreviewGame.update(0);
+test('game-over terminal transition returns no stale preview', () =>
+  terminalPreviewGame.getState() === GameState.GameOver &&
+  renderer.render(terminalPreviewGame).wavePreview === null
+);
 
 const networkGame = new GameRunner({ startingMoney: 5000 });
 networkGame.start();
