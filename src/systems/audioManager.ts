@@ -325,6 +325,10 @@ export class AudioManager {
         this.pendingTrack = null;
       }
     }
+    const soundContext = this.getSoundContext();
+    if (soundContext?.state === 'suspended') {
+      void soundContext.resume().catch(() => {});
+    }
   }
 }
 

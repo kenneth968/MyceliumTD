@@ -112,6 +112,8 @@ class FakeAudioContext {
   static readonly instances: FakeAudioContext[] = [];
   currentTime = 10;
   destination = {};
+  state: AudioContextState = 'suspended';
+  resumeCalls = 0;
   oscillator = new FakeOscillator();
   gain = new FakeGain();
 
@@ -121,6 +123,11 @@ class FakeAudioContext {
 
   createOscillator(): FakeOscillator { return this.oscillator; }
   createGain(): FakeGain { return this.gain; }
+  resume(): Promise<void> {
+    this.resumeCalls++;
+    this.state = 'running';
+    return Promise.resolve();
+  }
 }
 
 function restoreGlobal(
@@ -191,6 +198,9 @@ function runAudioIntegrationTest(): void {
     manager.playNormalTrack();
     assertEqual(chantarelle.playCalls, 2, 'same track resumes after pause');
 
+    manager.ensureInitialized();
+    const soundContext = FakeAudioContext.instances[0];
+    assertEqual(soundContext?.resumeCalls, 1, 'user initialization resumes the sound context');
     manager.setSoundVolume(0.5);
     const playedCue = manager.processGameEvents([{
       type: 'network_connection_created',
@@ -199,7 +209,6 @@ function runAudioIntegrationTest(): void {
       towerId: 2,
       sourceTowerId: 1,
     }]);
-    const soundContext = FakeAudioContext.instances[0];
     assertEqual(playedCue, true, 'network event plays a sound-channel cue');
     assertEqual(soundContext?.oscillator.startCalls, 1, 'sound cue starts an oscillator');
     assertEqual(soundContext?.oscillator.stopCalls, 1, 'sound cue schedules oscillator stop');
