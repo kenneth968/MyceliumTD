@@ -1,7 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './input';
-import { TowerWithUpgrades, UpgradePath, getTotalSellValue } from './upgrade';
+import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
 
 export interface TargetingModeButton {
@@ -58,6 +58,17 @@ export interface PlacementPreviewRenderData {
   rangeCircle: RangeCircleRenderData | null;
   pathCoverage: PathCoverageRenderData | null;
   isPlacing: boolean;
+  proposedConnection: ProposedConnectionRenderData | null;
+  willBeConnected: boolean;
+}
+
+export interface ProposedConnectionRenderData {
+  readonly fromId: 'kernel' | number;
+  readonly toId: number;
+  readonly sourcePosition: Vec2;
+  readonly targetPosition: Vec2;
+  readonly sourceType: 'kernel' | 'tower';
+  readonly distance: number;
 }
 
 export interface TowerSelectionRenderData {
@@ -73,13 +84,6 @@ export interface TowerSelectionRenderData {
   targetingMode: string;
 }
 
-export interface TowerUpgradeLevel {
-  Damage: number;
-  Range: number;
-  FireRate: number;
-  Special: number;
-}
-
 export interface TowerSelectionRangePreview {
   position: Vec2;
   radius: number;
@@ -89,7 +93,6 @@ export interface TowerSelectionRangePreview {
 
 export interface TowerSelectionPreviewRenderData {
   selection: TowerSelectionRenderData | null;
-  upgradeIndicators: TowerUpgradeIndicator[] | null;
   sellButton: TowerSellButton | null;
   isSelecting: boolean;
   rangePreview: TowerSelectionRangePreview | null;
@@ -212,6 +215,8 @@ export function getPlacementPreviewRenderData(
       rangeCircle: null,
       pathCoverage: null,
       isPlacing: false,
+      proposedConnection: null,
+      willBeConnected: false,
     };
   }
 
@@ -222,6 +227,8 @@ export function getPlacementPreviewRenderData(
     rangeCircle: getRangeCircleRenderData(rangePreview),
     pathCoverage: getPathCoverageRenderData(pathPreview),
     isPlacing: true,
+    proposedConnection: null,
+    willBeConnected: false,
   };
 }
 
@@ -331,15 +338,12 @@ export function createPlacementPreviewUpdater() {
 }
 
 export function getTowerSelectionRenderData(
-  tower: TowerWithUpgrades,
+  tower: TowerWithGrowth,
   position: Vec2
 ): TowerSelectionRenderData | null {
   const colors = SELECTION_COLORS.valid;
 
-  const upgradeLevel = tower.upgradeLevels[UpgradePath.Damage] +
-                       tower.upgradeLevels[UpgradePath.Range] +
-                       tower.upgradeLevels[UpgradePath.FireRate] +
-                       tower.upgradeLevels[UpgradePath.Special];
+  const upgradeLevel = getGrowthVisualTier(tower);
 
   return {
     towerId: tower.id,
@@ -353,89 +357,6 @@ export function getTowerSelectionRenderData(
     sellValue: getTotalSellValue(tower),
     targetingMode: tower.targetingMode,
   };
-}
-
-export interface TowerUpgradeIndicator {
-  path: UpgradePath;
-  currentTier: number;
-  maxTier: number;
-  canUpgrade: boolean;
-  nextCost: number;
-  position: Vec2;
-  size: { width: number; height: number };
-}
-
-const UPGRADE_INDICATOR_WIDTH = 30;
-const UPGRADE_INDICATOR_VISUAL_HEIGHT = 6;
-const UPGRADE_INDICATOR_HIT_HEIGHT = 24;
-const UPGRADE_INDICATOR_SPACING = 8;
-const UPGRADE_INDICATOR_OFFSET_Y = 15;
-
-export function getTowerUpgradeIndicators(
-  tower: TowerWithUpgrades,
-  canAffordUpgrade: (path: UpgradePath, tier: number) => boolean,
-  getUpgradeCostFn: (towerType: TowerType, path: UpgradePath, tier: number) => number,
-  position: Vec2 = { x: 0, y: 0 },
-  towerSize: number = 0
-): TowerUpgradeIndicator[] {
-  const paths: Array<{ path: UpgradePath; currentTier: number }> = [
-    { path: UpgradePath.Damage, currentTier: tower.upgradeLevels[UpgradePath.Damage] },
-    { path: UpgradePath.Range, currentTier: tower.upgradeLevels[UpgradePath.Range] },
-    { path: UpgradePath.FireRate, currentTier: tower.upgradeLevels[UpgradePath.FireRate] },
-    { path: UpgradePath.Special, currentTier: tower.upgradeLevels[UpgradePath.Special] },
-  ];
-  const totalWidth = (UPGRADE_INDICATOR_WIDTH + UPGRADE_INDICATOR_SPACING) * paths.length - UPGRADE_INDICATOR_SPACING;
-  const startX = position.x - totalWidth / 2;
-  const startY = position.y + towerSize + UPGRADE_INDICATOR_OFFSET_Y;
-
-  return paths.map(({ path, currentTier }, index) => {
-    const nextTier = currentTier + 1;
-    const canUpgrade = currentTier < 3 && canAffordUpgrade(path, nextTier);
-    const nextCost = currentTier < 3 ? getUpgradeCostFn(tower.towerType, path, nextTier) : 0;
-
-    return {
-      path,
-      currentTier,
-      maxTier: 3,
-      canUpgrade,
-      nextCost,
-      position: {
-        x: startX + index * (UPGRADE_INDICATOR_WIDTH + UPGRADE_INDICATOR_SPACING),
-        y: startY,
-      },
-      size: {
-        width: UPGRADE_INDICATOR_WIDTH,
-        height: UPGRADE_INDICATOR_HIT_HEIGHT,
-      },
-    };
-  });
-}
-
-export function getUpgradeIndicatorVisualHeight(): number {
-  return UPGRADE_INDICATOR_VISUAL_HEIGHT;
-}
-
-export function getTowerUpgradeIndicatorAtPosition(
-  indicators: TowerUpgradeIndicator[] | null,
-  x: number,
-  y: number
-): UpgradePath | null {
-  if (!indicators) {
-    return null;
-  }
-
-  for (const indicator of indicators) {
-    if (
-      x >= indicator.position.x &&
-      x <= indicator.position.x + indicator.size.width &&
-      y >= indicator.position.y &&
-      y <= indicator.position.y + indicator.size.height
-    ) {
-      return indicator.path;
-    }
-  }
-
-  return null;
 }
 
 export interface TowerSellButton {
@@ -458,7 +379,7 @@ export function getSellButtonSize(): { width: number; height: number } {
 }
 
 export function getTowerSellButton(
-  tower: TowerWithUpgrades,
+  tower: TowerWithGrowth,
   position?: Vec2
 ): TowerSellButton {
   const sellValue = getTotalSellValue(tower);
@@ -473,7 +394,7 @@ export function getTowerSellButton(
 }
 
 export function getTowerSelectionRangePreview(
-  tower: TowerWithUpgrades,
+  tower: TowerWithGrowth,
   position: Vec2
 ): TowerSelectionRangePreview {
   return {
@@ -485,16 +406,13 @@ export function getTowerSelectionRangePreview(
 }
 
 export function getTowerSelectionPreviewRenderData(
-  tower: TowerWithUpgrades | null,
+  tower: TowerWithGrowth | null,
   position: Vec2 | null,
   placementMode: PlacementMode,
-  canAffordUpgrade: (path: UpgradePath, tier: number) => boolean,
-  getUpgradeCostFn: (towerType: TowerType, path: UpgradePath, tier: number) => number
 ): TowerSelectionPreviewRenderData {
   if (placementMode !== PlacementMode.Selecting || !tower || !position) {
     return {
       selection: null,
-      upgradeIndicators: null,
       sellButton: null,
       isSelecting: false,
       rangePreview: null,
@@ -502,19 +420,11 @@ export function getTowerSelectionPreviewRenderData(
   }
 
   const selection = getTowerSelectionRenderData(tower, position);
-  const upgradeIndicators = getTowerUpgradeIndicators(
-    tower,
-    canAffordUpgrade,
-    getUpgradeCostFn,
-    position,
-    selection?.size ?? 0
-  );
   const sellButton = getTowerSellButton(tower, position);
   const rangePreview = getTowerSelectionRangePreview(tower, position);
 
   return {
     selection,
-    upgradeIndicators,
     sellButton,
     isSelecting: true,
     rangePreview,

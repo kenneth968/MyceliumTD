@@ -1,6 +1,6 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed, GameEvent } from './systems/gameRunner';
 import { RoundState } from './systems/roundManager';
-import { createWaveControls, getStartWaveLabel, WaveControls } from './systems/waveControls';
+import { createWaveControls, getStartWaveButtonRect, getStartWaveLabel, WaveControls } from './systems/waveControls';
 import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
@@ -8,13 +8,18 @@ import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
 import { Vec2 } from './utils/vec2';
 import { TowerGrowthStage, getTowerBodyShape } from './systems/towerRender';
-import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData, getUpgradeIndicatorVisualHeight } from './systems/placementPreview';
+import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './systems/placementPreview';
 import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
 import { GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
-import { TowerInfoPanelRenderData } from './systems/towerInfoPanel';
+import {
+    EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR,
+    getEvolutionCardStatusColor,
+    type TowerInfoPanelRenderData,
+} from './systems/towerInfoPanel';
+import { routeTowerInfoPanelClick } from './systems/towerInfoPanelInput';
 import { LivesMoneyDisplayRenderData, formatNutrients } from './systems/livesMoneyDisplayRender';
 import { EnemyCountDisplayRenderData } from './systems/enemyCountDisplayRender';
 import {
@@ -614,6 +619,13 @@ class Game {
 
         if (layer === UiLayer.Tutorial) return;
 
+        if (
+            this.game.getPlacementState() === PlacementState.Selecting
+            && this.handleTowerGrowthClick(screenX, screenY, e.button === 0)
+        ) {
+            return;
+        }
+
         if (e.button === 2) {
             this.game.cancelPlacement();
             this.game.deselectTower();
@@ -644,7 +656,7 @@ class Game {
             this.game.startTowerPlacement(towerType);
             return;
         }
-        
+
         const world = this.screenToWorld(e.clientX, e.clientY);
         this.handleClick(world.x, world.y, e.button === 0);
     }
@@ -739,13 +751,18 @@ class Game {
                 setTimeout(() => this.game.cancelPlacement(), 100);
             }
         } else if (placementState === PlacementState.Selecting) {
-            const upgradeResult = this.game.upgradeTowerAtPosition(x, y);
-            if (upgradeResult.path) {
+            const sellResult = this.game.sellTowerAtPosition(x, y);
+            if (sellResult.status === 'sold') {
                 return;
             }
-
-            const sellResult = this.game.sellTowerAtPosition(x, y);
-            if (sellResult.success) {
+            if (sellResult.status === 'confirmation_required') {
+                const towerList = sellResult.disconnectLabels.join(', ');
+                const confirmed = window.confirm(
+                    `Selling this bridge will isolate ${sellResult.disconnects.length} downstream tower(s): ${towerList}. Sell anyway?`
+                );
+                if (confirmed) {
+                    this.game.sellTowerAtPosition(x, y, true);
+                }
                 return;
             }
             this.game.deselectTower();
@@ -754,6 +771,24 @@ class Game {
             if (!towerSelected) {
             }
         }
+    }
+
+    private handleTowerGrowthClick(screenX: number, screenY: number, activateAction: boolean): boolean {
+        const panel = this.game.getTowerInfoPanelRenderData();
+        const route = routeTowerInfoPanelClick(panel, screenX, screenY);
+        if (!route.consumed || !route.action || !activateAction) return route.consumed;
+
+        switch (route.action.kind) {
+            case 'mature':
+                this.game.matureTower(panel.towerId);
+                break;
+            case 'evolve':
+                this.game.evolveTower(panel.towerId, route.action.path);
+                break;
+            default:
+                route.action satisfies never;
+        }
+        return true;
     }
 
     private onKeyDown(e: KeyboardEvent): void {
@@ -982,6 +1017,18 @@ class Game {
         
         const ghost = preview.ghost;
         this.ctx.globalAlpha = 0.7;
+
+        if (preview.proposedConnection) {
+            const connection = preview.proposedConnection;
+            this.ctx.beginPath();
+            this.ctx.moveTo(connection.sourcePosition.x, connection.sourcePosition.y);
+            this.ctx.lineTo(connection.targetPosition.x, connection.targetPosition.y);
+            this.ctx.strokeStyle = connection.sourceType === 'kernel' ? '#4ade80' : '#9B59B6';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([8, 6]);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
         
         const size = ghost.size;
         const halfSize = size / 2;
@@ -1066,6 +1113,16 @@ class Game {
             }
             this.ctx.globalAlpha = 0.7;
         }
+
+        this.ctx.fillStyle = preview.willBeConnected ? '#4ade80' : '#F87171';
+        this.ctx.font = 'bold 12px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'bottom';
+        this.ctx.fillText(
+            preview.willBeConnected ? 'Connected' : 'Isolated',
+            ghost.position.x,
+            ghost.position.y - halfSize - 12
+        );
         
         if (preview.targetingModeSelection && preview.targetingModeSelection.isVisible) {
             this.drawTargetingModeButtonsFromSelection(preview.targetingModeSelection.buttons);
@@ -1742,43 +1799,6 @@ class Game {
             this.ctx.globalAlpha = 1;
         }
 
-        if (selection.upgradeIndicators) {
-            const tower = selection.selection;
-            const indicatorHeight = getUpgradeIndicatorVisualHeight();
-            const labelY = (selection.upgradeIndicators[0]?.position.y ?? tower.position.y + tower.size + 15) + indicatorHeight + 14;
-
-            const paths = ['Damage', 'Range', 'FireRate', 'Special'];
-            const colors = ['#FF4444', '#44FF44', '#4444FF', '#FF44FF'];
-
-            for (let i = 0; i < selection.upgradeIndicators.length; i++) {
-                const indicator = selection.upgradeIndicators[i];
-                const x = indicator.position.x;
-                const startY = indicator.position.y;
-                const indicatorWidth = indicator.size.width;
-
-                this.ctx.fillStyle = '#333';
-                this.ctx.fillRect(x, startY, indicatorWidth, indicatorHeight);
-
-                const fillWidth = (indicator.currentTier / indicator.maxTier) * indicatorWidth;
-                this.ctx.fillStyle = indicator.canUpgrade ? colors[i] : '#666';
-                this.ctx.fillRect(x, startY, fillWidth, indicatorHeight);
-
-                this.ctx.strokeStyle = '#555';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(x, startY, indicatorWidth, indicatorHeight);
-
-                this.ctx.fillStyle = '#fff';
-                this.ctx.font = '8px sans-serif';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'top';
-                this.ctx.fillText(`${indicator.currentTier}/${indicator.maxTier}`, x + indicatorWidth / 2, startY + indicatorHeight + 2);
-            }
-
-            this.ctx.font = '10px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillStyle = '#aaa';
-            this.ctx.fillText(paths.join(' | '), tower.position.x, labelY);
-        }
     }
 
     private drawTargetingModeButtons(buttons: any[]): void {
@@ -1837,7 +1857,7 @@ class Game {
     }
 
     private getStartWaveButtonRect(): { x: number; y: number; w: number; h: number } {
-        return { x: CANVAS_WIDTH / 2 - 80, y: CANVAS_HEIGHT - 130, w: 160, h: 36 };
+        return getStartWaveButtonRect(CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
     private drawStartWaveButton(): void {
@@ -2139,28 +2159,30 @@ class Game {
 
     private drawTowerInfoPanel(panel: TowerInfoPanelRenderData | null): void {
         if (!panel || !panel.isVisible) return;
-        
+
         const width = panel.size.width;
         const height = panel.size.height;
-        const x = 20;
-        const y = CANVAS_HEIGHT - height - 20;
-        
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        const x = panel.position.x;
+        const y = panel.position.y;
+
+        this.ctx.save();
+        this.ctx.globalAlpha = panel.opacity;
+        this.ctx.fillStyle = panel.backgroundColor;
         this.ctx.fillRect(x, y, width, height);
-        this.ctx.strokeStyle = '#555';
+        this.ctx.strokeStyle = panel.borderColor;
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(x, y, width, height);
-        
-        this.ctx.fillStyle = '#fff';
+
+        this.ctx.fillStyle = panel.textColor;
         this.ctx.font = 'bold 18px sans-serif';
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'top';
         this.ctx.fillText(this.truncateText(panel.towerName, width - 30), x + 15, y + 14);
-        
+
         this.ctx.font = '14px sans-serif';
         this.ctx.fillStyle = '#aaa';
         this.ctx.fillText(`${panel.targetingMode.icon} Target: ${panel.targetingMode.label}`, x + 15, y + 40);
-        
+
         let statX = x + 15;
         for (const stat of panel.stats) {
             this.ctx.fillStyle = panel.textColor;
@@ -2178,34 +2200,65 @@ class Game {
             this.ctx.fillText(this.truncateText(panel.specialEffect.description, width - 30), x + 15, y + 108);
         }
 
-        let upgradeY = y + 126;
-        for (const upgrade of panel.upgrades) {
-            const rowHeight = 43;
-            this.ctx.fillStyle = upgrade.canUpgrade ? 'rgba(17, 70, 45, 0.85)' : 'rgba(35, 35, 42, 0.88)';
-            this.ctx.fillRect(x + 10, upgradeY, width - 20, rowHeight);
-            this.ctx.strokeStyle = upgrade.isNetworkPath ? '#9B59B6' : (upgrade.canUpgrade ? '#4CAF50' : '#555');
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x + 10, upgradeY, width - 20, rowHeight);
+        this.ctx.font = 'bold 12px sans-serif';
+        this.ctx.fillStyle = panel.connectionState.isConnected ? '#4ade80' : '#F87171';
+        this.ctx.fillText(`Mycelium: ${panel.connectionState.label}`, x + 15, y + 132);
+        this.ctx.fillStyle = '#B8C7D9';
+        this.ctx.fillText(`Growth: ${this.formatGrowthStage(panel)}`, x + 200, y + 132);
 
-            this.ctx.fillStyle = upgrade.canUpgrade ? '#FFFFFF' : '#999';
-            this.ctx.font = 'bold 12px sans-serif';
-            this.ctx.fillText(upgrade.icon, x + 18, upgradeY + 6);
-            this.ctx.fillText(this.truncateText(upgrade.label, 116), x + 42, upgradeY + 5);
+        this.ctx.fillStyle = panel.textColor;
+        this.ctx.font = 'bold 14px sans-serif';
+        this.ctx.fillText(panel.growth.stage === 'seedling' ? 'Mature' : 'Choose Evolution', x + 15, y + 160);
 
+        if (panel.matureAction) {
+            const action = panel.matureAction;
+            this.ctx.fillStyle = action.isEnabled ? 'rgba(17, 70, 45, 0.9)' : 'rgba(35, 35, 42, 0.92)';
+            this.ctx.fillRect(action.position.x, action.position.y, action.size.width, action.size.height);
+            this.ctx.strokeStyle = action.isEnabled ? '#4CAF50' : '#555';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(action.position.x, action.position.y, action.size.width, action.size.height);
+            this.ctx.fillStyle = action.isEnabled ? '#FFFFFF' : '#999';
+            this.ctx.font = 'bold 16px sans-serif';
+            this.ctx.fillText(action.label, action.position.x + 12, action.position.y + 10);
             this.ctx.textAlign = 'right';
-            this.ctx.fillStyle = upgrade.canUpgrade ? '#FFD700' : '#777';
-            const costText = upgrade.currentTier >= upgrade.maxTier ? 'MAX' : `$${upgrade.nextCost}`;
-            this.ctx.fillText(costText, x + width - 18, upgradeY + 5);
-            this.ctx.fillStyle = '#C5E1A5';
-            this.ctx.fillText(`${upgrade.currentTier}/${upgrade.maxTier}`, x + width - 18, upgradeY + 22);
+            this.ctx.fillStyle = action.isEnabled ? panel.accentColor : '#777';
+            this.ctx.fillText(formatNutrients(action.cost), action.position.x + action.size.width - 12, action.position.y + 10);
             this.ctx.textAlign = 'left';
+            this.ctx.fillStyle = '#B8C7D9';
+            this.ctx.font = '12px sans-serif';
+            this.drawWrappedText(action.description, action.position.x + 12, action.position.y + 38, action.size.width - 24, 15, 2);
+            if (action.lockedReason) {
+                this.ctx.fillStyle = '#F87171';
+                this.ctx.fillText(this.formatGrowthLockReason(action.lockedReason), action.position.x + 12, action.position.y + action.size.height - 18);
+            }
+        }
 
+        const pathColors = ['#4CAF50', '#4A90D9', '#9B59B6'];
+        for (let index = 0; index < panel.evolutionCards.length; index++) {
+            const card = panel.evolutionCards[index];
+            const borderColor = pathColors[index] ?? '#555';
+            this.ctx.fillStyle = card.isSelected
+                ? EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR
+                : card.isEnabled ? 'rgba(28, 45, 42, 0.92)' : 'rgba(35, 35, 42, 0.92)';
+            this.ctx.fillRect(card.position.x, card.position.y, card.size.width, card.size.height);
+            this.ctx.strokeStyle = card.isSelected || card.isEnabled ? borderColor : '#555';
+            this.ctx.lineWidth = card.isSelected ? 3 : 1;
+            this.ctx.strokeRect(card.position.x, card.position.y, card.size.width, card.size.height);
+
+            this.ctx.fillStyle = card.isEnabled || card.isSelected ? '#FFFFFF' : '#999';
+            this.ctx.font = 'bold 13px sans-serif';
+            this.ctx.fillText(`${card.pathLabel}: ${card.name}`, card.position.x + 10, card.position.y + 7);
+            this.ctx.textAlign = 'right';
+            this.ctx.fillStyle = getEvolutionCardStatusColor(card, panel.accentColor);
+            this.ctx.fillText(card.isSelected ? 'SELECTED' : formatNutrients(card.cost), card.position.x + card.size.width - 10, card.position.y + 7);
+            this.ctx.textAlign = 'left';
             this.ctx.fillStyle = '#B8C7D9';
             this.ctx.font = '11px sans-serif';
-            const statText = upgrade.statIncrease ? `${upgrade.shortLabel} ${upgrade.statIncrease} - ` : '';
-            this.ctx.fillText(this.truncateText(`${statText}${upgrade.description}`, width - 65), x + 42, upgradeY + 24);
-
-            upgradeY += rowHeight + 4;
+            this.drawWrappedText(card.description, card.position.x + 10, card.position.y + 28, card.size.width - 20, 14, 2);
+            if (card.lockedReason && !card.isSelected) {
+                this.ctx.fillStyle = card.lockedReason === 'requires_connection' ? '#C084FC' : '#F87171';
+                this.ctx.fillText(this.formatGrowthLockReason(card.lockedReason), card.position.x + 10, card.position.y + card.size.height - 15);
+            }
         }
 
         this.ctx.strokeStyle = '#333';
@@ -2217,7 +2270,48 @@ class Game {
 
         this.ctx.fillStyle = '#F87171';
         this.ctx.font = '12px sans-serif';
-        this.ctx.fillText(`Sell value: $${panel.sellValue}`, x + 15, y + height - 25);
+        this.ctx.fillText(`Sell value: ${formatNutrients(panel.sellValue)}`, x + 15, y + height - 25);
+        this.ctx.restore();
+    }
+
+    private formatGrowthStage(panel: TowerInfoPanelRenderData): string {
+        if (panel.growth.stage === 'evolved' && panel.growth.evolution) {
+            return panel.evolutionCards.find(card => card.isSelected)?.pathLabel ?? 'Evolved';
+        }
+        return panel.growth.stage === 'seedling' ? 'Seedling' : 'Mature';
+    }
+
+    private formatGrowthLockReason(reason: string): string {
+        if (reason === 'requires_connection') return 'Requires mycelium connection';
+        if (reason === 'not_enough_nutrients') return 'Not enough Nutrients';
+        return 'Evolution complete';
+    }
+
+    private drawWrappedText(
+        text: string,
+        x: number,
+        y: number,
+        maxWidth: number,
+        lineHeight: number,
+        maxLines: number
+    ): void {
+        const words = text.split(' ');
+        let line = '';
+        let lineIndex = 0;
+        for (const word of words) {
+            const candidate = line ? `${line} ${word}` : word;
+            if (this.ctx.measureText(candidate).width <= maxWidth) {
+                line = candidate;
+                continue;
+            }
+            this.ctx.fillText(line, x, y + lineIndex * lineHeight);
+            lineIndex++;
+            if (lineIndex >= maxLines) return;
+            line = word;
+        }
+        if (line && lineIndex < maxLines) {
+            this.ctx.fillText(line, x, y + lineIndex * lineHeight);
+        }
     }
 
     private drawLivesMoney(lm: LivesMoneyDisplayRenderData): void {

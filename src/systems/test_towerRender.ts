@@ -17,10 +17,11 @@ import {
   getUpgradeTierVisuals,
   getUpgradeIndicatorForTower,
   getTowerPlacementGhostData,
-  getUpgradePathIndicators,
 } from './towerRender';
 import { Tower, TowerType, TOWER_STATS, createTower } from '../entities/tower';
 import { TargetingMode } from './targeting';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
+import { createTowerWithGrowth, getGrowthVisualTier, getGrowthVisualValue } from './upgrade';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -144,7 +145,7 @@ runTest('getTowerRenderData returns complete render data for tower', () => {
   assert(renderData.glowColor === '#564b5a', 'glowColor should be darkened for Sprout');
   assert(renderData.baseRadius === 9, 'baseRadius should be 9 for Sprout stage');
   assert(renderData.bodyRadius === 5.6000000000000005, 'bodyRadius should be 5.6 for Sprout stage');
-  assert(renderData.rangeRadius === 80, 'rangeRadius should be 80');
+  assert(renderData.rangeRadius === testTower.range, 'rangeRadius should match the canonical tower range');
   assert(renderData.targetingMode === TargetingMode.First, 'targetingMode should be First');
   assert(renderData.specialEffect === 'area_damage', 'specialEffect should be area_damage');
   assert(renderData.growthStage === TowerGrowthStage.Sprout, 'growthStage should be Sprout');
@@ -450,61 +451,29 @@ runTest('getTowerPlacementGhostData uses custom opacity', () => {
   assert(ghost.opacity === 0.5, 'opacity should be 0.5');
 });
 
-runTest('getUpgradePathIndicators returns 4 upgrade paths', () => {
-  const indicators = getUpgradePathIndicators(0);
-  assert(indicators.length === 4, 'should have 4 upgrade paths');
-  
-  assert(indicators.find(i => i.path === 'damage') !== undefined, 'should have damage path');
-  assert(indicators.find(i => i.path === 'range') !== undefined, 'should have range path');
-  assert(indicators.find(i => i.path === 'fireRate') !== undefined, 'should have fireRate path');
-  assert(indicators.find(i => i.path === 'special') !== undefined, 'should have special path');
+runTest('native growth stages map to distinct visual tiers', () => {
+  const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
+  assert(getGrowthVisualTier(tower) === 0, 'Seedling should use visual tier 0');
+  assert(getGrowthVisualValue(tower) === 0, 'Seedling should use the Sprout visual value');
+
+  tower.growth.stage = TowerStage.Mature;
+  assert(getGrowthVisualTier(tower) === 1, 'Mature should use visual tier 1');
+  assert(getGrowthVisualValue(tower) === 225, 'Mature should use the Mature visual value');
+
+  tower.growth.stage = TowerStage.Evolved;
+  tower.growth.evolution = EvolutionPath.Predator;
+  assert(getGrowthVisualTier(tower) === 3, 'Evolved should use visual tier 3');
+  assert(getGrowthVisualValue(tower) === 500, 'Evolved should use the FullyMatured visual value');
 });
 
-runTest('getUpgradePathIndicators correctly distributes 3 tiers across paths', () => {
-  const indicators = getUpgradePathIndicators(3);
-  
-  const damage = indicators.find(i => i.path === 'damage')!;
-  const range = indicators.find(i => i.path === 'range')!;
-  const fireRate = indicators.find(i => i.path === 'fireRate')!;
-  const special = indicators.find(i => i.path === 'special')!;
+runTest('native evolved tower renders the fully matured silhouette', () => {
+  const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
+  tower.growth.stage = TowerStage.Evolved;
+  tower.growth.evolution = EvolutionPath.Symbiote;
+  const renderData = getTowerRenderData(tower, { totalUpgradeValue: getGrowthVisualValue(tower) });
 
-  assert(damage.currentTier === 1, 'damage should have 1 tier');
-  assert(range.currentTier === 1, 'range should have 1 tier');
-  assert(fireRate.currentTier === 1, 'fireRate should have 1 tier');
-  assert(special.currentTier === 0, 'special should have 0 tiers');
-});
-
-runTest('getUpgradePathIndicators handles higher upgrade levels', () => {
-  const indicators = getUpgradePathIndicators(6);
-  
-  const damage = indicators.find(i => i.path === 'damage')!;
-  const range = indicators.find(i => i.path === 'range')!;
-  const fireRate = indicators.find(i => i.path === 'fireRate')!;
-  const special = indicators.find(i => i.path === 'special')!;
-
-  assert(damage.currentTier === 2, 'damage should have 2 tiers');
-  assert(range.currentTier === 2, 'range should have 2 tiers');
-  assert(fireRate.currentTier === 2, 'fireRate should have 2 tiers');
-  assert(special.currentTier === 0, 'special should have 0 tiers');
-});
-
-runTest('getUpgradePathIndicators marks maxed paths correctly', () => {
-  const indicators3 = getUpgradePathIndicators(9);
-  const mainPaths = indicators3.filter(i => i.path !== 'special');
-  mainPaths.forEach(ind => {
-    assert(ind.isMaxed === true, `${ind.path} should be maxed`);
-  });
-  const special = indicators3.find(i => i.path === 'special')!;
-  assert(special.isMaxed === false, 'special should not be maxed (follows separate upgrade path)');
-});
-
-runTest('getUpgradePathIndicators has correct colors', () => {
-  const indicators = getUpgradePathIndicators(0);
-  
-  assert(indicators.find(i => i.path === 'damage')!.color === '#E74C3C', 'damage color should be #E74C3C');
-  assert(indicators.find(i => i.path === 'range')!.color === '#3498DB', 'range color should be #3498DB');
-  assert(indicators.find(i => i.path === 'fireRate')!.color === '#F39C12', 'fireRate color should be #F39C12');
-  assert(indicators.find(i => i.path === 'special')!.color === '#9B59B6', 'special color should be #9B59B6');
+  assert(renderData.growthStage === TowerGrowthStage.FullyMatured, 'Evolved tower should render as fully matured');
+  assert(renderData.bodyRadius > 14, 'Evolved silhouette should be larger than the base body');
 });
 
 console.log(`\nTests passed: ${testsPassed}/${testsPassed + testsFailed}`);

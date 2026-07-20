@@ -20,6 +20,8 @@ import {
   getTowerPurchaseButtonDescription,
   DEFAULT_TOWER_PURCHASE_LAYOUT,
 } from './towerPurchaseRender';
+import { getStartWaveButtonRect } from './waveControls';
+import { getTowerInfoPanelRenderData } from './towerInfoPanel';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -51,8 +53,46 @@ function runTests(): void {
   testAffordability();
   testHotkeyMapping();
   testArsenalReadability();
+  testStartWaveLayoutAvoidsHudPanels();
 
   console.log('All tests passed!');
+}
+
+function testStartWaveLayoutAvoidsHudPanels(): void {
+  console.log('  testStartWaveLayoutAvoidsHudPanels');
+
+  // Given the fixed 1280x720 gameplay canvas and its visible purchase/info surfaces
+  const startWave = getStartWaveButtonRect(1280, 720);
+  const purchaseButtons = getTowerPurchaseButtons(() => true, null);
+  const infoPanel = getTowerInfoPanelRenderData(null, false, 0, false);
+
+  // When the HUD rectangles are compared
+  const overlaps = (
+    first: { x: number; y: number; width: number; height: number },
+    second: { x: number; y: number; width: number; height: number },
+  ): boolean => (
+    first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y
+  );
+  const startWaveRect = { x: startWave.x, y: startWave.y, width: startWave.w, height: startWave.h };
+  const purchaseOverlap = purchaseButtons.some(button => overlaps(startWaveRect, {
+    x: button.position.x,
+    y: button.position.y,
+    width: button.size.width,
+    height: button.size.height,
+  }));
+  const infoOverlap = overlaps(startWaveRect, {
+    x: infoPanel.position.x,
+    y: infoPanel.position.y,
+    width: infoPanel.size.width,
+    height: infoPanel.size.height,
+  });
+
+  // Then Start Wave remains independently readable and clickable
+  assertEqual(purchaseOverlap, false, 'Start Wave does not overlap a purchase card');
+  assertEqual(infoOverlap, false, 'Start Wave does not overlap the tower info panel');
 }
 
 function testGetTowerPurchaseButton(): void {

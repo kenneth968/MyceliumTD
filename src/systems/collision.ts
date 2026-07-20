@@ -72,12 +72,7 @@ export function resolveHit(
   target: Enemy,
   deltaTime: number
 ): CollisionResult {
-  const effects = getHitEffectsForTowerType(
-    projectile.towerType,
-    projectile.damage,
-    projectile.effectStrength,
-    projectile.effectDuration
-  );
+  const effects = getProjectileHitEffects(projectile);
 
   let totalDamage = projectile.damage;
   let appliedDamage = projectile.damage;
@@ -97,6 +92,19 @@ export function resolveHit(
     damage: appliedDamage,
     effects,
   };
+}
+
+export function getProjectileHitEffects(projectile: Projectile): HitEffect[] {
+  return [
+    ...getHitEffectsForTowerType(
+      projectile.towerType,
+      projectile.damage,
+      projectile.effectStrength,
+      projectile.effectDuration,
+    ),
+    ...(projectile.attackProfile?.extraHitEffects ?? []),
+    ...(projectile.extraHitEffects ?? []),
+  ];
 }
 
 export function getHitEffectsForTowerType(

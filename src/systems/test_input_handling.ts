@@ -1,7 +1,8 @@
 import { createGameRunner, GameRunner, PlacementState, GameState } from '../systems/gameRunner';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import { TargetingMode } from '../systems/targeting';
-import { UpgradePath } from '../systems/upgrade';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
+import { routeTowerInfoPanelClick } from './towerInfoPanelInput';
 
 console.log('=== Testing Keyboard/Mouse Input with Placement Workflow ===');
 
@@ -203,8 +204,8 @@ test('sellTowerAtPosition returns success when clicking sell button', () => {
   const sellResult = localGame.sellTowerAtPosition(740, 40);
   localGame.deselectTower();
   
-  if (sellResult.success) {
-    return assertTrue(sellResult.success, 'Sell successful');
+  if (sellResult.status === 'sold') {
+    return assertTrue(sellResult.status === 'sold', 'Sell successful');
   }
   return assertTrue(true, 'Sell button position may be different');
 });
@@ -334,8 +335,8 @@ test('Cannot place tower without enough money', () => {
     assertEqual(localGame.getPlacementState(), PlacementState.None, 'Placement cancelled after unaffordable tower');
 });
 
-console.log('\n--- Selected Tower Upgrade Input ---');
-test('Clicking an affordable upgrade indicator upgrades the selected tower', () => {
+console.log('\n--- Selected Tower Growth Input ---');
+test('Clicking an affordable Mature action matures the selected tower', () => {
   const localGame = createGameRunner({ startingMoney: 1000 });
   localGame.start();
   const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
@@ -343,28 +344,31 @@ test('Clicking an affordable upgrade indicator upgrades the selected tower', () 
     return false;
   }
 
-  const preview = localGame.getTowerSelectionPreviewRenderData();
-  const damageIndicator = preview.upgradeIndicators?.find(i => i.path === UpgradePath.Damage);
-  if (!damageIndicator) {
+  localGame.getTowerInfoPanelAnimator().currentOpacity = 1;
+  const panel = localGame.getTowerInfoPanelRenderData();
+  const matureAction = panel.matureAction;
+  if (!matureAction) {
     return false;
   }
 
   const beforeMoney = localGame.getGameStats().money;
   const beforeDamage = tower.damage;
-  const result = localGame.upgradeTowerAtPosition(
-    damageIndicator.position.x + damageIndicator.size.width / 2,
-    damageIndicator.position.y + damageIndicator.size.height / 2
+  const route = routeTowerInfoPanelClick(
+    panel,
+    matureAction.position.x + matureAction.size.width / 2,
+    matureAction.position.y + matureAction.size.height / 2
   );
+  const result = route.action?.kind === 'mature' ? localGame.matureTower(tower.id) : null;
 
-  return result.success &&
-    result.path === UpgradePath.Damage &&
-    tower.upgradeLevels[UpgradePath.Damage] === 1 &&
+  return route.consumed &&
+    result?.success === true &&
+    tower.growth.stage === TowerStage.Mature &&
     tower.damage > beforeDamage &&
     localGame.getGameStats().money === beforeMoney - result.cost &&
     localGame.getPlacementState() === PlacementState.Selecting;
 });
 
-test('Clicking an unaffordable upgrade indicator keeps the tower selected without upgrading', () => {
+test('Clicking an unaffordable Mature action keeps the tower selected without upgrading', () => {
   const localGame = createGameRunner({ startingMoney: TOWER_STATS[TowerType.Puffball].cost });
   localGame.start();
   const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
@@ -372,22 +376,106 @@ test('Clicking an unaffordable upgrade indicator keeps the tower selected withou
     return false;
   }
 
-  const preview = localGame.getTowerSelectionPreviewRenderData();
-  const damageIndicator = preview.upgradeIndicators?.find(i => i.path === UpgradePath.Damage);
-  if (!damageIndicator) {
+  localGame.getTowerInfoPanelAnimator().currentOpacity = 1;
+  const panel = localGame.getTowerInfoPanelRenderData();
+  const matureAction = panel.matureAction;
+  if (!matureAction) {
     return false;
   }
 
   const beforeMoney = localGame.getGameStats().money;
-  const result = localGame.upgradeTowerAtPosition(
-    damageIndicator.position.x + damageIndicator.size.width / 2,
-    damageIndicator.position.y + damageIndicator.size.height / 2
+  const route = routeTowerInfoPanelClick(
+    panel,
+    matureAction.position.x + matureAction.size.width / 2,
+    matureAction.position.y + matureAction.size.height / 2
   );
 
-  return !result.success &&
-    result.path === UpgradePath.Damage &&
-    tower.upgradeLevels[UpgradePath.Damage] === 0 &&
+  return route.consumed &&
+    route.action === null &&
+    tower.growth.stage === TowerStage.Seedling &&
     localGame.getGameStats().money === beforeMoney &&
+    localGame.getPlacementState() === PlacementState.Selecting;
+});
+
+test('Clicking isolated Symbiote is consumed without evolving or deselecting', () => {
+  // Given an isolated selected Mature tower
+  const localGame = createGameRunner({ startingMoney: 5000 });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.Sporecap, 100, 100, TargetingMode.First);
+  if (!tower || !localGame.matureTower(tower.id).success || !localGame.selectTower(tower.id)) {
+    return false;
+  }
+  localGame.getTowerInfoPanelAnimator().currentOpacity = 1;
+  const panel = localGame.getTowerInfoPanelRenderData();
+  const card = panel.evolutionCards.find(candidate => candidate.path === EvolutionPath.Symbiote);
+  if (!card) return false;
+
+  // When the disabled Symbiote card is clicked through the main routing seam
+  const route = routeTowerInfoPanelClick(
+    panel,
+    card.position.x + card.size.width / 2,
+    card.position.y + card.size.height / 2
+  );
+
+  // Then the panel consumes it without an action or world-side state change
+  return route.consumed &&
+    route.action === null &&
+    tower.growth.evolution === null &&
+    localGame.getPlacementState() === PlacementState.Selecting;
+});
+
+test('Clicking any Evolved card is consumed without dispatching another evolution', () => {
+  // Given a selected Evolved tower
+  const localGame = createGameRunner({ startingMoney: 5000 });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.ThornSniper, 720, 180, TargetingMode.First);
+  if (!tower || !localGame.matureTower(tower.id).success || !localGame.evolveTower(tower.id, EvolutionPath.Predator).success || !localGame.selectTower(tower.id)) {
+    return false;
+  }
+  localGame.getTowerInfoPanelAnimator().currentOpacity = 1;
+  const panel = localGame.getTowerInfoPanelRenderData();
+
+  // When every displayed Evolution card is clicked through the main routing seam
+  const routes = panel.evolutionCards.map(card => routeTowerInfoPanelClick(
+    panel,
+    card.position.x + card.size.width / 2,
+    card.position.y + card.size.height / 2
+  ));
+
+  // Then every hit is inert but consumed
+  return routes.every(route => route.consumed && route.action === null) &&
+    tower.growth.evolution === EvolutionPath.Predator &&
+    localGame.getPlacementState() === PlacementState.Selecting;
+});
+
+test('Clicking the full visible panel boundary is consumed before world routing', () => {
+  // Given a visible selected tower panel
+  const localGame = createGameRunner({ startingMoney: 1000 });
+  localGame.start();
+  const tower = localGame.placeTower(TowerType.Puffball, 500, 50, TargetingMode.First);
+  if (!tower || !localGame.selectTower(tower.id)) return false;
+  localGame.getTowerInfoPanelAnimator().currentOpacity = 1;
+  const panel = localGame.getTowerInfoPanelRenderData();
+  const left = panel.position.x;
+  const top = panel.position.y;
+  const right = left + panel.size.width;
+  const bottom = top + panel.size.height;
+
+  // When all four inclusive panel corners and empty header space are routed
+  const routes = [
+    routeTowerInfoPanelClick(panel, left, top),
+    routeTowerInfoPanelClick(panel, right, top),
+    routeTowerInfoPanelClick(panel, left, bottom),
+    routeTowerInfoPanelClick(panel, right, bottom),
+    routeTowerInfoPanelClick(panel, left + 5, top + 5),
+  ];
+  const outside = routeTowerInfoPanelClick(panel, left - 1, top - 1);
+
+  // Then every visible-panel hit is consumed and an outside hit remains routable
+  return routes.every(route => route.consumed) &&
+    routes.every(route => route.action === null) &&
+    !outside.consumed &&
+    outside.action === null &&
     localGame.getPlacementState() === PlacementState.Selecting;
 });
 
@@ -399,7 +487,7 @@ test('Selling an upgraded tower refunds the displayed sell value', () => {
     return false;
   }
 
-  const upgrade = localGame.upgradeTower(tower.id, UpgradePath.Damage);
+  const upgrade = localGame.matureTower(tower.id);
   if (!upgrade.success || !localGame.selectTower(tower.id)) {
     return false;
   }
@@ -415,8 +503,8 @@ test('Selling an upgraded tower refunds the displayed sell value', () => {
     preview.sellButton.position.y + preview.sellButton.size.height / 2
   );
 
-  return sellResult.success &&
-    sellResult.sellValue === preview.sellButton.sellValue &&
+  return sellResult.status === 'sold' &&
+    sellResult.refund === preview.sellButton.sellValue &&
     localGame.getGameStats().money === beforeMoney + preview.sellButton.sellValue &&
     localGame.getPlacedTowers().length === 0;
 });

@@ -1,5 +1,6 @@
 import { getTowerSelectionRangePreview, getTowerSelectionPreviewRenderData } from './placementPreview';
-import { TowerWithUpgrades, UpgradePath, createTowerWithUpgrades } from './upgrade';
+import { TowerWithGrowth, createTowerWithGrowth } from './upgrade';
+import { TowerStage } from '../content/evolutionDefinitions';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
 import { PlacementMode } from './input';
@@ -40,8 +41,8 @@ function expectNotNull(actual: any, testName: string): void {
   }
 }
 
-function createMockTower(towerType: TowerType = TowerType.Puffball): TowerWithUpgrades {
-  return createTowerWithUpgrades(1, 100, 100, towerType, TargetingMode.First);
+function createMockTower(towerType: TowerType = TowerType.Puffball): TowerWithGrowth {
+  return createTowerWithGrowth(1, 100, 100, towerType, TargetingMode.First);
 }
 
 console.log('\n=== tower selection range preview tests ===\n');
@@ -90,7 +91,7 @@ console.log('\n--- getTowerSelectionRangePreview with upgraded tower ---');
   const tower = createMockTower(TowerType.Slimefungus);
   const originalRange = tower.range;
   
-  tower.upgradeLevels[UpgradePath.Range] = 1;
+  tower.growth.stage = TowerStage.Mature;
   tower.range = originalRange * 1.15;
   
   const position: Vec2 = { x: 75, y: 150 };
@@ -105,15 +106,10 @@ console.log('\n--- getTowerSelectionPreviewRenderData includes range preview ---
   const tower = createMockTower();
   const position: Vec2 = { x: 50, y: 100 };
   
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     tower,
     position,
-    PlacementMode.Selecting,
-    canAfford,
-    getCost
+    PlacementMode.Selecting
   );
   
   expectTrue(result.isSelecting, 'isSelecting is true');
@@ -128,15 +124,10 @@ console.log('\n--- getTowerSelectionPreviewRenderData excludes range preview whe
   const tower = createMockTower();
   const position: Vec2 = { x: 50, y: 100 };
   
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     tower,
     position,
-    PlacementMode.None,
-    canAfford,
-    getCost
+    PlacementMode.None
   );
   
   expectTrue(result.isSelecting === false, 'isSelecting is false');
@@ -145,15 +136,10 @@ console.log('\n--- getTowerSelectionPreviewRenderData excludes range preview whe
 
 console.log('\n--- getTowerSelectionPreviewRenderData excludes range preview when tower is null ---');
 {
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     null,
     { x: 50, y: 100 },
-    PlacementMode.Selecting,
-    canAfford,
-    getCost
+    PlacementMode.Selecting
   );
   
   expectTrue(result.isSelecting === false, 'isSelecting is false when tower is null');
@@ -164,15 +150,10 @@ console.log('\n--- getTowerSelectionPreviewRenderData excludes range preview whe
 {
   const tower = createMockTower();
   
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     tower,
     null,
-    PlacementMode.Selecting,
-    canAfford,
-    getCost
+    PlacementMode.Selecting
   );
   
   expectTrue(result.isSelecting === false, 'isSelecting is false when position is null');
@@ -183,15 +164,10 @@ console.log('\n--- getTowerSelectionPreviewRenderData excludes range preview whe
 {
   const tower = createMockTower();
   
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     tower,
     { x: 50, y: 100 },
-    PlacementMode.Placing,
-    canAfford,
-    getCost
+    PlacementMode.Placing
   );
   
   expectTrue(result.isSelecting === false, 'isSelecting is false when placing');
@@ -202,19 +178,15 @@ console.log('\n--- getTowerSelectionPreviewRenderData has all expected fields --
 {
   const tower = createMockTower();
   
-  const canAfford = () => true;
-  const getCost = () => 50;
-  
   const result = getTowerSelectionPreviewRenderData(
     tower,
     { x: 50, y: 100 },
-    PlacementMode.Selecting,
-    canAfford,
-    getCost
+    PlacementMode.Selecting
   );
   
   expectTrue(result.hasOwnProperty('selection'), 'has selection field');
-  expectTrue(result.hasOwnProperty('upgradeIndicators'), 'has upgradeIndicators field');
+  const removedGenericSurface = ['upgrade', 'Indicators'].join('');
+  expectTrue(!result.hasOwnProperty(removedGenericSurface), 'does not expose generic upgrade indicators');
   expectTrue(result.hasOwnProperty('sellButton'), 'has sellButton field');
   expectTrue(result.hasOwnProperty('isSelecting'), 'has isSelecting field');
   expectTrue(result.hasOwnProperty('rangePreview'), 'has rangePreview field');
@@ -224,20 +196,12 @@ console.log('\n--- getTowerSelectionPreviewRenderData with fully upgraded tower 
 {
   const tower = createMockTower(TowerType.ThornSniper);
   
-  tower.upgradeLevels[UpgradePath.Damage] = 3;
-  tower.upgradeLevels[UpgradePath.Range] = 3;
-  tower.upgradeLevels[UpgradePath.FireRate] = 3;
-  tower.upgradeLevels[UpgradePath.Special] = 3;
-  
-  const canAfford = () => true;
-  const getCost = () => 200;
+  tower.growth.stage = TowerStage.Evolved;
   
   const result = getTowerSelectionPreviewRenderData(
     tower,
     { x: 50, y: 100 },
-    PlacementMode.Selecting,
-    canAfford,
-    getCost
+    PlacementMode.Selecting
   );
   
   expectNotNull(result.rangePreview, 'rangePreview exists for fully upgraded tower');

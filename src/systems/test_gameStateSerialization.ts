@@ -2,7 +2,7 @@ const { createGameRunner, GameSpeed, PlacedTower } = require('./gameRunner');
 const { TowerType } = require('../entities/tower');
 const { EnemyType, EnemyVariant } = require('./wave');
 const { createDefaultPath } = require('./path');
-const { UpgradePath } = require('./upgrade');
+const { EvolutionPath, TowerStage } = require('../content/evolutionDefinitions');
 const {
   serializeGameState,
   serializeGameStateToString,
@@ -10,12 +10,13 @@ const {
   parseGameState,
   serializeEnemy,
   serializeProjectile,
-  serializeTowerUpgrades,
+  serializeTowerGrowth,
   serializePlacedTower,
   serializeEconomy,
   serializeRoundManager,
   serializeWaveSpawner,
   deserializeEnemy,
+  deserializePlacedTower,
 } = require('./gameStateSerialization');
 
 let passed = 0;
@@ -252,24 +253,18 @@ console.log('\nserializeProjectile with effect upgrades:');
   assertEqual(serialized.areaRadius, 60, 'areaRadius is 60');
 }
 
-console.log('\nserializeTowerUpgrades:');
+console.log('\nserializeTowerGrowth:');
 {
-  const upgrades = {
-    damage: 2,
-    range: 1,
-    fireRate: 3,
-    special: 0,
-    cumulativeValue: 450,
-    effectStrength: 0.5,
-    effectDuration: 1000,
-    areaRadius: 50,
+  const growth = {
+    stage: TowerStage.Evolved,
+    evolution: EvolutionPath.Predator,
+    totalSpent: 450,
   };
   
-  const serialized = serializeTowerUpgrades(upgrades);
-  assertEqual(serialized.damage, 2, 'damage is 2');
-  assertEqual(serialized.range, 1, 'range is 1');
-  assertEqual(serialized.fireRate, 3, 'fireRate is 3');
-  assertEqual(serialized.cumulativeValue, 450, 'cumulativeValue is 450');
+  const serialized = serializeTowerGrowth(growth);
+  assertEqual(serialized.stage, TowerStage.Evolved, 'stage is Evolved');
+  assertEqual(serialized.evolution, EvolutionPath.Predator, 'Evolution path is Predator');
+  assertEqual(serialized.totalSpent, 450, 'total growth spending is 450');
 }
 
 console.log('\nserializePlacedTower:');
@@ -291,23 +286,11 @@ console.log('\nserializePlacedTower:');
       lastFireTime: 0,
       projectileSpeed: 200,
       specialEffect: 'area_damage',
-      upgrades: {
-        damage: 1,
-        range: 0,
-        fireRate: 2,
-        special: 0,
-        cumulativeValue: 150,
-        effectStrength: 0.6,
-        effectDuration: 0,
-        areaRadius: 60,
+      growth: {
+        stage: TowerStage.Mature,
+        evolution: null,
+        totalSpent: 150,
       },
-      upgradeLevels: {
-        damage: 1,
-        range: 0,
-        fireRate: 2,
-        special: 0,
-      },
-      totalUpgradeCost: 150,
       effectStrength: 0.6,
       effectDuration: 0,
       areaRadius: 60,
@@ -318,7 +301,7 @@ console.log('\nserializePlacedTower:');
   
   const serialized = serializePlacedTower(placedTower);
   assertEqual(serialized.tower.towerType, 'puffball', 'towerType is puffball');
-  assertEqual(serialized.tower.upgrades.damage, 1, 'upgrade damage is 1');
+  assertEqual(serialized.tower.growth.stage, TowerStage.Mature, 'growth stage is Mature');
   assertEqual(serialized.x, 150, 'x is 150');
   assertEqual(serialized.y, 250, 'y is 250');
 }
@@ -472,17 +455,26 @@ console.log('\nserialize game with multiple towers:');
   assertEqual(serialized.placedTowers[2].tower.towerType, 'thorn_sniper', 'third is venus');
 }
 
-console.log('\nserialize game with tower (upgrade may not apply in test context):');
+console.log('\nserialize and restore evolved tower growth without reapplying multipliers:');
 {
-  const game = createTestGame();
+  const game = createGameRunner({ startingMoney: 5000 });
   game.start();
   
-  game.placeTower(TowerType.Puffball, 150, 150);
+  const tower = game.placeTower(TowerType.Puffball, 150, 150);
+  assertTruthy(tower !== null, 'tower is placed');
+  game.matureTower(tower.id);
+  game.evolveTower(tower.id, EvolutionPath.Predator);
   
   const serialized = serializeGameState(game);
+  const restored = deserializePlacedTower(serialized.placedTowers[0]);
   assertEqual(serialized.placedTowers.length, 1, 'has 1 tower');
   assertEqual(serialized.placedTowers[0].tower.towerType, 'puffball', 'tower type is puffball');
-  assertEqual(typeof serialized.placedTowers[0].tower.upgrades.damage, 'number', 'damage upgrade is a number');
+  assertEqual(serialized.placedTowers[0].tower.growth.stage, TowerStage.Evolved, 'serialized stage is Evolved');
+  assertEqual(serialized.placedTowers[0].tower.growth.evolution, EvolutionPath.Predator, 'serialized Evolution is Predator');
+  assertEqual(restored.tower.growth.totalSpent, tower.growth.totalSpent, 'growth spending survives restore');
+  assertEqual(restored.tower.damage, tower.damage, 'damage is restored without multiplying twice');
+  assertEqual(restored.tower.range, tower.range, 'range is restored without multiplying twice');
+  assertEqual(restored.tower.fireRate, tower.fireRate, 'fire rate is restored without multiplying twice');
 }
 
 console.log('\n=== Results ===');

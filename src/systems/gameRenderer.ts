@@ -1,4 +1,4 @@
-import { GameRunner, GameState, PlacementState, PlacedTower, NetworkConnection, LingeringField, SeededPayload } from './gameRunner';
+import { GameRunner, GameState, PlacementState, PlacedTower, LingeringField, SeededPayload } from './gameRunner';
 import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
@@ -16,7 +16,7 @@ import { TowerInfoPanelRenderData } from './towerInfoPanel';
 import { LivesMoneyDisplayRenderData } from './livesMoneyDisplayRender';
 import { EnemyCountDisplayRenderData } from './enemyCountDisplayRender';
 import { TargetingMode } from './targeting';
-import { UpgradePath, TowerWithUpgrades, getTotalSellValue } from './upgrade';
+import { TowerWithGrowth, getGrowthVisualTier, getGrowthVisualValue, getTotalSellValue } from './upgrade';
 import { TowerPurchaseRenderData, getTowerPurchaseRenderData } from './towerPurchaseRender';
 import { MapSelectionRenderData } from './mapSelectionRender';
 
@@ -91,10 +91,11 @@ export interface NetworkConnectionRenderData {
   sourcePosition: Vec2;
   targetTowerId: number;
   targetPosition: Vec2;
-  sourceType: NetworkConnection['sourceType'];
+  sourceType: 'kernel' | 'tower';
   color: string;
   glowColor: string;
   width: number;
+  isHighlighted: boolean;
 }
 
 export interface LingeringFieldRenderData {
@@ -313,12 +314,8 @@ export class GameRenderer {
       firingTowerIds.add(tower.id);
       cooldownProgressMap.set(tower.id, tower.lastFireTime > 0 ? 0.5 : 1.0);
       
-      let totalUpgrades = 0;
-      for (const path of [UpgradePath.Damage, UpgradePath.Range, UpgradePath.FireRate, UpgradePath.Special]) {
-        totalUpgrades += tower.upgradeLevels[path];
-      }
-      upgradeLevelMap.set(tower.id, totalUpgrades);
-      totalUpgradeValueMap.set(tower.id, totalUpgrades * 50);
+      upgradeLevelMap.set(tower.id, getGrowthVisualTier(tower));
+      totalUpgradeValueMap.set(tower.id, getGrowthVisualValue(tower));
     }
 
     const towerCollection = this.getTowerRenderCollection(
@@ -336,7 +333,7 @@ export class GameRenderer {
       activeProjectiles,
       this.previousProjectilePositions
     );
-    const networkConnections = this.getNetworkConnectionRenderData(game.getNetworkConnections());
+    const networkConnections = this.getNetworkConnectionRenderData(game);
     const lingeringFields = this.getLingeringFieldRenderData(game.getLingeringFields());
     const seededPayloads = this.getSeededPayloadRenderData(game.getSeededPayloads());
 
@@ -435,17 +432,48 @@ export class GameRenderer {
     }));
   }
 
-  private getNetworkConnectionRenderData(connections: NetworkConnection[]): NetworkConnectionRenderData[] {
-    return connections.map(connection => ({
-      sourceTowerId: connection.sourceTowerId,
-      sourcePosition: { ...connection.sourcePosition },
-      targetTowerId: connection.targetTowerId,
-      targetPosition: { ...connection.targetPosition },
-      sourceType: connection.sourceType,
-      color: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.7)' : 'rgba(186, 120, 220, 0.7)',
-      glowColor: connection.sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(142, 68, 173, 0.2)',
-      width: connection.sourceType === 'kernel' ? 3 : 2,
-    }));
+  private getNetworkConnectionRenderData(game: GameRunner): NetworkConnectionRenderData[] {
+    const networkState = game.getMyceliumNetworkState();
+    const positionsByTowerId = new Map(
+      game.getPlacedTowers().map(placed => [placed.tower.id, placed.tower.position]),
+    );
+    const highlightedTargetIds = new Set<number>();
+    let pathTowerId = game.getSelectedTowerId();
+
+    while (pathTowerId !== null) {
+      const parentId = networkState.parentByTowerId.get(pathTowerId);
+      if (parentId === undefined) break;
+      highlightedTargetIds.add(pathTowerId);
+      pathTowerId = parentId === 'kernel' ? null : parentId;
+    }
+
+    const connections: NetworkConnectionRenderData[] = [];
+    for (const [targetTowerId, parentId] of networkState.parentByTowerId) {
+      const targetPosition = positionsByTowerId.get(targetTowerId);
+      const sourcePosition = parentId === 'kernel'
+        ? game.getPath().getPointAtDistance(game.getPath().getTotalLength()).position
+        : positionsByTowerId.get(parentId);
+      if (!targetPosition || !sourcePosition) continue;
+
+      const sourceType = parentId === 'kernel' ? 'kernel' : 'tower';
+      const isHighlighted = highlightedTargetIds.has(targetTowerId);
+      connections.push({
+        sourceTowerId: parentId === 'kernel' ? null : parentId,
+        sourcePosition: { ...sourcePosition },
+        targetTowerId,
+        targetPosition: { ...targetPosition },
+        sourceType,
+        color: isHighlighted
+          ? 'rgba(250, 204, 21, 0.95)'
+          : sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.7)' : 'rgba(186, 120, 220, 0.7)',
+        glowColor: isHighlighted
+          ? 'rgba(250, 204, 21, 0.35)'
+          : sourceType === 'kernel' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(142, 68, 173, 0.2)',
+        width: (sourceType === 'kernel' ? 3 : 2) + (isHighlighted ? 2 : 0),
+        isHighlighted,
+      });
+    }
+    return connections;
   }
 
   private getLingeringFieldRenderData(fields: LingeringField[]): LingeringFieldRenderData[] {

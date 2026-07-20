@@ -2,7 +2,7 @@ import { GameRunner, GameState, PlacementState } from './gameRunner';
 import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, TargetingModeButtonRenderData, SellButtonRenderData } from './gameRenderer';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
-import { UpgradePath } from './upgrade';
+import { EvolutionPath } from '../content/evolutionDefinitions';
 import { createEnemy } from '../entities/enemy';
 import { EnemyType } from './wave';
 
@@ -110,7 +110,8 @@ const fieldGame = new GameRunner({ startingMoney: 5000 });
 fieldGame.start();
 const fieldTower = fieldGame.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
 if (fieldTower) {
-  fieldGame.upgradeTower(fieldTower.id, UpgradePath.Special);
+  fieldGame.matureTower(fieldTower.id);
+  fieldGame.evolveTower(fieldTower.id, EvolutionPath.Symbiote);
   const fieldTarget = createEnemy(910, EnemyType.DartWasp, fieldGame.getPath());
   fieldTarget.pathDistance = 1420;
   fieldTarget.pathProgress = 1420;
@@ -127,7 +128,7 @@ test('active lingering fungal field appears in frame render data', () =>
   Array.isArray(renderedFields) && renderedFields.length === 1
 );
 test('lingering fungal field render data is visible and timed', () =>
-  renderedFields?.[0]?.radius === 50 &&
+  renderedFields?.[0]?.radius === 40 &&
   renderedFields?.[0]?.duration === 6000 &&
   renderedFields?.[0]?.color === 'rgba(136, 216, 90, 0.22)'
 );
@@ -136,7 +137,8 @@ const seededGame = new GameRunner({ startingMoney: 5000 });
 seededGame.start();
 const seededTower = seededGame.placeTower(TowerType.BulbShooter, 720, 270, TargetingMode.First);
 if (seededTower) {
-  seededGame.upgradeTower(seededTower.id, UpgradePath.Special);
+  seededGame.matureTower(seededTower.id);
+  seededGame.evolveTower(seededTower.id, EvolutionPath.Symbiote);
   const seededTarget = createEnemy(911, EnemyType.BulwarkBeetle, seededGame.getPath());
   seededTarget.pathDistance = 1420;
   seededTarget.pathProgress = 1420;
