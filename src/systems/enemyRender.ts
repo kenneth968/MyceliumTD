@@ -19,6 +19,9 @@ export interface EnemyRenderData {
   isAlive: boolean;
   layersRemaining: number;
   totalLayers: number;
+  bodyShape: EnemyFamilyShape;
+  layerStage: number;
+  outerLayerElements: number;
   family: EnemyFamily;
   isBoss: boolean;
   showHealthBar: boolean;
@@ -30,12 +33,24 @@ export interface EnemyRenderData {
   swarmLinkedActive: boolean;
   swarmLinkCount: number;
   traits: readonly EnemyTrait[];
+  traitOverlays: readonly EnemyTraitOverlay[];
   armorColor: string | null;
   shieldColor: string | null;
   swarmLinkColor: string | null;
   statusEffects: EnemyStatusEffectRender[];
   animationState: EnemyAnimationState;
   facingAngle: number;
+}
+
+export type EnemyFamilyShape = 'beetle-shell' | 'wasp-wings' | 'caterpillar-segments' | 'moth-wings';
+export type EnemyTraitOverlayShape = 'hexagon' | 'ring' | 'short-links' | 'partial-opacity' | 'eye';
+
+export interface EnemyTraitOverlay {
+  trait: EnemyTrait;
+  shape: EnemyTraitOverlayShape;
+  visibility: 'always' | 'when-revealed';
+  active: boolean;
+  color: string;
 }
 
 export interface EnemyStatusEffectRender {
@@ -302,6 +317,35 @@ function getEnemyAnimationState(enemy: Enemy): EnemyAnimationState {
   return EnemyAnimationState.Normal;
 }
 
+/** Returns the silhouette contract shared by every member of an enemy family. */
+export function getEnemyFamilyShape(family: EnemyFamily): EnemyFamilyShape {
+  switch (family) {
+    case EnemyFamily.Beetle: return 'beetle-shell';
+    case EnemyFamily.Wasp: return 'wasp-wings';
+    case EnemyFamily.Caterpillar: return 'caterpillar-segments';
+    case EnemyFamily.Moth: return 'moth-wings';
+  }
+}
+
+function getEnemyTraitOverlays(options: {
+  isMetal: boolean;
+  isShielded: boolean;
+  shieldActive: boolean;
+  isSwarmLinked: boolean;
+  swarmLinkedActive: boolean;
+  isCamo: boolean;
+}): EnemyTraitOverlay[] {
+  const overlays: EnemyTraitOverlay[] = [];
+  if (options.isMetal) overlays.push({ trait: EnemyTrait.Metal, shape: 'hexagon', visibility: 'always', active: true, color: '#C8D0D8' });
+  if (options.isShielded) overlays.push({ trait: EnemyTrait.Shielded, shape: 'ring', visibility: 'always', active: options.shieldActive, color: 'rgba(124, 218, 255, 0.75)' });
+  if (options.isSwarmLinked) overlays.push({ trait: EnemyTrait.SwarmLinked, shape: 'short-links', visibility: 'always', active: options.swarmLinkedActive, color: 'rgba(245, 94, 121, 0.72)' });
+  if (options.isCamo) {
+    overlays.push({ trait: EnemyTrait.Camo, shape: 'partial-opacity', visibility: 'always', active: true, color: '#1ABC9C' });
+    overlays.push({ trait: EnemyTrait.Camo, shape: 'eye', visibility: 'when-revealed', active: true, color: '#F1C40F' });
+  }
+  return overlays;
+}
+
 export function getEnemyRenderData(
   enemy: Enemy,
   options?: {
@@ -318,7 +362,9 @@ export function getEnemyRenderData(
   const shieldActive = hasActiveShield({ ...traitCarrier, shieldCharges: enemy.shieldCharges });
   const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
   const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
+  const isCamo = hasEnemyTrait(traitCarrier, EnemyTrait.Camo);
   const isBoss = enemy.variant === EnemyVariant.Boss;
+  const family = ENEMY_DEFINITIONS[enemy.enemyType].family;
 
   const statusEffectRenders = enemy.statusEffects.map(e => getStatusEffectRender(e));
 
@@ -326,7 +372,7 @@ export function getEnemyRenderData(
     id: enemy.id,
     enemyType: enemy.enemyType,
     position: { ...enemy.position },
-    rotation: options?.facingAngle ?? 0,
+    rotation: 0,
     scale: 1.0,
     primaryColor: config.primary,
     secondaryColor: config.secondary,
@@ -338,10 +384,13 @@ export function getEnemyRenderData(
     isAlive: enemy.alive,
     layersRemaining: Math.max(0, enemy.layers.length - enemy.currentLayerIndex),
     totalLayers: enemy.layers.length,
-    family: ENEMY_DEFINITIONS[enemy.enemyType].family,
+    bodyShape: getEnemyFamilyShape(family),
+    layerStage: enemy.currentLayerIndex,
+    outerLayerElements: Math.max(0, enemy.layers.length - enemy.currentLayerIndex),
+    family,
     isBoss,
     showHealthBar: isBoss,
-    isCamo: hasEnemyTrait(traitCarrier, EnemyTrait.Camo),
+    isCamo,
     isMetal,
     isShielded,
     shieldActive,
@@ -349,6 +398,7 @@ export function getEnemyRenderData(
     swarmLinkedActive,
     swarmLinkCount: isSwarmLinked ? enemy.swarmLinkCount : 0,
     traits,
+    traitOverlays: getEnemyTraitOverlays({ isMetal, isShielded, shieldActive, isSwarmLinked, swarmLinkedActive, isCamo }),
     armorColor: isMetal ? '#C8D0D8' : null,
     shieldColor: isShielded ? 'rgba(124, 218, 255, 0.75)' : null,
     swarmLinkColor: isSwarmLinked ? 'rgba(245, 94, 121, 0.72)' : null,

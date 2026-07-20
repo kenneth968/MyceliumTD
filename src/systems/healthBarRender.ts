@@ -5,6 +5,7 @@ import { EnemyVariant } from '../content/enemyDefinitions';
 
 export interface HealthBarRenderData {
   enemyId: number;
+  label: string | null;
   position: Vec2;
   width: number;
   height: number;
@@ -12,6 +13,7 @@ export interface HealthBarRenderData {
   currentHp: number;
   maxHp: number;
   healthPercent: number;
+  layerFractions: readonly number[];
   backgroundColor: string;
   fillColor: string;
   borderColor: string;
@@ -81,6 +83,27 @@ const DEFAULT_HEALTH_BAR_HEIGHT = 4;
 const DEFAULT_OFFSET_Y = -15;
 const DAMAGED_THRESHOLD = 0.5;
 const CRITICAL_THRESHOLD = 0.25;
+const BOSS_BAR_CENTER: Vec2 = { x: 640, y: 78 };
+const BOSS_BAR_WIDTH = 440;
+const BOSS_BAR_HEIGHT = 12;
+const BOSS_LABEL = 'Elder Ward Moth';
+
+function getAggregateHealth(enemy: Enemy): { currentHp: number; maxHp: number; layerFractions: number[] } {
+  if (enemy.variant !== EnemyVariant.Boss) {
+    return {
+      currentHp: enemy.hp,
+      maxHp: enemy.maxHp,
+      layerFractions: enemy.layers.map(layer => layer.maxHp > 0 ? Math.max(0, layer.hp) / layer.maxHp : 0),
+    };
+  }
+  const currentHp = enemy.layers.reduce((total, layer) => total + Math.max(0, layer.hp), 0);
+  const maxHp = enemy.layers.reduce((total, layer) => total + layer.maxHp, 0);
+  return {
+    currentHp,
+    maxHp,
+    layerFractions: enemy.layers.map(layer => layer.maxHp > 0 ? Math.max(0, layer.hp) / layer.maxHp : 0),
+  };
+}
 
 export function getHealthBarWidth(enemyType?: EnemyType): number {
   const baseWidths: Partial<Record<EnemyType, number>> = {
@@ -150,29 +173,33 @@ export function getHealthBarRenderData(
 ): HealthBarRenderData {
   const { showAlways = false, customWidth, customHeight, customOffsetY } = options || {};
   
-  const width = customWidth || getHealthBarWidth(enemy.enemyType);
-  const height = customHeight || getHealthBarHeight(enemy.enemyType);
+  const aggregate = getAggregateHealth(enemy);
+  const isBoss = enemy.variant === EnemyVariant.Boss;
+  const width = customWidth || (isBoss ? BOSS_BAR_WIDTH : getHealthBarWidth(enemy.enemyType));
+  const height = customHeight || (isBoss ? BOSS_BAR_HEIGHT : getHealthBarHeight(enemy.enemyType));
   const offsetY = customOffsetY || getHealthBarOffsetY(enemy.enemyType);
-  const healthPercent = enemy.hp / enemy.maxHp;
+  const healthPercent = aggregate.maxHp > 0 ? aggregate.currentHp / aggregate.maxHp : 0;
   const healthState = getHealthState(healthPercent, enemy.alive);
   const colors = getHealthBarColors(healthState);
   const visible = shouldShowHealthBar(enemy, showAlways);
 
   const position: Vec2 = {
-    x: enemy.position.x,
-    y: enemy.position.y + offsetY,
+    x: isBoss ? BOSS_BAR_CENTER.x : enemy.position.x,
+    y: isBoss ? BOSS_BAR_CENTER.y : enemy.position.y + offsetY,
   };
 
   if (!visible) {
     return {
       enemyId: enemy.id,
+      label: null,
       position,
       width: 0,
       height: 0,
       offsetY,
-      currentHp: enemy.hp,
-      maxHp: enemy.maxHp,
+      currentHp: aggregate.currentHp,
+      maxHp: aggregate.maxHp,
       healthPercent,
+      layerFractions: aggregate.layerFractions,
       backgroundColor: 'transparent',
       fillColor: 'transparent',
       borderColor: 'transparent',
@@ -186,13 +213,15 @@ export function getHealthBarRenderData(
 
   return {
     enemyId: enemy.id,
+    label: BOSS_LABEL,
     position,
     width,
     height,
     offsetY,
-    currentHp: enemy.hp,
-    maxHp: enemy.maxHp,
+    currentHp: aggregate.currentHp,
+    maxHp: aggregate.maxHp,
     healthPercent,
+    layerFractions: aggregate.layerFractions,
     backgroundColor: colors.background,
     fillColor: colors.fill,
     borderColor: colors.border,
@@ -242,7 +271,8 @@ export class HealthBarAnimator {
 
   update(enemies: Enemy[], deltaTime: number): void {
     for (const enemy of enemies) {
-      const targetPercent = enemy.hp / enemy.maxHp;
+      const health = getAggregateHealth(enemy);
+      const targetPercent = health.maxHp > 0 ? health.currentHp / health.maxHp : 0;
       let displayPercent = this.displayHealthPercents.get(enemy.id);
       
       if (displayPercent === undefined) {
@@ -302,7 +332,7 @@ export function getAnimatedHealthBarRenderData(
 ): AnimatedHealthBarData {
   const baseData = getHealthBarRenderData(enemy, options);
   const displayPercent = animator.getDisplayHealthPercent(enemy.id);
-  const targetPercent = enemy.hp / enemy.maxHp;
+  const targetPercent = baseData.healthPercent;
   
   const deltaDirection = displayPercent > targetPercent ? 'down' : 
                          displayPercent < targetPercent ? 'up' : 'none';

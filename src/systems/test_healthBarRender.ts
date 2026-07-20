@@ -215,23 +215,42 @@ function getHealthBarRenderDataTests() {
   
   const boss = createEnemy(2, EnemyType.WardMoth, createMockPath());
   applyEnemyVariant(boss, EnemyVariant.Boss);
-  boss.hp = 30;
-  boss.maxHp = 100;
+  boss.layers[0].hp = 0;
+  boss.layers[1].hp = 20;
+  boss.currentLayerIndex = 1;
+  boss.hp = 20;
   data = getHealthBarRenderData(boss);
   assertEqual(data.isVisible, true, 'damaged visible');
+  assertEqual(data.label, 'Elder Ward Moth', 'boss label');
+  assert(data.position.y > 56, 'boss bar sits below the top HUD');
   assertEqual(data.enemyId, 2, 'enemy id');
-  assertEqual(data.currentHp, 30, 'current hp');
-  assertEqual(data.maxHp, 100, 'max hp');
-  assertEqual(data.healthPercent, 0.3, 'health percent');
+  assertEqual(data.currentHp, 20, 'current hp');
+  assertEqual(data.maxHp, 48, 'max hp');
+  assertApproxEqual(data.healthPercent, 20 / 48, 0.001, 'health percent');
   assertEqual(data.healthState, HealthState.Damaged, 'damaged state');
   assertEqual(data.fillColor, '#FFC107', 'damaged color');
+
+  boss.layers[0].hp = 0;
+  boss.layers[1].hp = 12;
+  boss.currentLayerIndex = 1;
+  boss.hp = 999;
+  boss.maxHp = 999;
+  data = getHealthBarRenderData(boss);
+  assertEqual(data.currentHp, 12, 'boss current HP aggregates remaining layer HP');
+  assertEqual(data.maxHp, 48, 'boss max HP aggregates all layer maxima');
+  assertEqual(data.healthPercent, 0.25, 'boss percent uses aggregate layer HP');
+  assertEqual(data.layerFractions, [0, 0.5], 'boss bar exposes each layer state');
   
+  boss.layers[1].hp = 10;
   boss.hp = 10;
   data = getHealthBarRenderData(boss);
   assertEqual(data.healthState, HealthState.Critical, 'critical state');
   assertEqual(data.fillColor, '#F44336', 'critical color');
   
-  boss.hp = 100;
+  boss.layers[0].hp = boss.layers[0].maxHp;
+  boss.layers[1].hp = boss.layers[1].maxHp;
+  boss.currentLayerIndex = 0;
+  boss.hp = boss.maxHp;
   data = getHealthBarRenderData(boss, { showAlways: true });
   assertEqual(data.healthState, HealthState.Full, 'full state');
   assertEqual(data.fillColor, '#4CAF50', 'full color');

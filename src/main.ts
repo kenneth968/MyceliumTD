@@ -14,7 +14,6 @@ import {
     PlacementPreviewWithTargetingRenderData,
     TowerSelectionPreviewRenderData,
 } from './systems/placementPreview';
-import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
@@ -79,6 +78,8 @@ import {
     paintTowerIconIdentity,
 } from './presentation/towerSpritePainter';
 import { paintTowerSelectionOutline } from './presentation/towerOverlayPainter';
+import { paintEnemies } from './presentation/enemyPainter';
+import { paintBossHealthBars } from './presentation/bossHealthBarPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
@@ -1196,12 +1197,12 @@ class Game {
         this.drawEnemies(renderData);
         this.drawProjectiles(renderData.projectiles);
         this.particles.render(this.ctx);
-        this.drawHealthBars(renderData.healthBars);
         this.drawTowerSelection(renderData.towerSelection);
         this.drawSellButton(renderData.sellButton);
         
         this.ctx.restore();
-        
+
+        paintBossHealthBars(this.ctx, renderData.healthBars);
         this.drawHUD(renderData);
     }
 
@@ -1540,178 +1541,10 @@ class Game {
     }
 
     private drawEnemies(renderData: GameFrameRenderData): void {
-        for (const enemy of renderData.enemies.enemies) {
-            this.ctx.save();
-
-            const radius = enemy.bodyRadius;
-
-            // Camo enemies: semi-transparent unless revealed by Lumen Oracle
-            let camoRevealed = false;
-            if (enemy.isCamo) {
-                camoRevealed = this.isEnemyRevealed(enemy.position.x, enemy.position.y);
-                if (!camoRevealed) {
-                    // Shimmer effect - barely visible
-                    const shimmer = 0.15 + Math.sin(performance.now() / 400 + enemy.id) * 0.05;
-                    this.ctx.globalAlpha = shimmer;
-                } else {
-                    // Revealed - yellow highlight pulse
-                    const revealPulse = 0.8 + Math.sin(performance.now() / 300) * 0.2;
-                    this.ctx.globalAlpha = revealPulse;
-                    // Reveal glow
-                    this.ctx.shadowColor = '#F1C40F';
-                    this.ctx.shadowBlur = 12;
-                }
-            }
-
-            this.ctx.beginPath();
-            const bodyShape = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.bodyShape || 'circle';
-            if (bodyShape === 'circle') {
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius, 0, Math.PI * 2);
-            } else if (bodyShape === 'oval') {
-                this.ctx.ellipse(enemy.position.x, enemy.position.y, radius * 1.3, radius, 0, 0, Math.PI * 2);
-            } else {
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius, 0, Math.PI * 2);
-            }
-            this.ctx.fillStyle = enemy.primaryColor;
-            this.ctx.fill();
-            this.ctx.strokeStyle = enemy.secondaryColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
-
-            // Reset shadow/alpha for decorations
-            this.ctx.shadowBlur = 0;
-            if (enemy.isCamo && !camoRevealed) {
-                // Keep low alpha for decorations too
-            } else {
-                this.ctx.globalAlpha = 1;
-            }
-
-            const decorations = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.decorations || [];
-            const hasShell = decorations.some(d => d.type === 'shell');
-            if (hasShell) {
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y - radius * 0.2, radius * 0.7, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.secondaryColor || 'transparent';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-            }
-
-            if (enemy.isMetal) {
-                this.ctx.save();
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 4, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.armorColor || '#C8D0D8';
-                this.ctx.lineWidth = 3;
-                this.ctx.setLineDash([3, 3]);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-                this.ctx.restore();
-            }
-
-            if (enemy.shieldActive) {
-                this.ctx.save();
-                const shieldPulse = 0.65 + Math.sin(performance.now() / 260 + enemy.id) * 0.2;
-                this.ctx.globalAlpha = shieldPulse;
-                this.ctx.shadowColor = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
-                this.ctx.shadowBlur = 10;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 8, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-                this.ctx.restore();
-            }
-
-            if (enemy.swarmLinkedActive) {
-                this.ctx.save();
-                const linkColor = enemy.swarmLinkColor || 'rgba(245, 94, 121, 0.72)';
-                const swarmPulse = 0.35 + Math.sin(performance.now() / 220 + enemy.id) * 0.12;
-                this.ctx.globalAlpha = swarmPulse;
-                this.ctx.strokeStyle = linkColor;
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 12, 0, Math.PI * 2);
-                this.ctx.stroke();
-
-                for (const other of renderData.enemies.enemies) {
-                    if (!other.swarmLinkedActive || other.id <= enemy.id) {
-                        continue;
-                    }
-
-                    const dx = other.position.x - enemy.position.x;
-                    const dy = other.position.y - enemy.position.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance <= 80) {
-                        this.ctx.globalAlpha = 0.18;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(enemy.position.x, enemy.position.y);
-                        this.ctx.lineTo(other.position.x, other.position.y);
-                        this.ctx.stroke();
-                    }
-                }
-                this.ctx.restore();
-            }
-
-            // Camo indicator - dashed outline for revealed enemies
-            if (enemy.isCamo && camoRevealed) {
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 5, 0, Math.PI * 2);
-                this.ctx.strokeStyle = '#F1C40F';
-                this.ctx.lineWidth = 2;
-                this.ctx.setLineDash([4, 4]);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-            }
-            
-            // Reset alpha for status indicators (always visible even on camo)
-            this.ctx.globalAlpha = 1;
-
-            // Status effect indicators
-            const auras = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.statusEffectAuras || [];
-            const time = performance.now() / 1000;
-            if (auras.length > 0) {
-                // Aura ring for strongest effect
-                const mainAura = auras[0];
-                const pulse = 0.3 + Math.sin(time * mainAura.pulseSpeed) * 0.15;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, mainAura.radius, 0, Math.PI * 2);
-                this.ctx.strokeStyle = mainAura.color;
-                this.ctx.globalAlpha = pulse;
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-                this.ctx.globalAlpha = 1;
-            }
-            // Small colored dots above enemy for each active effect
-            const effects = enemy.statusEffects || [];
-            if (effects.length > 0) {
-                const dotY = enemy.position.y - radius - 8;
-                const totalWidth = effects.length * 8;
-                const startX = enemy.position.x - totalWidth / 2 + 4;
-                for (let ei = 0; ei < effects.length; ei++) {
-                    const eff = effects[ei];
-                    const dotX = startX + ei * 8;
-                    const effPulse = 0.7 + Math.sin(time * 5 + ei) * 0.3;
-                    this.ctx.globalAlpha = effPulse;
-                    this.ctx.beginPath();
-                    this.ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
-                    this.ctx.fillStyle = eff.color;
-                    this.ctx.fill();
-                    this.ctx.globalAlpha = 1;
-                }
-            }
-
-            if (!enemy.showHealthBar && enemy.totalLayers > 1) {
-                const indicatorY = enemy.position.y + radius + 7;
-                const indicatorWidth = 12;
-                const remainingRatio = enemy.layersRemaining / enemy.totalLayers;
-                this.ctx.fillStyle = 'rgba(18, 24, 31, 0.8)';
-                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth, 3);
-                this.ctx.fillStyle = enemy.secondaryColor;
-                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth * remainingRatio, 3);
-            }
-            
-            this.ctx.restore();
-        }
+        paintEnemies(this.ctx, renderData.enemies, {
+            timestamp: renderData.timestamp,
+            isRevealed: (x, y) => this.isEnemyRevealed(x, y),
+        });
     }
 
     private drawProjectiles(projectiles: any[]): void {
@@ -1887,30 +1720,6 @@ class Game {
             this.ctx.globalAlpha = opacity * (style === 'pulse' ? 0.65 : 0.5);
             this.ctx.stroke();
             this.ctx.globalAlpha = 1;
-        }
-    }
-
-    private drawHealthBars(healthBars: HealthBarRenderData[]): void {
-        for (const hb of healthBars) {
-            if (!hb.isVisible) continue;
-            
-            const x = hb.position.x - hb.width / 2;
-            const y = hb.position.y - hb.height / 2;
-            
-            this.ctx.fillStyle = '#333';
-            this.ctx.fillRect(x, y, hb.width, hb.height);
-            
-            const fillWidth = hb.width * hb.healthPercent;
-            let fillColor = '#00ff00';
-            if (hb.healthState === 'damaged') fillColor = '#ffff00';
-            if (hb.healthState === 'critical') fillColor = '#ff0000';
-            
-            this.ctx.fillStyle = fillColor;
-            this.ctx.fillRect(x, y, fillWidth, hb.height);
-            
-            this.ctx.strokeStyle = '#666';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x, y, hb.width, hb.height);
         }
     }
 
