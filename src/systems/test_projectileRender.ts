@@ -14,8 +14,10 @@ import {
   getAnimationState,
   calculateProjectileStretch,
 } from './projectileRender';
-import { Projectile, TowerType } from '../entities/tower';
+import { Projectile, TowerType, getEvolutionAttackProfile } from '../entities/tower';
 import { Vec2 } from '../utils/vec2';
+import { EvolutionEffect, EvolutionPath } from '../content/evolutionDefinitions';
+import { createTowerWithGrowth, evolveTower, matureTower } from './upgrade';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -79,6 +81,23 @@ assertEqual(getProjectileRenderData(projectile1).size, 12, 'Thorn Sniper size sh
 assertEqual(getProjectileRenderData(projectile2).size, 6, 'Lumen Oracle size should be 6');
 assertEqual(getProjectileRenderData(projectile1).shape, 'jaw', 'Thorn Sniper projectile shape should be jaw');
 assertEqual(getProjectileRenderData(projectile2).shape, 'bolt', 'Lumen Oracle shape should be bolt');
+const evolvedPuffball = createTowerWithGrowth(99, 100, 100, TowerType.Puffball);
+assert(matureTower(evolvedPuffball).success, 'render fixture should mature');
+assert(evolveTower(evolvedPuffball, EvolutionPath.Predator, false).success, 'render fixture should evolve');
+const evolvedRenderData = getProjectileRenderData(createTestProjectile({
+  attackProfile: getEvolutionAttackProfile(evolvedPuffball, false),
+}));
+assertEqual(evolvedRenderData.evolutionEffect, EvolutionEffect.BurstSac, 'render data should preserve the projectile evolution effect');
+const specialistPuffball = createTowerWithGrowth(100, 100, 100, TowerType.Puffball);
+assert(matureTower(specialistPuffball).success, 'specialist render fixture should mature');
+assert(evolveTower(specialistPuffball, EvolutionPath.Specialist, false).success, 'specialist render fixture should evolve');
+const specialistRenderData = getProjectileRenderData(createTestProjectile({
+  attackProfile: getEvolutionAttackProfile(specialistPuffball, false),
+}));
+assertEqual(evolvedRenderData.specialEffect, 'area_damage', 'Predator render should preserve Puffball base overlay');
+assertEqual(specialistRenderData.specialEffect, 'area_damage', 'Specialist render should preserve Puffball base overlay');
+assert(evolvedRenderData.accentColor !== specialistRenderData.accentColor, 'Predator and Specialist accents should differ');
+assert(evolvedRenderData.size !== specialistRenderData.size, 'Predator and Specialist sizes should differ');
 console.log('  ProjectileRenderData tests passed');
 
 console.log('  Projectile style diversity tests...');

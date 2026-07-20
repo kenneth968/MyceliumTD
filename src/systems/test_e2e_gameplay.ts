@@ -4,7 +4,7 @@ import { EnemyType, EnemyVariant, ENEMY_STATS } from './wave';
 import { applyEnemyVariant, createEnemy } from '../entities/enemy';
 import { createDefaultPath } from './path';
 import { TargetingMode } from './targeting';
-import { UpgradePath } from './upgrade';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 
 let passed = 0;
 let failed = 0;
@@ -20,7 +20,7 @@ function test(name: string, fn: () => void) {
   }
 }
 
-function assert(condition: boolean, message: string) {
+function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
@@ -98,32 +98,31 @@ test('Tower placement deducts cost from economy', () => {
   assert(validSpot.canPlace === true, 'Should be able to place in valid spot');
 });
 
-test('Upgrade system integration: upgrading tower modifies stats and costs money', () => {
+test('Growth system integration: maturation and Evolution modify stats and cost money', () => {
   const game = createGameRunner({ startingMoney: 1000 });
   game.start();
   
   const tower = game.placeTower(TowerType.Slimefungus, 200, 200, TargetingMode.First);
   assert(tower !== null, 'Tower should be placed');
   
-  const preUpgrade = game.getTowerUpgradeInfo(tower!.id);
-  assert(preUpgrade !== null, 'Should get upgrade info');
-  assert(preUpgrade![UpgradePath.Damage].currentTier === 0, 'Should start at tier 0 for Damage');
+  const preGrowth = game.getTowerGrowthInfo(tower.id);
+  assert(preGrowth !== null, 'Should get growth info');
+  assert(preGrowth.stage === TowerStage.Seedling, 'Should start as a Seedling');
   
   const initialMoney = game.getGameStats().money;
-  const upgradeResult = game.upgradeTower(tower!.id, UpgradePath.Damage);
-  assert(upgradeResult.success === true, 'Upgrade should succeed');
-  assert(upgradeResult.newTier === 1, 'Should be tier 1 after upgrade');
+  const maturationResult = game.matureTower(tower.id);
+  assert(maturationResult.success === true, 'Maturation should succeed');
   
   const postUpgrade = game.getGameStats();
-  assert(postUpgrade.money < initialMoney, 'Money should be spent on upgrade');
+  assert(postUpgrade.money < initialMoney, 'Money should be spent on maturation');
   
-  const postInfo = game.getTowerUpgradeInfo(tower!.id);
-  assert(postInfo![UpgradePath.Damage].currentTier === 1, 'Should be tier 1 after upgrade');
-  
-  const cantOverUpgrade = game.upgradeTower(tower!.id, UpgradePath.Damage);
-  const cantOverUpgrade2 = game.upgradeTower(tower!.id, UpgradePath.Damage);
-  const cantOverUpgrade3 = game.upgradeTower(tower!.id, UpgradePath.Damage);
-  assert(cantOverUpgrade3.success === false, 'Should not be able to upgrade past tier 3');
+  const postInfo = game.getTowerGrowthInfo(tower.id);
+  assert(postInfo?.stage === TowerStage.Mature, 'Should be Mature after maturation');
+
+  const evolution = game.evolveTower(tower.id, EvolutionPath.Predator);
+  assert(evolution.success, 'Mature tower should evolve');
+  const exclusiveEvolution = game.evolveTower(tower.id, EvolutionPath.Specialist);
+  assert(exclusiveEvolution.success === false, 'Evolution should be exclusive');
 });
 
 test('Wave progression: starting wave changes wave index', () => {
@@ -238,8 +237,11 @@ test('Sell tower returns value and removes from placed towers', () => {
   assert(tower !== null, 'Tower should be placed');
   
   const preSellMoney = game.getGameStats().money;
-  const sellValue = game.sellTower(tower!.id);
-  assert(sellValue > 0, `Sell value should be positive, got ${sellValue}`);
+  const sellResult = game.sellTower(tower.id);
+  assert(
+    sellResult.status === 'sold' && sellResult.refund > 0,
+    `Sell value should be positive, got ${sellResult.refund}`,
+  );
   
   const postSell = game.getGameStats();
   assert(postSell.towers === 0, 'Should have 0 towers after selling');

@@ -1,383 +1,299 @@
-import {
-  getTowerInfoPanelRenderData,
-  createTowerInfoPanelAnimator,
-  showTowerInfoPanel,
-  hideTowerInfoPanel,
-  updateTowerInfoPanel,
-  getAnimatedTowerInfoPanel,
-  isTowerInfoPanelVisible,
-  getTowerInfoPanelPosition,
-  getTowerInfoPanelSize,
-  getPanelColorConfig,
-  getTowerIcon,
-  getUpgradePathIcon,
-  getUpgradePathLabel,
-} from './towerInfoPanel';
-import { TowerWithUpgrades, UpgradePath, createTowerWithUpgrades } from './upgrade';
-import { TowerType, TOWER_STATS } from '../entities/tower';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
+import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
-import { Vec2 } from '../utils/vec2';
+import {
+  EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR,
+  createTowerInfoPanelAnimator,
+  getAnimatedTowerInfoPanel,
+  getEvolutionCardStatusColor,
+  getTowerGrowthActionAtPosition,
+  getTowerInfoPanelRenderData,
+  hideTowerInfoPanel,
+  showTowerInfoPanel,
+  updateTowerInfoPanel,
+} from './towerInfoPanel';
+import { createTowerWithGrowth } from './upgrade';
 
-let testsPassed = 0;
-let testsFailed = 0;
+let passed = 0;
+let failed = 0;
 
-function expectEqual(actual: any, expected: any, testName: string): void {
-  const actualStr = JSON.stringify(actual);
-  const expectedStr = JSON.stringify(expected);
-  if (actualStr === expectedStr) {
-    console.log(`  PASS: ${testName}`);
-    testsPassed++;
-  } else {
-    console.log(`  FAIL: ${testName} - Expected ${expectedStr}, got ${actualStr}`);
-    testsFailed++;
+function check(condition: boolean, name: string): void {
+  if (condition) {
+    console.log(`  PASS: ${name}`);
+    passed++;
+    return;
   }
+  console.log(`  FAIL: ${name}`);
+  failed++;
 }
 
-function expectTrue(actual: boolean, testName: string): void {
-  if (actual === true) {
-    console.log(`  PASS: ${testName}`);
-    testsPassed++;
-  } else {
-    console.log(`  FAIL: ${testName} - Expected true, got ${actual}`);
-    testsFailed++;
-  }
+function relativeLuminance(hexColor: string): number {
+  const channels = [1, 3, 5].map(index => Number.parseInt(hexColor.slice(index, index + 2), 16) / 255);
+  const [red = 0, green = 0, blue = 0] = channels.map(channel => (
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  ));
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
-function expectFalse(actual: boolean, testName: string): void {
-  if (actual === false) {
-    console.log(`  PASS: ${testName}`);
-    testsPassed++;
-  } else {
-    console.log(`  FAIL: ${testName} - Expected false, got ${actual}`);
-    testsFailed++;
-  }
+function contrastRatio(first: string, second: string): number {
+  const lighter = Math.max(relativeLuminance(first), relativeLuminance(second));
+  const darker = Math.min(relativeLuminance(first), relativeLuminance(second));
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
-function createMockTower(id: number = 1, towerType: TowerType = TowerType.Puffball): TowerWithUpgrades {
-  return createTowerWithUpgrades(id, 100, 100, towerType, TargetingMode.First);
+function equal<T>(actual: T, expected: T, name: string): void {
+  check(JSON.stringify(actual) === JSON.stringify(expected), `${name} (expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)})`);
 }
 
-console.log('\n=== tower info panel tests ===\n');
-
-console.log('--- getTowerInfoPanelRenderData basic ---');
-{
-  const tower = createMockTower(1);
-  const position: Vec2 = { x: 200, y: 200 };
-  const canAfford = (path: UpgradePath, tier: number) => true;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectTrue(result.isVisible, 'is visible when selecting');
-  expectEqual(result.towerId, 1, 'tower id matches');
-  expectEqual(result.towerName, 'Puffball', 'tower name is correct');
-  expectEqual(result.towerType, TowerType.Puffball, 'tower type matches');
-  expectEqual(result.stats.length, 3, 'has 3 stats');
-  expectEqual(result.stats[0].label, 'Damage', 'first stat is damage');
-  expectEqual(result.stats[1].label, 'Range', 'second stat is range');
-  expectEqual(result.stats[2].label, 'Fire Rate', 'third stat is fire rate');
-  expectEqual(result.upgrades.length, 4, 'has 4 upgrade paths');
-  expectEqual(result.upgrades[0].label, 'Spore Density', 'Puffball damage path has role label');
-  expectTrue(result.upgrades[0].description.includes('layer'), 'Puffball path explains effect');
-  expectEqual(result.upgrades[3].label, 'Lingering Field', 'Puffball special path has behavior label');
-  expectTrue(result.upgrades[3].isNetworkPath, 'special path is marked as network path');
-  expectEqual(result.sellValue, 125, 'sell value is 70% of canonical base cost');
+function createTower(type: TowerType = TowerType.Puffball) {
+  return createTowerWithGrowth(1, 100, 100, type, TargetingMode.First);
 }
+
+console.log('\n=== native tower growth panel tests ===\n');
 
 {
-  const tower = createMockTower(5, TowerType.Slimefungus);
-  const position: Vec2 = { x: 300, y: 150 };
-  const canAfford = (path: UpgradePath, tier: number) => true;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectEqual(result.towerName, 'Slimefungus', 'tower name for Slimefungus');
-  expectEqual(result.specialEffect?.type, 'slow', 'Slimefungus has slow effect');
-  expectEqual(result.upgrades[3].label, 'Trait Disrupt', 'Slimefungus special path advertises trait disruption');
-}
-
-{
-  const tower = createMockTower(3, TowerType.ThornSniper);
-  const position: Vec2 = { x: 150, y: 250 };
-  const canAfford = (path: UpgradePath, tier: number) => true;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectEqual(result.towerName, 'Thorn Sniper', 'tower name for Thorn Sniper');
-  expectEqual(result.specialEffect?.type, 'precision', 'Thorn Sniper has precision effect');
-}
-
-console.log('\n--- getTowerInfoPanelRenderData with upgrades ---');
-{
-  const tower = createMockTower(1);
-  tower.upgradeLevels[UpgradePath.Damage] = 2;
-  tower.upgradeLevels[UpgradePath.Range] = 1;
-  tower.damage = 3;
-  tower.range = 100;
-  tower.totalUpgradeCost = 150;
-  
-  const position: Vec2 = { x: 200, y: 200 };
-  const canAfford = (path: UpgradePath, tier: number) => true;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectEqual(result.upgrades[0].currentTier, 2, 'damage tier is 2');
-  expectEqual(result.upgrades[1].currentTier, 1, 'range tier is 1');
-  expectEqual(result.sellValue, 230, 'sell value includes canonical base cost and upgrades');
-}
-
-console.log('\n--- getTowerInfoPanelRenderData null cases ---');
-{
-  const result = getTowerInfoPanelRenderData(null, null, false, () => true, () => 0);
-  
-  expectFalse(result.isVisible, 'not visible when not selecting');
-  expectEqual(result.opacity, 0, 'opacity is 0');
-}
-
-{
-  const tower = createMockTower(1);
-  const result = getTowerInfoPanelRenderData(tower, null, true, () => true, () => 0);
-  
-  expectFalse(result.isVisible, 'not visible when position is null');
-}
-
-{
-  const position: Vec2 = { x: 200, y: 200 };
-  const result = getTowerInfoPanelRenderData(null, position, true, () => true, () => 0);
-  
-  expectFalse(result.isVisible, 'not visible when tower is null');
-}
-
-console.log('\n--- getTowerInfoPanelRenderData targeting mode ---');
-{
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.Last);
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
-  expectEqual(result.targetingMode.mode, TargetingMode.Last, 'targeting mode is Last');
-  expectEqual(result.targetingMode.label, 'Last', 'targeting label is Last');
-}
-
-{
-  const tower = createTowerWithUpgrades(1, 100, 100, TowerType.Puffball, TargetingMode.Strong);
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
-  expectEqual(result.targetingMode.mode, TargetingMode.Strong, 'targeting mode is Strong');
-}
-
-console.log('\n--- getTowerInfoPanelRenderData special effects ---');
-{
-  const tower = createMockTower(1, TowerType.BulbShooter);
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
-  expectTrue(result.specialEffect !== null, 'has special effect');
-  expectEqual(result.specialEffect?.type, 'area_damage', 'Bulb Shooter has area damage effect');
-  expectEqual(result.specialEffect?.label, 'Area Damage', 'effect label is Area Damage');
-}
-
-{
-  const tower = createMockTower(1, TowerType.LumenOracle);
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
-  expectEqual(result.specialEffect?.type, 'detection', 'Base Lumen Oracle advertises detection without sharing reveal');
-}
-
-console.log('\n--- getTowerInfoPanelRenderData stats values ---');
-{
-  const tower = createMockTower(1, TowerType.ThornSniper);
+  // Given a selected tower with canonical identity and combat stats
+  const tower = createTower(TowerType.ThornSniper);
   tower.damage = 500;
   tower.range = 75;
   tower.fireRate = 2000;
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
-  expectEqual(result.stats[0].value, '500', 'damage value shows upgraded damage');
-  expectEqual(result.stats[1].value, '75', 'range value shows upgraded range');
-  expectEqual(result.stats[2].value, '2000ms', 'fire rate shows upgraded fire rate');
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then the retained identity and stat contract remains readable
+  equal(panel.towerId, tower.id, 'Panel preserves tower identity');
+  equal(panel.towerName, 'Thorn Sniper', 'Panel uses the canonical display name');
+  equal(panel.towerType, TowerType.ThornSniper, 'Panel preserves tower type');
+  equal(panel.stats.map(stat => stat.label), ['Damage', 'Range', 'Fire Rate'], 'Panel preserves the three canonical stat labels');
+  equal(panel.stats.map(stat => stat.value), ['500', '75', '2000ms'], 'Panel preserves compact stat values');
+  equal(panel.stats.map(stat => stat.currentValue), [500, 75, 2000], 'Panel preserves numeric stat values');
 }
 
-console.log('\n--- createTowerInfoPanelAnimator ---');
 {
-  const animator = createTowerInfoPanelAnimator();
-  
-  expectFalse(animator.isShowing, 'initially not showing');
-  expectEqual(animator.currentOpacity, 0, 'initial opacity is 0');
-  expectEqual(animator.targetOpacity, 1, 'target opacity is 1');
-  expectEqual(animator.scale, 0.8, 'initial scale is 0.8');
+  // Given evolved combat values with floating-point artifacts
+  const tower = createTower();
+  tower.damage = 1.7999999999999998;
+  tower.range = 126.49999999999999;
+  tower.fireRate = 333.3333333333333;
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then displayed values use deterministic short decimals without raw tails
+  equal(panel.stats.map(stat => stat.value), ['1.8', '126.5', '333.33ms'], 'Panel formats evolved stats compactly');
+  check(panel.stats.every(stat => stat.value.length <= 8), 'Panel stat strings remain short enough for their columns');
+  check(panel.stats.every(stat => !stat.value.includes('999999')), 'Panel stat strings do not leak floating-point tails');
 }
 
-console.log('\n--- showTowerInfoPanel / hideTowerInfoPanel ---');
 {
+  // Given a tower using the retained Strong targeting mode
+  const tower = createTower();
+  tower.targetingMode = TargetingMode.Strong;
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then targeting identity and icon remain mapped
+  equal(panel.targetingMode, { mode: TargetingMode.Strong, label: 'Strong', icon: '[]' }, 'Panel preserves targeting display mapping');
+}
+
+{
+  // Given towers with retained slow and area-damage effects
+  const slowTower = createTower(TowerType.Slimefungus);
+  const areaTower = createTower(TowerType.BulbShooter);
+
+  // When their panel data is built
+  const slowPanel = getTowerInfoPanelRenderData(slowTower, true, 500, true);
+  const areaPanel = getTowerInfoPanelRenderData(areaTower, true, 500, true);
+
+  // Then special-effect types, labels, and descriptions remain mapped
+  equal(slowPanel.specialEffect?.type, 'slow', 'Slimefungus retains its slow effect type');
+  equal(slowPanel.specialEffect?.label, 'Slow', 'Slimefungus retains its slow effect label');
+  check((slowPanel.specialEffect?.description.length ?? 0) > 0, 'Slow effect retains a readable description');
+  equal(areaPanel.specialEffect?.type, 'area_damage', 'Bulb Shooter retains its area-damage effect type');
+  equal(areaPanel.specialEffect?.label, 'Area Damage', 'Bulb Shooter retains its area-damage effect label');
+}
+
+{
+  // Given a selected Seedling with enough Nutrients
+  const tower = createTower();
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then the only purchase choice is Mature
+  equal(panel.growth.stage, TowerStage.Seedling, 'Seedling stage is exposed');
+  check(panel.matureAction?.isEnabled === true, 'Seedling exposes an enabled Mature action');
+  equal(panel.evolutionCards.length, 0, 'Seedling exposes no Evolution cards');
+}
+
+{
+  // Given a selected Seedling without enough Nutrients
+  const tower = createTower();
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 0, true);
+
+  // Then Mature remains visible but disabled with a machine-readable reason
+  check(panel.matureAction?.isEnabled === false, 'Unaffordable Mature action is disabled');
+  equal(panel.matureAction?.lockedReason, 'not_enough_nutrients', 'Unaffordable Mature action exposes its lock reason');
+}
+
+{
+  // Given a connected Mature tower
+  const tower = createTower(TowerType.Sporecap);
+  tower.growth.stage = TowerStage.Mature;
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then all three bespoke Evolutions are available
+  equal(panel.matureAction, null, 'Mature tower no longer exposes the Mature action');
+  equal(panel.evolutionCards.length, 3, 'Mature tower exposes three Evolution cards');
+  equal(panel.evolutionCards.map(card => card.path), [
+    EvolutionPath.Predator,
+    EvolutionPath.Specialist,
+    EvolutionPath.Symbiote,
+  ], 'Evolution cards use the canonical path order');
+  equal(panel.evolutionCards[0]?.name, 'Needle Volley', 'Evolution card uses the bespoke definition name');
+  check((panel.evolutionCards[0]?.description.length ?? 0) > 0, 'Evolution card includes its behavior description');
+  check(panel.evolutionCards.find(card => card.path === EvolutionPath.Symbiote)?.isEnabled === true, 'Connected Symbiote is enabled');
+}
+
+{
+  // Given an isolated Mature tower
+  const tower = createTower(TowerType.Sporecap);
+  tower.growth.stage = TowerStage.Mature;
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, false);
+  const symbiote = panel.evolutionCards.find(card => card.path === EvolutionPath.Symbiote);
+
+  // Then only Symbiote is connection-locked and the panel names the isolated state
+  check(symbiote?.isEnabled === false, 'Isolated Symbiote is disabled');
+  equal(symbiote?.lockedReason, 'requires_connection', 'Isolated Symbiote explains its connection requirement');
+  equal(panel.connectionState.label, 'Isolated', 'Panel exposes isolated state');
+  check(panel.evolutionCards.filter(card => card.isEnabled).length === 2, 'Predator and Specialist remain enabled while isolated');
+}
+
+{
+  // Given an Evolved tower
+  const tower = createTower(TowerType.ThornSniper);
+  tower.growth.stage = TowerStage.Evolved;
+  tower.growth.evolution = EvolutionPath.Specialist;
+
+  // When its panel data is built
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+
+  // Then the selected path is readable and no purchase is available
+  equal(panel.growth.evolution, EvolutionPath.Specialist, 'Evolved path is exposed');
+  equal(panel.matureAction, null, 'Evolved tower has no Mature action');
+  equal(panel.evolutionCards.length, 3, 'Evolved tower keeps all three paths readable');
+  check(panel.evolutionCards.find(card => card.path === EvolutionPath.Specialist)?.isSelected === true, 'Selected Evolution is marked');
+  check(panel.evolutionCards.every(card => !card.isEnabled), 'Evolved tower exposes no further purchases');
+}
+
+{
+  // Given an Evolved tower whose selected card is intentionally disabled for purchase
+  const tower = createTower(TowerType.ThornSniper);
+  tower.growth.stage = TowerStage.Evolved;
+  tower.growth.evolution = EvolutionPath.Specialist;
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+  const selectedCard = panel.evolutionCards.find(card => card.isSelected);
+
+  // When the status-label color is resolved from the card state
+  const selectedColor = selectedCard
+    ? getEvolutionCardStatusColor(selectedCard, panel.accentColor)
+    : '#000000';
+  const disabledColor = getEvolutionCardStatusColor(
+    { isSelected: false, isEnabled: false },
+    panel.accentColor,
+  );
+
+  // Then selected state wins over disabled state and remains readable on its selected surface
+  check(selectedColor !== disabledColor, 'Selected Evolution uses a selected-specific status color');
+  check(contrastRatio(selectedColor, EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR) >= 4.5, 'Selected Evolution status meets normal-text contrast');
+}
+
+{
+  // Given a visible Seedling panel
+  const tower = createTower();
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+  const action = panel.matureAction;
+
+  // When the action center is hit
+  const hit = action
+    ? getTowerGrowthActionAtPosition(panel, action.position.x + action.size.width / 2, action.position.y + action.size.height / 2)
+    : null;
+
+  // Then the native Mature action is returned
+  equal(hit, { kind: 'mature' }, 'Mature hitbox resolves to the native action');
+}
+
+{
+  // Given a visible Mature panel
+  const tower = createTower();
+  tower.growth.stage = TowerStage.Mature;
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
+  const card = panel.evolutionCards[1];
+
+  // When the Specialist card center is hit
+  const hit = card
+    ? getTowerGrowthActionAtPosition(panel, card.position.x + card.size.width / 2, card.position.y + card.size.height / 2)
+    : null;
+
+  // Then the native Evolution action is returned
+  equal(hit, { kind: 'evolve', path: EvolutionPath.Specialist }, 'Evolution hitbox resolves to its canonical path');
+}
+
+{
+  // Given no selected tower
+  // When panel data is built
+  const panel = getTowerInfoPanelRenderData(null, false, 500, false);
+
+  // Then no growth action can be hit
+  check(!panel.isVisible, 'Panel is hidden without a selection');
+  equal(getTowerGrowthActionAtPosition(panel, 30, 200), null, 'Hidden panel has no clickable growth action');
+}
+
+{
+  // Given the existing panel animator
   const animator = createTowerInfoPanelAnimator();
-  
+
+  // When its initial state is inspected
+  equal(animator.isShowing, false, 'Panel animator starts hidden');
+  equal(animator.currentOpacity, 0, 'Panel animator starts transparent');
+  equal(animator.targetOpacity, 1, 'Panel animator retains its visible target opacity');
+  equal(animator.scale, 0.8, 'Panel animator retains its initial scale');
+
+  // And it is shown, advanced, and hidden
   showTowerInfoPanel(animator);
-  expectTrue(animator.isShowing, 'is showing after show');
-  expectEqual(animator.animationProgress, 0, 'animation progress reset');
-  
-  hideTowerInfoPanel(animator);
-  expectFalse(animator.isShowing, 'not showing after hide');
-}
-
-console.log('\n--- updateTowerInfoPanel ---');
-{
-  const animator = createTowerInfoPanelAnimator();
-  animator.isShowing = true;
-  
   updateTowerInfoPanel(animator, 100);
-  expectTrue(animator.currentOpacity > 0, 'opacity increases');
-  expectTrue(animator.scale > 0.8, 'scale increases');
-}
-
-{
-  const animator = createTowerInfoPanelAnimator();
-  animator.currentOpacity = 1;
+  const shownOpacity = animator.currentOpacity;
   hideTowerInfoPanel(animator);
-  
   updateTowerInfoPanel(animator, 100);
-  expectTrue(animator.currentOpacity < 1, 'opacity decreases with 100ms');
+
+  // Then the existing reveal/hide behavior remains intact
+  check(shownOpacity > 0, 'Panel animation still fades in');
+  check(animator.currentOpacity < shownOpacity, 'Panel animation still fades out');
 }
 
-console.log('\n--- getAnimatedTowerInfoPanel ---');
 {
-  const tower = createMockTower(1);
-  const position: Vec2 = { x: 200, y: 200 };
-  const baseData = getTowerInfoPanelRenderData(tower, position, true, () => true, () => 0);
-  
+  // Given visible panel data and a partially shown animator
+  const tower = createTower();
+  const panel = getTowerInfoPanelRenderData(tower, true, 500, true);
   const animator = createTowerInfoPanelAnimator();
   animator.isShowing = true;
   animator.currentOpacity = 0.5;
-  animator.scale = 0.9;
-  
-  const animated = getAnimatedTowerInfoPanel(baseData, animator);
-  
-  expectEqual(animated.opacity, 0.5, 'opacity from animator');
-  expectEqual(animated.scale, 0.9, 'scale from animator');
-  expectTrue(animated.isVisible, 'still visible');
+
+  // When animation state is applied
+  const animated = getAnimatedTowerInfoPanel(panel, animator);
+
+  // Then authoritative growth choices are preserved
+  equal(animated.opacity, 0.5, 'Animated panel uses animator opacity');
+  equal(animated.evolutionCards, panel.evolutionCards, 'Animation preserves growth choices');
 }
 
-{
-  const baseData = getTowerInfoPanelRenderData(null, null, false, () => true, () => 0);
-  const animator = createTowerInfoPanelAnimator();
-  animator.currentOpacity = 0;
-  
-  const animated = getAnimatedTowerInfoPanel(baseData, animator);
-  
-  expectFalse(animated.isVisible, 'not visible when opacity is 0');
-}
-
-console.log('\n--- isTowerInfoPanelVisible ---');
-{
-  const animator = createTowerInfoPanelAnimator();
-  animator.isShowing = true;
-  animator.currentOpacity = 0.5;
-  
-  expectTrue(isTowerInfoPanelVisible(animator), 'visible when showing and opacity > 0');
-}
-
-{
-  const animator = createTowerInfoPanelAnimator();
-  animator.isShowing = false;
-  animator.currentOpacity = 0.5;
-  
-  expectFalse(isTowerInfoPanelVisible(animator), 'not visible when not showing');
-}
-
-console.log('\n--- getTowerInfoPanelPosition ---');
-{
-  const towerPosition: Vec2 = { x: 200, y: 200 };
-  const result = getTowerInfoPanelPosition(towerPosition);
-  
-  expectEqual(result.x, 220, 'x offset applied');
-  expectEqual(result.y, 40, 'y offset applied');
-}
-
-console.log('\n--- getTowerInfoPanelSize ---');
-{
-  const size = getTowerInfoPanelSize();
-  
-  expectEqual(size.width, 300, 'width leaves room for upgrade role descriptions');
-  expectEqual(size.height, 350, 'height leaves room for four upgrade rows plus sell value');
-}
-
-console.log('\n--- getPanelColorConfig ---');
-{
-  const colors = getPanelColorConfig();
-  
-  expectTrue(colors.background.includes('rgba'), 'has background color');
-  expectTrue(colors.border === '#4A90D9', 'border color is blue');
-  expectTrue(colors.accent === '#FFD700', 'accent is gold');
-}
-
-console.log('\n--- getTowerIcon ---');
-{
-  expectEqual(getTowerIcon(TowerType.Puffball), '🌿', 'puffball icon');
-  expectEqual(getTowerIcon(TowerType.Slimefungus), '🌸', 'slimefungus icon');
-  expectEqual(getTowerIcon(TowerType.ThornSniper), '🌺', 'thorn sniper icon');
-  expectEqual(getTowerIcon(TowerType.LumenOracle), '✨', 'lumen oracle icon');
-  expectEqual(getTowerIcon(TowerType.BulbShooter), '📍', 'bulb shooter icon');
-}
-
-console.log('\n--- getUpgradePathIcon ---');
-{
-  expectEqual(getUpgradePathIcon(UpgradePath.Damage), '⚔️', 'damage icon');
-  expectEqual(getUpgradePathIcon(UpgradePath.Range), '🎯', 'range icon');
-  expectEqual(getUpgradePathIcon(UpgradePath.FireRate), '⚡', 'fire rate icon');
-  expectEqual(getUpgradePathIcon(UpgradePath.Special), '✨', 'special icon');
-}
-
-console.log('\n--- getUpgradePathLabel ---');
-{
-  expectEqual(getUpgradePathLabel(UpgradePath.Damage), 'Damage', 'damage label');
-  expectEqual(getUpgradePathLabel(UpgradePath.Range), 'Range', 'range label');
-  expectEqual(getUpgradePathLabel(UpgradePath.FireRate), 'Fire Rate', 'fire rate label');
-  expectEqual(getUpgradePathLabel(UpgradePath.Special), 'Special', 'special label');
-  expectEqual(getUpgradePathLabel(UpgradePath.Special, TowerType.LumenOracle), 'Network Reveal', 'tower-specific special label');
-}
-
-console.log('\n--- canUpgrade flag ---');
-{
-  const tower = createMockTower(1);
-  tower.upgradeLevels[UpgradePath.Damage] = 3;
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const canAfford = (path: UpgradePath, tier: number) => true;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectFalse(result.upgrades[0].canUpgrade, 'cannot upgrade at max tier');
-  expectTrue(result.upgrades[1].canUpgrade, 'can upgrade other paths');
-}
-
-{
-  const tower = createMockTower(1);
-  const position: Vec2 = { x: 200, y: 200 };
-  
-  const canAfford = (path: UpgradePath, tier: number) => path !== UpgradePath.Range;
-  const getCost = (tt: TowerType, path: UpgradePath, tier: number) => 100;
-  
-  const result = getTowerInfoPanelRenderData(tower, position, true, canAfford, getCost);
-  
-  expectTrue(result.upgrades[0].canUpgrade, 'damage can be upgraded');
-  expectFalse(result.upgrades[1].canUpgrade, 'range cannot be upgraded');
-}
-
-console.log('\n=== Results: ' + testsPassed + ' passed, ' + testsFailed + ' failed ===\n');
-
-if (testsFailed > 0) {
-  console.log('TESTS FAILED');
-  process.exit(1);
-} else {
-  console.log('ALL TESTS PASSED');
-}
+console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
+if (failed > 0) process.exit(1);

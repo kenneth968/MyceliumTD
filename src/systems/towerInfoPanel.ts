@@ -1,272 +1,100 @@
-import { Vec2 } from '../utils/vec2';
+import { EVOLUTION_DEFINITIONS, EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TowerType, TOWER_STATS } from '../entities/tower';
-import { TowerWithUpgrades, UpgradePath, getUpgradeInfo, getTotalSellValue, SpecialEffectType } from './upgrade';
+import type { Vec2 } from '../utils/vec2';
 import { TargetingMode } from './targeting';
+import { getGrowthCosts, getTotalSellValue, SpecialEffectType, type TowerWithGrowth } from './upgrade';
 
 export interface TowerStatDisplay {
-  label: string;
-  value: string;
-  currentValue: number;
-  maxValue?: number;
+  readonly label: string;
+  readonly value: string;
+  readonly currentValue: number;
 }
 
-export interface TowerUpgradeDisplay {
-  path: UpgradePath;
-  label: string;
-  shortLabel: string;
-  icon: string;
-  description: string;
-  isNetworkPath: boolean;
-  currentTier: number;
-  maxTier: number;
-  canUpgrade: boolean;
-  nextCost: number;
-  statIncrease: string;
+export interface TowerGrowthDisplay {
+  readonly stage: TowerStage;
+  readonly matureCost: number | null;
+  readonly canMature: boolean;
+  readonly evolution: EvolutionPath | null;
+}
+
+export type GrowthLockReason =
+  | 'not_enough_nutrients'
+  | 'requires_connection'
+  | 'evolution_complete';
+
+export interface MatureActionDisplay {
+  readonly label: string;
+  readonly description: string;
+  readonly cost: number;
+  readonly isEnabled: boolean;
+  readonly lockedReason: GrowthLockReason | null;
+  readonly position: Vec2;
+  readonly size: { readonly width: number; readonly height: number };
+}
+
+export interface EvolutionCardDisplay {
+  readonly path: EvolutionPath;
+  readonly pathLabel: string;
+  readonly name: string;
+  readonly description: string;
+  readonly cost: number;
+  readonly isEnabled: boolean;
+  readonly lockedReason: GrowthLockReason | null;
+  readonly isSelected: boolean;
+  readonly position: Vec2;
+  readonly size: { readonly width: number; readonly height: number };
 }
 
 export interface TowerSpecialEffectDisplay {
-  type: string;
-  label: string;
-  strength: number;
-  duration: number | null;
-  areaRadius: number | null;
-  description: string;
+  readonly type: string;
+  readonly label: string;
+  readonly strength: number;
+  readonly duration: number | null;
+  readonly areaRadius: number | null;
+  readonly description: string;
 }
 
 export interface TowerInfoPanelRenderData {
-  isVisible: boolean;
-  towerId: number;
-  towerName: string;
-  towerType: TowerType;
-  position: Vec2;
-  size: { width: number; height: number };
-  stats: TowerStatDisplay[];
-  upgrades: TowerUpgradeDisplay[];
-  specialEffect: TowerSpecialEffectDisplay | null;
-  targetingMode: {
-    mode: TargetingMode;
-    label: string;
-    icon: string;
+  readonly isVisible: boolean;
+  readonly towerId: number;
+  readonly towerName: string;
+  readonly towerType: TowerType;
+  readonly position: Vec2;
+  readonly size: { readonly width: number; readonly height: number };
+  readonly stats: readonly TowerStatDisplay[];
+  readonly growth: TowerGrowthDisplay;
+  readonly matureAction: MatureActionDisplay | null;
+  readonly evolutionCards: readonly EvolutionCardDisplay[];
+  readonly connectionState: {
+    readonly isConnected: boolean;
+    readonly label: 'Connected' | 'Isolated';
   };
-  sellValue: number;
-  backgroundColor: string;
-  borderColor: string;
-  textColor: string;
-  accentColor: string;
-  opacity: number;
-  scale: number;
+  readonly specialEffect: TowerSpecialEffectDisplay | null;
+  readonly targetingMode: {
+    readonly mode: TargetingMode;
+    readonly label: string;
+    readonly icon: string;
+  };
+  readonly sellValue: number;
+  readonly backgroundColor: string;
+  readonly borderColor: string;
+  readonly textColor: string;
+  readonly accentColor: string;
+  readonly opacity: number;
+  readonly scale: number;
 }
 
-const TOWER_ICONS: Record<TowerType, string> = {
-  [TowerType.Puffball]: '🌿',
-  [TowerType.Slimefungus]: '🌸',
-  [TowerType.ThornSniper]: '🌺',
-  [TowerType.LumenOracle]: '✨',
-  [TowerType.BulbShooter]: '📍',
-  [TowerType.Sporecap]: '🔮',
-};
+export type TowerGrowthAction =
+  | { readonly kind: 'mature' }
+  | { readonly kind: 'evolve'; readonly path: EvolutionPath };
 
-interface UpgradePathInfo {
-  label: string;
-  icon: string;
-  shortLabel: string;
-  description: string;
-}
-
-const UPGRADE_PATH_INFO: Record<UpgradePath, UpgradePathInfo> = {
-  [UpgradePath.Damage]: {
-    label: 'Damage',
-    icon: '⚔️',
-    shortLabel: 'DMG',
-    description: 'Raises direct damage.',
-  },
-  [UpgradePath.Range]: {
-    label: 'Range',
-    icon: '🎯',
-    shortLabel: 'RNG',
-    description: 'Extends lane coverage.',
-  },
-  [UpgradePath.FireRate]: {
-    label: 'Fire Rate',
-    icon: '⚡',
-    shortLabel: 'SPD',
-    description: 'Fires more often.',
-  },
-  [UpgradePath.Special]: {
-    label: 'Special',
-    icon: '✨',
-    shortLabel: 'SPC',
-    description: 'Improves the tower role effect.',
-  },
-};
-
-const TOWER_UPGRADE_PATH_INFO: Partial<Record<TowerType, Partial<Record<UpgradePath, UpgradePathInfo>>>> = {
-  [TowerType.Puffball]: {
-    [UpgradePath.Damage]: {
-      label: 'Spore Density',
-      icon: '⚔️',
-      shortLabel: 'DENSE',
-      description: 'Adds harder-hitting spores for layered and metal pressure.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Cloud Reach',
-      icon: '🎯',
-      shortLabel: 'REACH',
-      description: 'Throws spore clouds across more bends.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Burst Cycle',
-      icon: '⚡',
-      shortLabel: 'BURST',
-      description: 'Puffs more often to keep swarms under control.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Lingering Field',
-      icon: '✨',
-      shortLabel: 'FIELD',
-      description: 'Network path: leaves a wider fungal field after impact.',
-    },
-  },
-  [TowerType.Slimefungus]: {
-    [UpgradePath.Damage]: {
-      label: 'Pollen Bite',
-      icon: '⚔️',
-      shortLabel: 'BITE',
-      description: 'Adds sting damage while enemies are slowed.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Bloom Radius',
-      icon: '🎯',
-      shortLabel: 'BLOOM',
-      description: 'Covers more of the road with control pollen.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Rapid Bloom',
-      icon: '⚡',
-      shortLabel: 'RAPID',
-      description: 'Refreshes slow clouds more frequently.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Trait Disrupt',
-      icon: '✨',
-      shortLabel: 'DISRUPT',
-      description: 'Network path: weakens dangerous enemy traits after slow hits.',
-    },
-  },
-  [TowerType.ThornSniper]: {
-    [UpgradePath.Damage]: {
-      label: 'Bigger Snap',
-      icon: '⚔️',
-      shortLabel: 'SNAP',
-      description: 'Raises the execute threshold for wounded elites.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Lunge Vines',
-      icon: '🎯',
-      shortLabel: 'LUNGE',
-      description: 'Reaches deeper into choke points.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Jaw Reset',
-      icon: '⚡',
-      shortLabel: 'RESET',
-      description: 'Recovers faster after each snap.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Marked Snap',
-      icon: '✨',
-      shortLabel: 'MARK',
-      description: 'Network path: prioritizes marked or weakened prey.',
-    },
-  },
-  [TowerType.LumenOracle]: {
-    [UpgradePath.Damage]: {
-      label: 'Lumen Bolt',
-      icon: '⚔️',
-      shortLabel: 'LUMEN',
-      description: 'Adds direct light damage to revealed enemies.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Beacon Reach',
-      icon: '🎯',
-      shortLabel: 'BEACON',
-      description: 'Reveals camo threats across more path segments.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Pulse Rhythm',
-      icon: '⚡',
-      shortLabel: 'PULSE',
-      description: 'Refreshes reveal pulses more often.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Network Reveal',
-      icon: '✨',
-      shortLabel: 'REVEAL',
-      description: 'Network path: shares reveal windows with nearby towers.',
-    },
-  },
-  [TowerType.BulbShooter]: {
-    [UpgradePath.Damage]: {
-      label: 'Siege Charge',
-      icon: '⚔️',
-      shortLabel: 'SIEGE',
-      description: 'Packs more damage into each explosive bulb.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Long Lob',
-      icon: '🎯',
-      shortLabel: 'LOB',
-      description: 'Lobs bulbs across more bends and choke points.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Quick Loader',
-      icon: '⚡',
-      shortLabel: 'LOAD',
-      description: 'Launches explosive bulbs more frequently.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Seeded Payload',
-      icon: '✨',
-      shortLabel: 'SEED',
-      description: 'Network path: primes enemies for a delayed connected detonation.',
-    },
-  },
-  [TowerType.Sporecap]: {
-    [UpgradePath.Damage]: {
-      label: 'Sharper Spores',
-      icon: '⚔️',
-      shortLabel: 'SHARP',
-      description: 'Improves dependable direct damage against early layers.',
-    },
-    [UpgradePath.Range]: {
-      label: 'Cap Reach',
-      icon: '🎯',
-      shortLabel: 'REACH',
-      description: 'Covers more of the road with fast spore darts.',
-    },
-    [UpgradePath.FireRate]: {
-      label: 'Rapid Spores',
-      icon: '⚡',
-      shortLabel: 'RAPID',
-      description: 'Fires dependable spore darts more frequently.',
-    },
-    [UpgradePath.Special]: {
-      label: 'Signal Cap',
-      icon: '✨',
-      shortLabel: 'MARK',
-      description: 'Network path: marks enemies for stronger connected hits.',
-    },
-  },
-};
-
-const SPECIAL_EFFECT_DESCRIPTIONS: Record<string, string> = {
+const SPECIAL_EFFECT_DESCRIPTIONS: Readonly<Record<string, string>> = {
   [SpecialEffectType.AreaDamage]: 'Deals splash damage to nearby enemies',
   [SpecialEffectType.Slow]: 'Slows enemies, reducing their movement speed',
   [SpecialEffectType.Poison]: 'Poisons enemies, dealing damage over time',
   [SpecialEffectType.Stun]: 'Stuns enemies, temporarily freezing them',
-  [SpecialEffectType.Instakill]: 'Instantly defeats enemies below HP threshold',
+  [SpecialEffectType.Instakill]: 'Delivers deliberate high-impact hits against priority targets',
   [SpecialEffectType.RevealCamo]: 'Reveals hidden camo enemies in range',
-  precision: 'Delivers deliberate high-impact hits against priority targets',
 };
 
 const PANEL_COLORS = {
@@ -274,150 +102,90 @@ const PANEL_COLORS = {
   border: '#4A90D9',
   text: '#FFFFFF',
   accent: '#FFD700',
-  statLabel: '#B0B0B0',
-  statValue: '#FFFFFF',
-  upgradeAvailable: '#4CAF50',
-  upgradeUnavailable: '#666666',
-  sellValue: '#F44336',
-};
+} as const;
 
-const PANEL_SIZE = {
-  width: 300,
-  height: 350,
-};
+export const EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR = '#364E3C';
+const EVOLUTION_CARD_SELECTED_STATUS_COLOR = '#FDE68A';
+const EVOLUTION_CARD_DISABLED_STATUS_COLOR = '#777777';
 
-const PANEL_OFFSET = {
-  x: 20,
-  y: -160,
-};
+export function getEvolutionCardStatusColor(
+  card: Pick<EvolutionCardDisplay, 'isSelected' | 'isEnabled'>,
+  enabledColor: string,
+): string {
+  if (card.isSelected) return EVOLUTION_CARD_SELECTED_STATUS_COLOR;
+  return card.isEnabled ? enabledColor : EVOLUTION_CARD_DISABLED_STATUS_COLOR;
+}
+
+const PANEL_POSITION = { x: 20, y: 100 } as const;
+const PANEL_SIZE = { width: 390, height: 480 } as const;
+const ACTION_X = PANEL_POSITION.x + 15;
+const ACTION_Y = PANEL_POSITION.y + 190;
+const ACTION_WIDTH = PANEL_SIZE.width - 30;
+const MATURE_ACTION_HEIGHT = 86;
+const EVOLUTION_CARD_HEIGHT = 72;
+const EVOLUTION_CARD_GAP = 8;
+const EVOLUTION_PATHS = [
+  EvolutionPath.Predator,
+  EvolutionPath.Specialist,
+  EvolutionPath.Symbiote,
+] as const;
 
 export function getTowerInfoPanelRenderData(
-  tower: TowerWithUpgrades | null,
-  position: Vec2 | null,
+  tower: TowerWithGrowth | null,
   isSelecting: boolean,
-  canAffordUpgrade: (path: UpgradePath, tier: number) => boolean,
-  getUpgradeCostFn: (towerType: TowerType, path: UpgradePath, tier: number) => number
+  nutrients: number,
+  isConnected: boolean,
 ): TowerInfoPanelRenderData {
-  if (!isSelecting || !tower || !position) {
-    return {
-      isVisible: false,
-      towerId: 0,
-      towerName: '',
-      towerType: TowerType.Puffball,
-      position: { x: 0, y: 0 },
-      size: { ...PANEL_SIZE },
-      stats: [],
-      upgrades: [],
-      specialEffect: null,
-      targetingMode: { mode: TargetingMode.First, label: 'First', icon: '>>' },
-      sellValue: 0,
-      backgroundColor: 'transparent',
-      borderColor: 'transparent',
-      textColor: 'transparent',
-      accentColor: 'transparent',
-      opacity: 0,
-      scale: 1,
-    };
+  if (!isSelecting || !tower) {
+    return getHiddenPanelData();
   }
 
-  const panelPosition: Vec2 = {
-    x: position.x + PANEL_OFFSET.x,
-    y: position.y + PANEL_OFFSET.y,
-  };
-
-  const stats: TowerStatDisplay[] = [
-    {
-      label: 'Damage',
-      value: tower.damage.toString(),
-      currentValue: tower.damage,
-    },
-    {
-      label: 'Range',
-      value: tower.range.toString(),
-      currentValue: tower.range,
-    },
-    {
-      label: 'Fire Rate',
-      value: `${tower.fireRate}ms`,
-      currentValue: tower.fireRate,
-    },
-  ];
-
-  const upgradePaths = [
-    UpgradePath.Damage,
-    UpgradePath.Range,
-    UpgradePath.FireRate,
-    UpgradePath.Special,
-  ];
-
-  const upgrades: TowerUpgradeDisplay[] = upgradePaths.map(path => {
-    const info = getUpgradeInfo(tower, path);
-    const pathInfo = getUpgradePathInfo(path, tower.towerType);
-    const nextTier = info.currentTier + 1;
-    const canUpgrade = nextTier <= 3 && canAffordUpgrade(path, nextTier);
-
-    let statIncrease = '';
-    if (info.statIncrease > 0) {
-      if (path === UpgradePath.FireRate) {
-        statIncrease = `-${info.statIncrease}ms`;
-      } else if (path === UpgradePath.Special) {
-        statIncrease = `+${info.statIncrease}`;
-      } else {
-        statIncrease = `+${info.statIncrease}`;
-      }
-    }
-
-    return {
-      path,
-      label: pathInfo.label,
-      shortLabel: pathInfo.shortLabel,
-      icon: pathInfo.icon,
-      description: pathInfo.description,
-      isNetworkPath: path === UpgradePath.Special,
-      currentTier: info.currentTier,
-      maxTier: 3,
-      canUpgrade,
-      nextCost: info.nextCost,
-      statIncrease,
-    };
-  });
-
-  let specialEffect: TowerSpecialEffectDisplay | null = null;
-  if (tower.specialEffect && tower.specialEffect !== 'none') {
-    specialEffect = {
-      type: tower.specialEffect,
-      label: formatSpecialEffectType(tower.specialEffect),
-      strength: tower.effectStrength,
-      duration: tower.effectDuration > 0 ? tower.effectDuration : null,
-      areaRadius: tower.areaRadius ?? null,
-      description: SPECIAL_EFFECT_DESCRIPTIONS[tower.specialEffect] || TOWER_STATS[tower.towerType].description,
-    };
-  }
-
-  const targetingLabels: Record<TargetingMode, { label: string; icon: string }> = {
-    [TargetingMode.First]: { label: 'First', icon: '>>' },
-    [TargetingMode.Last]: { label: 'Last', icon: '<<' },
-    [TargetingMode.Close]: { label: 'Close', icon: 'O-' },
-    [TargetingMode.Strong]: { label: 'Strong', icon: '[]' },
-  };
-
-  const targetingInfo = targetingLabels[tower.targetingMode];
+  const costs = getGrowthCosts(tower.towerType);
+  const canAffordMature = nutrients >= costs.mature;
+  const canAffordEvolution = nutrients >= costs.evolution;
+  const isSeedling = tower.growth.stage === TowerStage.Seedling;
+  const isMature = tower.growth.stage === TowerStage.Mature;
 
   return {
     isVisible: true,
     towerId: tower.id,
     towerName: TOWER_STATS[tower.towerType].displayName,
     towerType: tower.towerType,
-    position: panelPosition,
+    position: { ...PANEL_POSITION },
     size: { ...PANEL_SIZE },
-    stats,
-    upgrades,
-    specialEffect,
-    targetingMode: {
-      mode: tower.targetingMode,
-      label: targetingInfo.label,
-      icon: targetingInfo.icon,
+    stats: getStatDisplays(tower),
+    growth: {
+      stage: tower.growth.stage,
+      matureCost: isSeedling ? costs.mature : null,
+      canMature: isSeedling && canAffordMature,
+      evolution: tower.growth.evolution,
     },
+    matureAction: isSeedling ? {
+      label: 'Mature',
+      description: 'Strengthen this tower\'s core role and unlock Evolutions.',
+      cost: costs.mature,
+      isEnabled: canAffordMature,
+      lockedReason: canAffordMature ? null : 'not_enough_nutrients',
+      position: { x: ACTION_X, y: ACTION_Y },
+      size: { width: ACTION_WIDTH, height: MATURE_ACTION_HEIGHT },
+    } : null,
+    evolutionCards: isSeedling
+      ? []
+      : EVOLUTION_PATHS.map((path, index) => getEvolutionCard(
+          tower,
+          path,
+          index,
+          costs.evolution,
+          isMature,
+          canAffordEvolution,
+          isConnected,
+        )),
+    connectionState: {
+      isConnected,
+      label: isConnected ? 'Connected' : 'Isolated',
+    },
+    specialEffect: getSpecialEffectDisplay(tower),
+    targetingMode: getTargetingDisplay(tower.targetingMode),
     sellValue: getTotalSellValue(tower),
     backgroundColor: PANEL_COLORS.background,
     borderColor: PANEL_COLORS.border,
@@ -426,6 +194,125 @@ export function getTowerInfoPanelRenderData(
     opacity: 1,
     scale: 1,
   };
+}
+
+function getHiddenPanelData(): TowerInfoPanelRenderData {
+  return {
+    isVisible: false,
+    towerId: 0,
+    towerName: '',
+    towerType: TowerType.Puffball,
+    position: { ...PANEL_POSITION },
+    size: { ...PANEL_SIZE },
+    stats: [],
+    growth: {
+      stage: TowerStage.Seedling,
+      matureCost: null,
+      canMature: false,
+      evolution: null,
+    },
+    matureAction: null,
+    evolutionCards: [],
+    connectionState: { isConnected: false, label: 'Isolated' },
+    specialEffect: null,
+    targetingMode: { mode: TargetingMode.First, label: 'First', icon: '>>' },
+    sellValue: 0,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    textColor: 'transparent',
+    accentColor: 'transparent',
+    opacity: 0,
+    scale: 1,
+  };
+}
+
+function getStatDisplays(tower: TowerWithGrowth): readonly TowerStatDisplay[] {
+  return [
+    { label: 'Damage', value: formatStatNumber(tower.damage), currentValue: tower.damage },
+    { label: 'Range', value: formatStatNumber(tower.range), currentValue: tower.range },
+    { label: 'Fire Rate', value: `${formatStatNumber(tower.fireRate)}ms`, currentValue: tower.fireRate },
+  ];
+}
+
+function formatStatNumber(value: number): string {
+  return Number(value.toFixed(2)).toString();
+}
+
+function getEvolutionCard(
+  tower: TowerWithGrowth,
+  path: EvolutionPath,
+  index: number,
+  cost: number,
+  isMature: boolean,
+  canAfford: boolean,
+  isConnected: boolean,
+): EvolutionCardDisplay {
+  const definition = EVOLUTION_DEFINITIONS[tower.towerType][path];
+  const isSelected = tower.growth.evolution === path;
+  const hasConnection = !definition.requiresConnection || isConnected;
+  const isEnabled = isMature && canAfford && hasConnection;
+  let lockedReason: GrowthLockReason | null = null;
+  if (!isMature) {
+    lockedReason = 'evolution_complete';
+  } else if (!hasConnection) {
+    lockedReason = 'requires_connection';
+  } else if (!canAfford) {
+    lockedReason = 'not_enough_nutrients';
+  }
+
+  return {
+    path,
+    pathLabel: formatEvolutionPath(path),
+    name: definition.name,
+    description: definition.description,
+    cost,
+    isEnabled,
+    lockedReason,
+    isSelected,
+    position: {
+      x: ACTION_X,
+      y: ACTION_Y + index * (EVOLUTION_CARD_HEIGHT + EVOLUTION_CARD_GAP),
+    },
+    size: { width: ACTION_WIDTH, height: EVOLUTION_CARD_HEIGHT },
+  };
+}
+
+function formatEvolutionPath(path: EvolutionPath): string {
+  switch (path) {
+    case EvolutionPath.Predator:
+      return 'Predator';
+    case EvolutionPath.Specialist:
+      return 'Specialist';
+    case EvolutionPath.Symbiote:
+      return 'Symbiote';
+    default:
+      path satisfies never;
+      return '';
+  }
+}
+
+function getSpecialEffectDisplay(tower: TowerWithGrowth): TowerSpecialEffectDisplay | null {
+  if (!tower.specialEffect || tower.specialEffect === 'none') {
+    return null;
+  }
+  return {
+    type: tower.specialEffect,
+    label: formatSpecialEffectType(tower.specialEffect),
+    strength: tower.effectStrength,
+    duration: tower.effectDuration > 0 ? tower.effectDuration : null,
+    areaRadius: tower.areaRadius ?? null,
+    description: SPECIAL_EFFECT_DESCRIPTIONS[tower.specialEffect] ?? TOWER_STATS[tower.towerType].description,
+  };
+}
+
+function getTargetingDisplay(mode: TargetingMode): TowerInfoPanelRenderData['targetingMode'] {
+  const displays: Readonly<Record<TargetingMode, { readonly label: string; readonly icon: string }>> = {
+    [TargetingMode.First]: { label: 'First', icon: '>>' },
+    [TargetingMode.Last]: { label: 'Last', icon: '<<' },
+    [TargetingMode.Close]: { label: 'Close', icon: 'O-' },
+    [TargetingMode.Strong]: { label: 'Strong', icon: '[]' },
+  };
+  return { mode, ...displays[mode] };
 }
 
 function formatSpecialEffectType(type: string): string {
@@ -439,12 +326,40 @@ function formatSpecialEffectType(type: string): string {
     case SpecialEffectType.Stun:
       return 'Stun';
     case SpecialEffectType.Instakill:
-      return 'Instakill';
+      return 'Precision';
     case SpecialEffectType.RevealCamo:
       return 'Reveal Camo';
     default:
       return type.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
   }
+}
+
+export function getTowerGrowthActionAtPosition(
+  panel: TowerInfoPanelRenderData,
+  x: number,
+  y: number,
+): TowerGrowthAction | null {
+  if (!panel.isVisible) {
+    return null;
+  }
+  if (panel.matureAction?.isEnabled && containsPoint(panel.matureAction.position, panel.matureAction.size, x, y)) {
+    return { kind: 'mature' };
+  }
+  for (const card of panel.evolutionCards) {
+    if (card.isEnabled && containsPoint(card.position, card.size, x, y)) {
+      return { kind: 'evolve', path: card.path };
+    }
+  }
+  return null;
+}
+
+function containsPoint(
+  position: Vec2,
+  size: { readonly width: number; readonly height: number },
+  x: number,
+  y: number,
+): boolean {
+  return x >= position.x && x <= position.x + size.width && y >= position.y && y <= position.y + size.height;
 }
 
 export interface TowerInfoPanelAnimator {
@@ -465,42 +380,34 @@ export function createTowerInfoPanelAnimator(): TowerInfoPanelAnimator {
   };
 }
 
-export function showTowerInfoPanel(
-  animator: TowerInfoPanelAnimator
-): void {
+export function showTowerInfoPanel(animator: TowerInfoPanelAnimator): void {
   animator.isShowing = true;
   animator.targetOpacity = 1;
   animator.animationProgress = 0;
 }
 
-export function hideTowerInfoPanel(
-  animator: TowerInfoPanelAnimator
-): void {
+export function hideTowerInfoPanel(animator: TowerInfoPanelAnimator): void {
   animator.isShowing = false;
   animator.targetOpacity = 0;
   animator.animationProgress = 0;
 }
 
-export function updateTowerInfoPanel(
-  animator: TowerInfoPanelAnimator,
-  deltaTime: number
-): void {
+export function updateTowerInfoPanel(animator: TowerInfoPanelAnimator, deltaTime: number): void {
   const fadeSpeed = 0.005;
-
   if (animator.isShowing && animator.currentOpacity < animator.targetOpacity) {
     animator.currentOpacity = Math.min(animator.targetOpacity, animator.currentOpacity + deltaTime * fadeSpeed);
     animator.scale = 0.8 + 0.2 * (animator.currentOpacity / animator.targetOpacity);
     animator.animationProgress = Math.min(1, animator.animationProgress + deltaTime * fadeSpeed);
   } else if (!animator.isShowing && animator.currentOpacity > animator.targetOpacity) {
     animator.currentOpacity = Math.max(animator.targetOpacity, animator.currentOpacity - deltaTime * fadeSpeed);
-    animator.scale = 0.8 + 0.2 * (animator.currentOpacity / 1);
+    animator.scale = 0.8 + 0.2 * animator.currentOpacity;
     animator.animationProgress = Math.max(0, animator.animationProgress - deltaTime * fadeSpeed);
   }
 }
 
 export function getAnimatedTowerInfoPanel(
   baseData: TowerInfoPanelRenderData,
-  animator: TowerInfoPanelAnimator
+  animator: TowerInfoPanelAnimator,
 ): TowerInfoPanelRenderData {
   return {
     ...baseData,
@@ -508,42 +415,4 @@ export function getAnimatedTowerInfoPanel(
     scale: animator.scale,
     isVisible: baseData.isVisible && animator.currentOpacity > 0.01,
   };
-}
-
-export function isTowerInfoPanelVisible(animator: TowerInfoPanelAnimator): boolean {
-  return animator.isShowing && animator.currentOpacity > 0.01;
-}
-
-export function getTowerInfoPanelPosition(
-  towerPosition: Vec2,
-  panelOffset: Vec2 = { x: PANEL_OFFSET.x, y: PANEL_OFFSET.y }
-): Vec2 {
-  return {
-    x: towerPosition.x + panelOffset.x,
-    y: towerPosition.y + panelOffset.y,
-  };
-}
-
-export function getTowerInfoPanelSize(): { width: number; height: number } {
-  return { ...PANEL_SIZE };
-}
-
-export function getPanelColorConfig() {
-  return { ...PANEL_COLORS };
-}
-
-export function getTowerIcon(towerType: TowerType): string {
-  return TOWER_ICONS[towerType] || '?';
-}
-
-function getUpgradePathInfo(path: UpgradePath, towerType?: TowerType): UpgradePathInfo {
-  return (towerType ? TOWER_UPGRADE_PATH_INFO[towerType]?.[path] : undefined) ?? UPGRADE_PATH_INFO[path];
-}
-
-export function getUpgradePathIcon(path: UpgradePath, towerType?: TowerType): string {
-  return getUpgradePathInfo(path, towerType).icon || '?';
-}
-
-export function getUpgradePathLabel(path: UpgradePath, towerType?: TowerType): string {
-  return getUpgradePathInfo(path, towerType).label || path;
 }

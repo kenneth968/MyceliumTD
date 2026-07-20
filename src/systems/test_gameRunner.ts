@@ -2,11 +2,12 @@ import { GameRunner, GameSpeed, GameState, createGameRunner } from './gameRunner
 import { TowerType } from '../entities/tower';
 import { EnemyTrait, StatusEffectType, createEnemy, markEnemy } from '../entities/enemy';
 import { TargetingMode } from './targeting';
-import { UpgradePath } from './upgrade';
+import { EvolutionEffect, EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { RoundState } from './roundManager';
 import { EnemyType } from './wave';
+import { createGameRenderer } from './gameRenderer';
 
-function assert(condition: boolean, message: string) {
+function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(`Assertion failed: ${message}`);
   }
@@ -61,17 +62,45 @@ const newStats = game.getGameStats();
 assertEqual(newStats.money, 320, 'Should have 320 Nutrients after placing Puffball (cost 180)');
 assertEqual(newStats.towers, 1, 'Should have 1 tower');
 
-const upgradeInfo = game.getTowerUpgradeInfo(tower!.id);
-assert(upgradeInfo !== null, 'Should get upgrade info');
-if (upgradeInfo) {
-  assertEqual(upgradeInfo[UpgradePath.Damage].currentTier, 0, 'Damage should be tier 0');
-  assertEqual(upgradeInfo[UpgradePath.Range].currentTier, 0, 'Range should be tier 0');
-  assertEqual(upgradeInfo[UpgradePath.FireRate].currentTier, 0, 'FireRate should be tier 0');
-}
+const growthInfo = game.getTowerGrowthInfo(tower.id);
+assert(growthInfo !== null, 'Should get growth info');
+assertEqual(growthInfo.stage, TowerStage.Seedling, 'Placed tower should start as a Seedling');
+game.drainEvents();
 
-const upgradeResult = game.upgradeTower(tower!.id, UpgradePath.Damage);
-assert(upgradeResult.success === true, 'Upgrade should succeed');
-assertEqual(upgradeResult.newTier, 1, 'Should be tier 1 after upgrade');
+const moneyBeforeInvalidEvolution = game.getEconomy().getMoney();
+const invalidEvolution = game.evolveTower(tower.id, EvolutionPath.Predator);
+assert(invalidEvolution.success === false, 'Seedling should not evolve');
+assertEqual(game.getEconomy().getMoney(), moneyBeforeInvalidEvolution, 'Failed evolution should spend no Nutrients');
+assertEqual(game.drainEvents().length, 0, 'Failed evolution should emit no success event');
+
+const maturationResult = game.matureTower(tower.id);
+assert(maturationResult.success === true, 'Seedling should mature');
+const maturationEvents = game.drainEvents();
+assertEqual(maturationEvents.length, 1, 'Successful maturation should emit one event');
+assertEqual(maturationEvents[0].type, 'tower_matured', 'Successful maturation should emit tower_matured');
+
+const repeatedMaturation = game.matureTower(tower.id);
+assert(repeatedMaturation.success === false, 'Mature tower should not mature twice');
+assertEqual(game.drainEvents().length, 0, 'Repeated maturation should emit no success event');
+
+const evolutionResult = game.evolveTower(tower.id, EvolutionPath.Predator);
+assert(evolutionResult.success === true, 'Mature tower should evolve');
+const evolutionEvents = game.drainEvents();
+assertEqual(evolutionEvents.length, 1, 'Successful evolution should emit one event');
+assertEqual(evolutionEvents[0].type, 'tower_evolved', 'Successful evolution should emit tower_evolved');
+assertEqual(evolutionEvents[0].path, EvolutionPath.Predator, 'Evolution event should carry its path');
+assertEqual(evolutionEvents[0].effect, EvolutionEffect.BurstSac, 'Evolution event should carry its effect');
+
+const unaffordableGrowthGame = createGameRunner({ startingMoney: 180 });
+const unaffordableTower = unaffordableGrowthGame.placeTower(TowerType.Sporecap, 100, 100);
+assert(unaffordableTower !== null, 'Should place unaffordable growth test tower');
+assert(unaffordableGrowthGame.matureTower(unaffordableTower.id).success, 'Affordable maturation should succeed');
+unaffordableGrowthGame.drainEvents();
+const moneyBeforeUnaffordableEvolution = unaffordableGrowthGame.getEconomy().getMoney();
+const unaffordableEvolution = unaffordableGrowthGame.evolveTower(unaffordableTower.id, EvolutionPath.Predator);
+assert(unaffordableEvolution.success === false, 'Unaffordable evolution should fail');
+assertEqual(unaffordableGrowthGame.getEconomy().getMoney(), moneyBeforeUnaffordableEvolution, 'Unaffordable evolution should spend no Nutrients');
+assertEqual(unaffordableGrowthGame.drainEvents().length, 0, 'Unaffordable evolution should emit no success event');
 
 game.startWave(0);
 assert(game.isWaveActive() === true, 'Wave should be active after starting');
@@ -143,8 +172,8 @@ metalCounterGame.update(1000);
 metalCounterGame.update(1400);
 assertEqual(
   metalTarget.hp,
-  metalTarget.maxHp - 3,
-  'Metal enemies should take full explosive damage from Bulb Shooter hits'
+  metalTarget.maxHp - 2,
+  'Base Bulb direct hits should retain Metal reduction for Siege Bulb to bypass'
 );
 
 const metalExplosiveGame = createGameRunner({ startingMoney: 5000 });
@@ -169,7 +198,8 @@ const traitDisruptionGame = createGameRunner({ startingMoney: 5000 });
 traitDisruptionGame.start();
 const disruptingTower = traitDisruptionGame.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
 assert(disruptingTower !== null, 'Should place Orchid trait disruption tower');
-const disruptingUpgrade = traitDisruptionGame.upgradeTower(disruptingTower!.id, UpgradePath.Special);
+assert(traitDisruptionGame.matureTower(disruptingTower.id).success, 'Orchid should mature');
+const disruptingUpgrade = traitDisruptionGame.evolveTower(disruptingTower.id, EvolutionPath.Symbiote);
 assert(
   disruptingUpgrade.success === true,
   'Connected Orchid should be able to buy Special trait disruption upgrade'
@@ -418,7 +448,7 @@ const seededSwarmTargets = [911, 912, 913].map(id => {
 swarmSeededPayloadFreshnessGame.getActiveEnemies().push(...seededSwarmTargets);
 (swarmSeededPayloadFreshnessGame as any).activeSeededPayloads.push({
   id: 991,
-  type: 'stinkhorn_seeded_payload',
+  type: 'seeded_payload',
   position: { ...payloadPosition },
   radius: 35,
   damage: 0.5,
@@ -438,7 +468,8 @@ const markApplicationGame = createGameRunner({ startingMoney: 5000 });
 markApplicationGame.start();
 const markingTower = markApplicationGame.placeTower(TowerType.Sporecap, 720, 250, TargetingMode.First);
 assert(markingTower !== null, 'Should place Sporecap marking tower');
-const markingUpgrade = markApplicationGame.upgradeTower(markingTower!.id, UpgradePath.Special);
+assert(markApplicationGame.matureTower(markingTower.id).success, 'Sporecap should mature');
+const markingUpgrade = markApplicationGame.evolveTower(markingTower.id, EvolutionPath.Symbiote);
 assert(markingUpgrade.success === true, 'Connected Sporecap should buy Special mark upgrade');
 const markTarget = createEnemy(914, EnemyType.CrawlerCaterpillar, markApplicationGame.getPath());
 markTarget.pathDistance = 1420;
@@ -462,7 +493,8 @@ const executeMarkedGame = createGameRunner({ startingMoney: 5000 });
 executeMarkedGame.start();
 const executeTower = executeMarkedGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(executeTower !== null, 'Should place Venus execute placeholder tower');
-const executeUpgrade = executeMarkedGame.upgradeTower(executeTower!.id, UpgradePath.Special);
+assert(executeMarkedGame.matureTower(executeTower.id).success, 'Thorn should mature');
+const executeUpgrade = executeMarkedGame.evolveTower(executeTower.id, EvolutionPath.Symbiote);
 assert(executeUpgrade.success === true, 'Connected Venus should buy Special execute upgrade');
 const executeTarget = createEnemy(915, EnemyType.BulwarkBeetle, executeMarkedGame.getPath());
 executeTarget.pathDistance = 1420;
@@ -500,7 +532,8 @@ const shieldedExecuteGame = createGameRunner({ startingMoney: 5000 });
 shieldedExecuteGame.start();
 const shieldExecuteTower = shieldedExecuteGame.placeTower(TowerType.ThornSniper, 720, 270, TargetingMode.First);
 assert(shieldExecuteTower !== null, 'Should place Venus shield execute tower');
-const shieldExecuteUpgrade = shieldedExecuteGame.upgradeTower(shieldExecuteTower!.id, UpgradePath.Special);
+assert(shieldedExecuteGame.matureTower(shieldExecuteTower.id).success, 'Shield execute Thorn should mature');
+const shieldExecuteUpgrade = shieldedExecuteGame.evolveTower(shieldExecuteTower.id, EvolutionPath.Symbiote);
 assert(shieldExecuteUpgrade.success === true, 'Connected Venus should buy Special shield execute upgrade');
 const shieldedExecuteTarget = createEnemy(916, EnemyType.WardMoth, shieldedExecuteGame.getPath());
 shieldedExecuteTarget.pathDistance = 1420;
@@ -555,9 +588,61 @@ const placed = game2.placeTower(TowerType.ThornSniper, 200, 200);
 assert(placed !== null, 'Should place Thorn Sniper (cost 320)');
 assertEqual(game2.getGameStats().money, 680, 'Should have 680 money left');
 
-const sellValue = game2.sellTower(placed!.id);
-assert(sellValue > 0, 'Should get sell value');
+const saleResult = game2.sellTower(placed.id);
+assert(saleResult.status === 'sold' && saleResult.refund > 0, 'Should get sell value');
 assertEqual(game2.getPlacedTowers().length, 0, 'Should have no towers after selling');
+
+const networkGame = createGameRunner({ startingMoney: 5000 });
+const firstNetworkTower = networkGame.placeTower(TowerType.Sporecap, 720, 180);
+const bridgeNetworkTower = networkGame.placeTower(TowerType.Puffball, 590, 180);
+const downstreamNetworkTower = networkGame.placeTower(TowerType.ThornSniper, 450, 180);
+assert(
+  firstNetworkTower !== null && bridgeNetworkTower !== null && downstreamNetworkTower !== null,
+  'Network chain towers should be placed',
+);
+
+assert(
+  networkGame.getMyceliumNetworkState().connectedTowerIds.has(downstreamNetworkTower.id),
+  'Network chain should reach the third tower',
+);
+const networkSalePreview = networkGame.getTowerSalePreview(bridgeNetworkTower.id);
+assertEqual(
+  networkSalePreview.disconnects.join(','),
+  String(downstreamNetworkTower.id),
+  'Sale preview should identify the downstream tower',
+);
+assertEqual(
+  networkGame.sellTower(bridgeNetworkTower.id).status,
+  'confirmation_required',
+  'Bridge sale should be blocked until confirmed',
+);
+assertEqual(networkGame.getPlacedTowers().length, 3, 'Blocked bridge sale should preserve every tower');
+
+networkGame.selectTower(downstreamNetworkTower.id);
+const selectedNetworkRenderData = createGameRenderer().render(networkGame);
+assert(
+  selectedNetworkRenderData.networkConnections
+    .filter(connection => connection.isHighlighted)
+    .some(connection =>
+      connection.sourceTowerId === firstNetworkTower.id &&
+      connection.targetTowerId === bridgeNetworkTower.id
+    ),
+  'Selected tower path should highlight its upstream bridge',
+);
+
+assertEqual(
+  networkGame.sellTower(bridgeNetworkTower.id, true).status,
+  'sold',
+  'Confirmed bridge sale should succeed',
+);
+assert(
+  !networkGame.getMyceliumNetworkState().connectedTowerIds.has(downstreamNetworkTower.id),
+  'Downstream tower should become isolated after confirmed bridge sale',
+);
+assert(
+  networkGame.drainEvents().some(event => event.type === 'network_connection_created'),
+  'Successful player placement should emit a connection event',
+);
 
 const game3 = createGameRunner();
 const earlyGameStats = game3.getGameStats();

@@ -5,6 +5,10 @@ import {
   TowerGrowthStage 
 } from './towerRender';
 import { TowerType } from '../entities/tower';
+import { EvolutionPath } from '../content/evolutionDefinitions';
+import { createGameRenderer } from './gameRenderer';
+import { createGameRunner } from './gameRunner';
+import { TargetingMode } from './targeting';
 
 let testsPassed = 0;
 let testsFailed = 0;
@@ -196,11 +200,11 @@ describe('Tower Visual Upgrade Progression', () => {
   });
 
   describe('integration with getTowerRenderData', () => {
-    const { createTowerWithUpgrades } = require('./upgrade');
+    const { createTowerWithGrowth } = require('./upgrade');
     const { getTowerRenderData } = require('./towerRender');
 
     runTest('should apply Sprout visuals for unupgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
+      const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 0 });
       
       assert(renderData.growthStage === TowerGrowthStage.Sprout, 'Should be Sprout stage');
@@ -209,7 +213,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply Growing visuals for slightly upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
+      const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 100 });
       
       assert(renderData.growthStage === TowerGrowthStage.Growing, 'Should be Growing stage');
@@ -217,7 +221,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply Mature visuals for moderately upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
+      const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 200 });
       
       assert(renderData.growthStage === TowerGrowthStage.Mature, 'Should be Mature stage');
@@ -225,7 +229,7 @@ describe('Tower Visual Upgrade Progression', () => {
     });
 
     runTest('should apply FullyMatured visuals for heavily upgraded tower', () => {
-      const tower = createTowerWithUpgrades(1, 0, 0, TowerType.Puffball);
+      const tower = createTowerWithGrowth(1, 0, 0, TowerType.Puffball);
       const renderData = getTowerRenderData(tower, { totalUpgradeValue: 500 });
       
       assert(renderData.growthStage === TowerGrowthStage.FullyMatured, 'Should be FullyMatured stage');
@@ -235,8 +239,8 @@ describe('Tower Visual Upgrade Progression', () => {
     runTest('should propagate growth stage to render collection', () => {
       const { getTowersRenderData } = require('./towerRender');
       const towers = [
-        createTowerWithUpgrades(1, 0, 0, TowerType.Puffball),
-        createTowerWithUpgrades(2, 50, 50, TowerType.Slimefungus),
+        createTowerWithGrowth(1, 0, 0, TowerType.Puffball),
+        createTowerWithGrowth(2, 50, 50, TowerType.Slimefungus),
       ];
 
       const collection = getTowersRenderData(towers, {
@@ -246,6 +250,44 @@ describe('Tower Visual Upgrade Progression', () => {
       assert(collection.towers[0].growthStage === TowerGrowthStage.Sprout, 'First tower should be Sprout');
       assert(collection.towers[1].growthStage === TowerGrowthStage.Mature, 'Second tower should be Mature');
     });
+  });
+});
+
+describe('live native growth rendering', () => {
+  runTest('Seedling, Mature, and Evolved produce distinct battlefield render data', () => {
+    // Given one live placed tower and the production renderer
+    const game = createGameRunner({ startingMoney: 5000 });
+    game.start();
+    const tower = game.placeTower(TowerType.Puffball, 720, 250, TargetingMode.First);
+    if (!tower) throw new Error('Expected the growth visual fixture tower to be placed');
+    const renderer = createGameRenderer();
+
+    // When the same tower is rendered after each native growth command
+    const seedling = renderer.render(game).towers.towers[0];
+    const matureResult = game.matureTower(tower.id);
+    const mature = renderer.render(game).towers.towers[0];
+    const evolutionResult = game.evolveTower(tower.id, EvolutionPath.Predator);
+    const evolved = renderer.render(game).towers.towers[0];
+    if (!seedling || !mature || !evolved) throw new Error('Expected one rendered tower at every growth stage');
+    const signature = (renderData: typeof seedling): string => JSON.stringify({
+      primaryColor: renderData.primaryColor,
+      secondaryColor: renderData.secondaryColor,
+      glowColor: renderData.glowColor,
+      baseRadius: renderData.baseRadius,
+      bodyRadius: renderData.bodyRadius,
+      growthStage: renderData.growthStage,
+      growthProgress: renderData.growthProgress,
+    });
+
+    // Then every adjacent semantic stage has a distinct visible identity
+    assert(matureResult.success, 'Mature command should succeed');
+    assert(evolutionResult.success, 'Evolution command should succeed');
+    assert(seedling.growthStage === TowerGrowthStage.Sprout, 'Seedling should render as Sprout');
+    assert(mature.growthStage === TowerGrowthStage.Mature, 'Mature should render as Mature');
+    assert(evolved.growthStage === TowerGrowthStage.FullyMatured, 'Evolved should render as FullyMatured');
+    assert(signature(seedling) !== signature(mature), 'Seedling and Mature visuals should differ');
+    assert(signature(mature) !== signature(evolved), 'Mature and Evolved visuals should differ');
+    assert(tower.growth.evolution === EvolutionPath.Predator, 'Evolution-specific tower state should remain Predator');
   });
 });
 

@@ -185,8 +185,8 @@ export class GameEconomy {
     return refund;
   }
 
-  upgradeTower(cost: number, towerName: string): boolean {
-    return this.spend(cost, `Upgraded ${towerName}`);
+  spendForGrowth(cost: number, towerName: string): boolean {
+    return this.spend(cost, `Grew ${towerName}`);
   }
 
   loseLife(amount: number = 1): number {

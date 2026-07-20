@@ -4,8 +4,12 @@ import { Enemy as TargetingEnemy, Tower as TowerBase, TargetingMode, getTarget, 
 import { EnemyType, ENEMY_STATS } from '../systems/wave';
 import { DamageOptions, DamageType, Enemy, applyDamageToEnemy } from './enemy';
 import { TOWER_DEFINITIONS, TowerType } from '../content/towerDefinitions';
+import { getEvolutionAttackProfile } from './evolutionAttackProfile';
+import type { EvolutionAttackProfile } from './evolutionAttackProfile';
 
 export { TowerDefinition as TowerStats, TowerType } from '../content/towerDefinitions';
+export { getEvolutionAttackProfile } from './evolutionAttackProfile';
+export type { EvolutionAttackProfile } from './evolutionAttackProfile';
 export const TOWER_STATS = TOWER_DEFINITIONS;
 
 export interface Projectile {
@@ -21,12 +25,13 @@ export interface Projectile {
   effectDuration?: number;
   areaRadius?: number;
   extraHitEffects?: ProjectileHitEffect[];
+  attackProfile?: EvolutionAttackProfile;
 }
 
 export interface ProjectileHitEffect {
-  type: 'damage' | 'slow' | 'poison' | 'stun' | 'area_damage' | 'instakill' | 'reveal_camo';
-  strength: number;
-  duration?: number;
+  readonly type: 'damage' | 'slow' | 'poison' | 'stun' | 'area_damage' | 'instakill' | 'reveal_camo';
+  readonly strength: number;
+  readonly duration?: number;
 }
 
 export interface Tower extends TowerBase {
@@ -116,6 +121,7 @@ export function fireTower(
 }
 
 let nextProjectileId = 1;
+const BASE_EVOLUTION_AREA_RADIUS = 40;
 
 export function fireTowerWithProjectile(
   tower: Tower,
@@ -125,7 +131,8 @@ export function fireTowerWithProjectile(
   effectStrength?: number,
   effectDuration?: number,
   areaRadius?: number,
-  prioritizeMarked: boolean = false
+  prioritizeMarked: boolean = false,
+  connected: boolean = false,
 ): Projectile | null {
   const result = fireTower(
     tower,
@@ -141,6 +148,14 @@ export function fireTowerWithProjectile(
     return null;
   }
 
+  const attackProfile = getEvolutionAttackProfile(tower, connected);
+  // Task 3 applies the generic stat multipliers to the evolved tower exactly once.
+  // The profile exposes those values but firing consumes only additional mechanics.
+  result.projectile.attackProfile = attackProfile;
+  if (attackProfile.areaRadiusMultiplier !== 1) {
+    result.projectile.areaRadius = (result.projectile.areaRadius ?? BASE_EVOLUTION_AREA_RADIUS)
+      * attackProfile.areaRadiusMultiplier;
+  }
   result.projectile.id = nextProjectileId++;
   return result.projectile;
 }
@@ -197,7 +212,6 @@ export function applyDamage(enemy: Enemy, damage: number, options: DamageOptions
 export function getTowerDamageType(towerType: TowerType): DamageType {
   switch (towerType) {
     case TowerType.Puffball:
-    case TowerType.BulbShooter:
       return DamageType.Explosive;
     default:
       return DamageType.Normal;

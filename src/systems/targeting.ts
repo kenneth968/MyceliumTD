@@ -31,6 +31,7 @@ export interface Tower {
   towerType?: string;
   specialEffect?: string;
   prioritizeMarked?: boolean;
+  sharedCamoDetection?: boolean;
 }
 
 export interface TargetingResult {
@@ -127,7 +128,11 @@ function canSeeEnemy(tower: Tower, enemy: Enemy): boolean {
     return true;
   }
 
-  if (tower.towerType === 'lumen_oracle' || tower.specialEffect === 'reveal_camo') {
+  if (
+    tower.towerType === 'lumen_oracle' ||
+    tower.specialEffect === 'reveal_camo' ||
+    tower.sharedCamoDetection === true
+  ) {
     return true;
   }
 

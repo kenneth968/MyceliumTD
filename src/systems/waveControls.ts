@@ -28,6 +28,17 @@ export interface WaveUIState {
   enemiesRemaining: number;
 }
 
+export interface StartWaveButtonRect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+export function getStartWaveButtonRect(canvasWidth: number, canvasHeight: number): StartWaveButtonRect {
+  return { x: canvasWidth / 2 - 80, y: canvasHeight - 170, w: 160, h: 36 };
+}
+
 export function getStartWaveLabel(state: WaveUIState): string | null {
   if (!state.canStartWave || state.currentWave >= state.totalWaves) return null;
   const nextWave = state.currentWave + 1;

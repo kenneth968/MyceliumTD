@@ -219,8 +219,12 @@ export function getMarkedAdjustedDamage(
   return damage * (1 + (mark?.strength ?? MARK_DAMAGE_BONUS));
 }
 
-export function markEnemy(enemy: Enemy, duration: number = MARK_DURATION): void {
-  applyStatusEffect(enemy, StatusEffectType.Marked, duration, MARK_DAMAGE_BONUS);
+export function markEnemy(
+  enemy: Enemy,
+  duration: number = MARK_DURATION,
+  damageMultiplier: number = 1 + MARK_DAMAGE_BONUS,
+): void {
+  applyStatusEffect(enemy, StatusEffectType.Marked, duration, damageMultiplier - 1);
 }
 
 export function disruptEnemyTrait(enemy: Enemy, duration: number = TRAIT_DISRUPTION_DURATION): EnemyTrait | null {
@@ -384,6 +388,7 @@ export function applyStatusEffect(
 
   const existing = enemy.statusEffects.find(e => e.type === effectType);
   if (existing) {
+    existing.duration = duration;
     existing.remaining = duration;
     existing.strength = Math.max(existing.strength, strength);
   } else {

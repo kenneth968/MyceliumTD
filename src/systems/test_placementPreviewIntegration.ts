@@ -105,7 +105,7 @@ console.log('\n--- Confirm Placement ---');
   expectTrue(tower !== null, 'Tower is placed');
   expect(game.getPlacementState(), PlacementState.None, 'State is None after confirm');
   expect(game.getGameStats().towers, 1, 'Game has 1 tower');
-  expect(game.getGameStats().money, 550, 'Money is 550 after placing Puffball (cost 100)');
+  expect(game.getGameStats().money, 320, 'Money is 320 after placing Puffball (cost 180)');
 }
 
 {
@@ -114,7 +114,7 @@ console.log('\n--- Confirm Placement ---');
   game.updatePlacementPosition(100, 200);
   const tower = game.confirmPlacement(TargetingMode.Close);
   expectTrue(tower !== null, 'Venus Flytower is placed');
-  expect(game.getGameStats().money, 150, 'Money is 150 after placing Venus (cost 500)');
+  expect(game.getGameStats().money, 180, 'Money is 180 after placing Venus (cost 320)');
 }
 
 console.log('\n--- Select Tower ---');
@@ -154,6 +154,8 @@ console.log('\n--- Placement Preview Render Data ---');
   expect(previewData.ghost, null, 'ghost is null');
   expect(previewData.rangeCircle, null, 'rangeCircle is null');
   expect(previewData.pathCoverage, null, 'pathCoverage is null');
+  expect(previewData.proposedConnection, null, 'network connection is null when no tower is being placed');
+  expect(previewData.willBeConnected, false, 'network connection is false when no tower is being placed');
 }
 
 {
@@ -167,6 +169,31 @@ console.log('\n--- Placement Preview Render Data ---');
   expectTrue(previewData.rangeCircle !== null, 'rangeCircle is populated');
   expectTrue(previewData.pathCoverage !== null, 'pathCoverage is populated');
   expect(previewData.ghost!.towerType, TowerType.Puffball, 'ghost has correct tower type');
+}
+
+console.log('\n--- Mycelium Network Placement Preview ---');
+{
+  const game = createGameRunner();
+  game.startTowerPlacement(TowerType.Puffball);
+  game.updatePlacementPosition(720, 180);
+
+  const previewData = game.getPlacementPreviewRenderData(1000);
+  expectTrue(previewData.willBeConnected, 'tower near the Kernel previews a network connection');
+  expectTrue(previewData.proposedConnection !== null, 'connected tower preview exposes its proposed parent link');
+  expect(previewData.proposedConnection?.fromId, 'kernel', 'Kernel is the proposed parent for the first connected tower');
+  expect(previewData.proposedConnection?.sourceType, 'kernel', 'proposed link exposes the Kernel source style');
+  expect(previewData.proposedConnection?.targetPosition, { x: 720, y: 180 }, 'proposed link ends at the placement ghost');
+  expectTrue(previewData.proposedConnection?.sourcePosition !== undefined, 'proposed link exposes a drawable source position');
+}
+
+{
+  const game = createGameRunner();
+  game.startTowerPlacement(TowerType.Puffball);
+  game.updatePlacementPosition(100, 100);
+
+  const previewData = game.getPlacementPreviewRenderData(1000);
+  expect(previewData.willBeConnected, false, 'isolated tower preview reports no network connection');
+  expect(previewData.proposedConnection, null, 'isolated tower preview has no proposed parent link');
 }
 
 {

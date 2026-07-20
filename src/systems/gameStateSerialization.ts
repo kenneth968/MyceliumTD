@@ -1,9 +1,11 @@
 import { GameRunner, GameState, GameSpeed, PlacementState, PlacedTower } from './gameRunner';
-import { TowerType, Tower } from '../entities/tower';
+import { TowerType } from '../entities/tower';
 import { Enemy, EnemyTrait, StatusEffect, StatusEffectType, getEnemyTraitsForType, getInitialShieldChargesForType } from '../entities/enemy';
 import { EnemyType, EnemyVariant } from '../content/enemyDefinitions';
 import { TargetingMode } from './targeting';
 import { RoundState } from './roundManager';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
+import type { TowerGrowthState } from './upgrade';
 
 export interface SerializedStatusEffect {
   type: StatusEffectType;
@@ -50,19 +52,15 @@ export interface SerializedProjectile {
   areaRadius?: number;
 }
 
-export interface SerializedTowerUpgrades {
-  damage: number;
-  range: number;
-  fireRate: number;
-  special: number;
-  cumulativeValue: number;
-  effectStrength?: number;
-  effectDuration?: number;
-  areaRadius?: number;
+export interface SerializedTowerGrowth {
+  stage: TowerStage;
+  evolution: EvolutionPath | null;
+  totalSpent: number;
 }
 
 export interface SerializedPlacedTower {
   tower: {
+    id: number;
     towerType: string;
     damage: number;
     fireRate: number;
@@ -70,10 +68,12 @@ export interface SerializedPlacedTower {
     cost: number;
     range: number;
     targetingMode: TargetingMode;
-    upgrades: SerializedTowerUpgrades;
-    totalUpgradeCost: number;
-    effectStrength?: number;
-    effectDuration?: number;
+    lastFireTime: number;
+    projectileSpeed: number;
+    specialEffect?: string;
+    growth: SerializedTowerGrowth;
+    effectStrength: number;
+    effectDuration: number;
     areaRadius?: number;
   };
   x: number;
@@ -174,22 +174,18 @@ export function serializeProjectile(projectile: any): SerializedProjectile {
   };
 }
 
-export function serializeTowerUpgrades(upgrades: any): SerializedTowerUpgrades {
+export function serializeTowerGrowth(growth: TowerGrowthState): SerializedTowerGrowth {
   return {
-    damage: upgrades.damage,
-    range: upgrades.range,
-    fireRate: upgrades.fireRate,
-    special: upgrades.special,
-    cumulativeValue: upgrades.cumulativeValue,
-    effectStrength: upgrades.effectStrength,
-    effectDuration: upgrades.effectDuration,
-    areaRadius: upgrades.areaRadius,
+    stage: growth.stage,
+    evolution: growth.evolution,
+    totalSpent: growth.totalSpent,
   };
 }
 
 export function serializePlacedTower(pt: PlacedTower): SerializedPlacedTower {
   return {
     tower: {
+      id: pt.tower.id,
       towerType: pt.tower.towerType.toString(),
       damage: pt.tower.damage,
       fireRate: pt.tower.fireRate,
@@ -197,8 +193,10 @@ export function serializePlacedTower(pt: PlacedTower): SerializedPlacedTower {
       cost: pt.tower.cost,
       range: pt.tower.range,
       targetingMode: pt.tower.targetingMode,
-      upgrades: serializeTowerUpgrades(pt.tower.upgrades),
-      totalUpgradeCost: pt.tower.totalUpgradeCost,
+      lastFireTime: pt.tower.lastFireTime,
+      projectileSpeed: pt.tower.projectileSpeed,
+      specialEffect: pt.tower.specialEffect,
+      growth: serializeTowerGrowth(pt.tower.growth),
       effectStrength: pt.tower.effectStrength,
       effectDuration: pt.tower.effectDuration,
       areaRadius: pt.tower.areaRadius,
@@ -334,22 +332,19 @@ export function deserializeProjectile(data: SerializedProjectile): any {
   };
 }
 
-export function deserializeTowerUpgrades(data: SerializedTowerUpgrades): any {
+export function deserializeTowerGrowth(data: SerializedTowerGrowth): TowerGrowthState {
   return {
-    damage: data.damage,
-    range: data.range,
-    fireRate: data.fireRate,
-    special: data.special,
-    cumulativeValue: data.cumulativeValue,
-    effectStrength: data.effectStrength,
-    effectDuration: data.effectDuration,
-    areaRadius: data.areaRadius,
+    stage: data.stage,
+    evolution: data.evolution,
+    totalSpent: data.totalSpent,
   };
 }
 
 export function deserializePlacedTower(data: SerializedPlacedTower): PlacedTower {
   return {
     tower: {
+      id: data.tower.id,
+      position: { x: data.x, y: data.y },
       towerType: data.tower.towerType as TowerType,
       damage: data.tower.damage,
       fireRate: data.tower.fireRate,
@@ -357,12 +352,14 @@ export function deserializePlacedTower(data: SerializedPlacedTower): PlacedTower
       cost: data.tower.cost,
       range: data.tower.range,
       targetingMode: data.tower.targetingMode as TargetingMode,
-      upgrades: deserializeTowerUpgrades(data.tower.upgrades),
-      totalUpgradeCost: data.tower.totalUpgradeCost,
+      lastFireTime: data.tower.lastFireTime,
+      projectileSpeed: data.tower.projectileSpeed,
+      specialEffect: data.tower.specialEffect,
+      growth: deserializeTowerGrowth(data.tower.growth),
       effectStrength: data.tower.effectStrength,
       effectDuration: data.tower.effectDuration,
       areaRadius: data.tower.areaRadius,
-    } as any,
+    },
     x: data.x,
     y: data.y,
   };

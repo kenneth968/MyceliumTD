@@ -1,5 +1,7 @@
 import { Vec2 } from '../utils/vec2';
 import { Projectile, TowerType, TOWER_STATS } from '../entities/tower';
+import { EvolutionPath } from '../content/evolutionDefinitions';
+import type { EvolutionEffect } from '../content/evolutionDefinitions';
 
 export interface TrailPoint {
   position: Vec2;
@@ -25,6 +27,7 @@ export interface ProjectileRenderData {
   hasTrail: boolean;
   trailPoints: TrailPoint[];
   specialEffect?: string;
+  evolutionEffect?: EvolutionEffect;
 }
 
 export interface ProjectileRenderCollection {
@@ -93,6 +96,14 @@ const TOWER_COLORS: Record<TowerType, {
 const MAX_TRAIL_POINTS = 20;
 const TRAIL_FADE_RATE = 0.85;
 const MIN_OPACITY = 0.1;
+const EVOLUTION_RENDER_STYLES: Readonly<Record<EvolutionPath, {
+  readonly accentColor: string;
+  readonly sizeIncrease: number;
+}>> = {
+  [EvolutionPath.Predator]: { accentColor: '#FF5A5F', sizeIncrease: 2 },
+  [EvolutionPath.Specialist]: { accentColor: '#F5B041', sizeIncrease: 1 },
+  [EvolutionPath.Symbiote]: { accentColor: '#58D68D', sizeIncrease: 1 },
+};
 
 export function getProjectileRenderData(
   projectile: Projectile,
@@ -100,6 +111,8 @@ export function getProjectileRenderData(
 ): ProjectileRenderData {
   const colors = TOWER_COLORS[projectile.towerType] || TOWER_COLORS[TowerType.Puffball];
   const stats = TOWER_STATS[projectile.towerType];
+  const evolutionPath = projectile.attackProfile?.evolutionPath;
+  const evolutionStyle = evolutionPath ? EVOLUTION_RENDER_STYLES[evolutionPath] : null;
 
   return {
     id: projectile.id,
@@ -107,8 +120,8 @@ export function getProjectileRenderData(
     previousPosition: previousPosition ? { ...previousPosition } : { ...projectile.position },
     color: colors.primary,
     glowColor: colors.glow,
-    accentColor: colors.accent,
-    size: colors.size,
+    accentColor: evolutionStyle?.accentColor ?? colors.accent,
+    size: colors.size + (evolutionStyle?.sizeIncrease ?? 0),
     shape: colors.shape,
     trailStyle: colors.trailStyle,
     opacity: 1.0,
@@ -116,6 +129,7 @@ export function getProjectileRenderData(
     hasTrail: true,
     trailPoints: [],
     specialEffect: stats.specialEffect,
+    evolutionEffect: projectile.attackProfile?.evolutionEffect ?? undefined,
   };
 }
 

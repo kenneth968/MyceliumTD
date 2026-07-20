@@ -12,7 +12,7 @@ import { TowerType } from '../entities/tower';
 import { createGameRunner } from './gameRunner';
 import { createDefaultPath } from './path';
 import { TargetingMode, canTarget, createTower } from './targeting';
-import { UpgradePath } from './upgrade';
+import { EvolutionPath } from '../content/evolutionDefinitions';
 
 const path = createDefaultPath();
 let passed = 0;
@@ -128,13 +128,14 @@ test('Defensive suppression emits trait_broken only when it first takes effect',
   const game = createGameRunner({ startingMoney: 5000, startingLives: 20 });
   const tower = game.placeTower(TowerType.Slimefungus, 720, 270, TargetingMode.First);
   assert(tower !== null, 'trait-disruption tower should be placed');
-  assert(game.upgradeTower(tower.id, UpgradePath.Special).success, 'trait-disruption upgrade should be purchased');
+  assert(game.matureTower(tower.id).success, 'trait-disruption tower should mature');
+  assert(game.evolveTower(tower.id, EvolutionPath.Symbiote).success, 'trait-disruption evolution should be purchased');
   tower.lastFireTime = Number.POSITIVE_INFINITY;
   game.start();
 
   const enemy = createEnemy(20, EnemyType.IronCaterpillar, game.getPath());
-  enemy.pathDistance = 1520;
-  enemy.pathProgress = 1520;
+  enemy.pathDistance = 1420;
+  enemy.pathProgress = 1420;
   enemy.position = { ...game.getPath().getPointAtDistance(enemy.pathDistance).position };
   enemy.speed = 0;
   enemy.baseSpeed = 0;

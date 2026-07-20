@@ -16,7 +16,7 @@ import { GameRunner, createGameRunner } from './gameRunner';
 import { createDefaultPath } from './path';
 import { createRoundManager } from './roundManager';
 import { TargetingMode } from './targeting';
-import { UpgradePath } from './upgrade';
+import { EvolutionPath } from '../content/evolutionDefinitions';
 import { EnemyType, Wave, WaveSpawner } from './wave';
 
 console.log('=== PR Review Regression Tests ===\n');
@@ -104,7 +104,7 @@ test('connected Special Thorn prioritizes an executable marked target', () => {
   markedBehind.layers[0].hp = 0.2;
   markEnemy(markedBehind);
   const tower = placeTowerOnEnemy(game, TowerType.ThornSniper, unmarkedFront);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1600);
   game.update(1700);
@@ -117,10 +117,10 @@ test('Thorn execute waits until a marked target reaches its health threshold', (
   const target = addStationaryEnemy(game, 1007, EnemyType.CrawlerCaterpillar, 1420);
   markEnemy(target);
   const tower = placeTowerOnEnemy(game, TowerType.ThornSniper, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1600);
-  return target.alive && approximately(target.hp, 1.2);
+  return target.alive && target.hp > 0 && target.hp / target.maxHp <= 0.25;
 });
 
 test('configured wave completion bonus overrides the legacy formula', () => {
@@ -154,7 +154,7 @@ test('connected Special Sporecap marks its direct target', () => {
   game.start();
   const target = addStationaryEnemy(game, 1008, EnemyType.CrawlerCaterpillar, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.Sporecap, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1000);
   return isMarked(target);
@@ -165,14 +165,14 @@ test('connected Special Puffball does not apply Sporecap marks', () => {
   game.start();
   const target = addStationaryEnemy(game, 1009, EnemyType.CrawlerCaterpillar, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.Puffball, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1000);
   return !isMarked(target);
 });
 
-test('Bulb Shooter direct hits are explosive', () =>
-  getTowerDamageType(TowerType.BulbShooter) === DamageType.Explosive
+test('Bulb Shooter direct hits retain Metal resistance for Siege to bypass', () =>
+  getTowerDamageType(TowerType.BulbShooter) === DamageType.Normal
 );
 
 test('fractional damage remains fractional after Metal reduction', () => {
@@ -206,8 +206,8 @@ test('connected Special Slimefungus suppresses Metal before direct damage', () =
   const target = addStationaryEnemy(game, 1013, EnemyType.IronCaterpillar, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.Slimefungus, target);
   if (!tower) return false;
-  if (!game.upgradeTower(tower.id, UpgradePath.Damage).success) return false;
-  if (!game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!game.matureTower(tower.id).success) return false;
+  if (!game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1000);
   return target.hp === target.maxHp - tower.damage && hasDisruptedTrait(target, EnemyTrait.Metal);
@@ -218,7 +218,7 @@ test('Seeded Payload arms once after three follow-up connected hits', () => {
   game.start();
   const target = addStationaryEnemy(game, 1014, EnemyType.BulwarkBeetle, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.BulbShooter, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1200);
   const noPayloadOnSeedHit = game.getSeededPayloads().length === 0;
@@ -238,9 +238,9 @@ test('Chorus Light is Oracle-driven, connected, and non-stacking', () => {
   const recipient = game.placeTower(TowerType.Puffball, 620, 300, TargetingMode.First);
   const sporecap = game.placeTower(TowerType.Sporecap, 650, 300, TargetingMode.First);
   if (!oracleA || !oracleB || !recipient || !sporecap) return false;
-  if (!game.upgradeTower(oracleA.id, UpgradePath.Special).success) return false;
-  if (!game.upgradeTower(oracleB.id, UpgradePath.Special).success) return false;
-  if (!game.upgradeTower(recipient.id, UpgradePath.Special).success) return false;
+  if (!game.matureTower(oracleA.id).success || !game.evolveTower(oracleA.id, EvolutionPath.Symbiote).success) return false;
+  if (!game.matureTower(oracleB.id).success || !game.evolveTower(oracleB.id, EvolutionPath.Symbiote).success) return false;
+  if (!game.matureTower(recipient.id).success || !game.evolveTower(recipient.id, EvolutionPath.Symbiote).success) return false;
 
   const buff = game.getTowerBuffInfo(recipient.id);
   return buff !== null && approximately(buff.buffStrength, 0.2) && buff.sources === 1;
@@ -251,7 +251,7 @@ test('connected Special Puffball field deals persistent damage', () => {
   game.start();
   const target = addStationaryEnemy(game, 1015, EnemyType.CrawlerCaterpillar, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.Puffball, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1000);
   const [field] = game.getLingeringFields();
@@ -266,7 +266,7 @@ test('connection-gated effects become dormant when their source disconnects', ()
   game.start();
   const target = addStationaryEnemy(game, 1017, EnemyType.CrawlerCaterpillar, 1420);
   const tower = placeTowerOnEnemy(game, TowerType.Puffball, target);
-  if (!tower || !game.upgradeTower(tower.id, UpgradePath.Special).success) return false;
+  if (!tower || !game.matureTower(tower.id).success || !game.evolveTower(tower.id, EvolutionPath.Symbiote).success) return false;
 
   game.update(1000);
   if (game.getLingeringFields().length !== 1) return false;
