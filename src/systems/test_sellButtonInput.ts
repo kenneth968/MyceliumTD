@@ -1,4 +1,9 @@
-import { getSellButtonAtPosition, getTowerSellButton, getSellButtonPosition, getSellButtonSize } from './placementPreview';
+import {
+  getSellButtonAtPosition,
+  getTowerSellButton,
+  getSellButtonPosition,
+  getSellButtonSize,
+} from './placementPreview';
 import { TowerWithGrowth, createTowerWithGrowth } from './upgrade';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
@@ -43,7 +48,7 @@ console.log('--- getSellButtonPosition ---');
   const towerPos: Vec2 = { x: 100, y: 100 };
   const result = getSellButtonPosition(anchor, towerPos);
 
-  expectEqual(result.x, 0, 'x clamps the sell button inside the visible playfield');
+  expectEqual(result.x, 155, 'x flips the sell button to the visible side of an edge tower');
   expectTrue(
     Math.abs(result.y - RELEASE_WORLD_PLAYFIELD.y) < 0.001,
     'y clamps the sell button below the top HUD',
@@ -70,6 +75,18 @@ console.log('\n--- getSellButtonAtPosition ---');
     sellButton.position.y + sellButton.size.height / 2,
   );
   expectTrue(result, 'click at button center is detected');
+}
+
+{
+  const towerPosition: Vec2 = { x: 0, y: RELEASE_WORLD_PLAYFIELD.y + 3 };
+  const sellButton = getTowerSellButton(createMockTower(), towerPosition);
+  const towerAnchorInsideButton = getSellButtonAtPosition(
+    sellButton,
+    towerPosition.x,
+    towerPosition.y,
+  );
+
+  expectTrue(!towerAnchorInsideButton, 'legal top-left tower anchor stays outside its sell target');
 }
 
 {
