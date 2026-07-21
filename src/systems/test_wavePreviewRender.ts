@@ -1,4 +1,4 @@
-import { EnemyTrait, EnemyType } from '../content/enemyDefinitions';
+import { EnemyTrait, EnemyType, EnemyVariant } from '../content/enemyDefinitions';
 import { RELEASE_WAVES } from '../content/waveDefinitions';
 import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 import type { Wave } from './wave';
@@ -34,13 +34,27 @@ assert(
   'enemy display names do not expose internal values',
 );
 
+// Given the release waves containing an elite and a boss group
+const elitePreview = getWavePreviewRenderData(RELEASE_WAVES[5], 150);
+const bossPreview = getWavePreviewRenderData(RELEASE_WAVES[9], 0);
+
+// When their variant rows are inspected
+const eliteEnemy = elitePreview.enemies.find(enemy => enemy.type === EnemyType.ShellBeetle);
+const bossEnemy = bossPreview.enemies.find(enemy => enemy.type === EnemyType.WardMoth);
+
+// Then the preview communicates the same variants that spawning applies
+assertEqual(eliteEnemy?.variant, EnemyVariant.Elite, 'wave 6 preserves the elite variant');
+assertEqual(eliteEnemy?.displayName, 'Elite Shell Beetle', 'wave 6 labels the elite threat');
+assertEqual(bossEnemy?.variant, EnemyVariant.Boss, 'wave 10 preserves the boss variant');
+assertEqual(bossEnemy?.displayName, 'Boss Ward Moth', 'wave 10 labels the boss threat');
+
 // Given the release wave with the maximum enemy and trait row counts
 const finalWavePreview = getWavePreviewRenderData(RELEASE_WAVES[9], 0);
 const expectedFinalEnemies = [
-  { type: EnemyType.WardMoth, displayName: 'Ward Moth', count: 1 },
-  { type: EnemyType.SwarmWasp, displayName: 'Swarm Wasp', count: 16 },
-  { type: EnemyType.IronCaterpillar, displayName: 'Iron Caterpillar', count: 6 },
-  { type: EnemyType.PaleMoth, displayName: 'Pale Moth', count: 6 },
+  { type: EnemyType.WardMoth, variant: EnemyVariant.Boss, displayName: 'Boss Ward Moth', count: 1 },
+  { type: EnemyType.SwarmWasp, variant: EnemyVariant.Normal, displayName: 'Swarm Wasp', count: 16 },
+  { type: EnemyType.IronCaterpillar, variant: EnemyVariant.Normal, displayName: 'Iron Caterpillar', count: 6 },
+  { type: EnemyType.PaleMoth, variant: EnemyVariant.Normal, displayName: 'Pale Moth', count: 6 },
 ] as const;
 const expectedFinalTraits = [
   { trait: EnemyTrait.Shielded, label: 'Shielded', shape: 'shield', color: '#6BD7FF' },
@@ -55,6 +69,7 @@ assertEqual(finalWavePreview.enemies.length, 4, 'final wave has four enemy rows'
 expectedFinalEnemies.forEach((expected, index) => {
   const enemy = finalWavePreview.enemies[index];
   assertEqual(enemy?.type, expected.type, `enemy ${index + 1} order`);
+  assertEqual(enemy?.variant, expected.variant, `enemy ${index + 1} variant`);
   assertEqual(enemy?.displayName, expected.displayName, `enemy ${index + 1} display name`);
   assertEqual(enemy?.count, expected.count, `enemy ${index + 1} count`);
   assert(enemy?.displayName !== enemy?.type, `enemy ${index + 1} uses a player-facing name`);

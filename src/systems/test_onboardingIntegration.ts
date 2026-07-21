@@ -105,9 +105,8 @@ assertSame(
 
 // Given onboarding already waiting for a later useful connection
 const createConnection: OnboardingState = {
-  enabled: true,
+  ...afterPlacement,
   step: OnboardingStep.CreateConnection,
-  firstTowerId: placedTower?.id ?? null,
 };
 const connectionBatch = [{
   type: 'network_connection_created',
@@ -192,9 +191,8 @@ const placeRender = getOnboardingRenderData({ state: initial, ...renderContext }
 const startRender = getOnboardingRenderData({ state: afterPlacement, ...renderContext });
 const activeWaveRender = getOnboardingRenderData({ state: afterRealWaveStart, ...renderContext });
 const reviewState: OnboardingState = {
-  enabled: true,
+  ...afterPlacement,
   step: OnboardingStep.ReviewThreat,
-  firstTowerId: placedTower?.id ?? null,
 };
 const reviewRender = getOnboardingRenderData({ state: reviewState, ...renderContext });
 const connectionRender = getOnboardingRenderData({ state: createConnection, ...renderContext });
@@ -245,6 +243,9 @@ const projectedReach = projectOnboardingReach({
   },
   worldToScreen: point => ({ x: point.x * 2 + 10, y: point.y * 3 - 5 }),
   zoom: 1.25,
+  visibleBounds: { x: -1000, y: -1000, width: 2000, height: 2000 },
+  blockedRects: [],
+  labelSize: { x: 80, y: 14 },
 });
 
 // When the focused render helper projects it

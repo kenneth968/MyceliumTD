@@ -30,6 +30,11 @@ export type OnboardingButton = Readonly<{
   hotkey: string;
 }>;
 
+export type OnboardingCompletionNotice = Readonly<{
+  rect: Rect;
+  label: string;
+}>;
+
 export type OnboardingRenderData = Readonly<{
   isVisible: boolean;
   prompt: string | null;
@@ -51,12 +56,16 @@ export type OnboardingRenderContext = Readonly<{
 export type OnboardingReachProjection = Readonly<{
   center: Readonly<Vec2>;
   radius: number;
+  labelPosition: Readonly<Vec2>;
 }>;
 
 export type OnboardingReachProjectionInput = Readonly<{
   reach: OnboardingReach;
   worldToScreen: (point: Readonly<Vec2>) => Readonly<Vec2>;
   zoom: number;
+  visibleBounds: Rect;
+  blockedRects: readonly Rect[];
+  labelSize: Readonly<Vec2>;
 }>;
 
 function freezeRect(rect: Rect): Rect {
@@ -67,6 +76,12 @@ export const ONBOARDING_LAYOUT = Object.freeze({
   prompt: freezeRect({ x: 288, y: 64, width: 656, height: 64 }),
   skipButton: freezeRect({ x: 848, y: 74, width: 80, height: 44 }),
   replayButton: freezeRect({ x: 520, y: 548, width: 240, height: 48 }),
+  completionNotice: freezeRect({ x: 352, y: 72, width: 576, height: 44 }),
+});
+
+const COMPLETION_NOTICE = Object.freeze({
+  rect: ONBOARDING_LAYOUT.completionNotice,
+  label: 'Connection created — tutorial complete',
 });
 
 const SKIP_BUTTON = Object.freeze({
@@ -103,10 +118,75 @@ export function getOnboardingRenderData(
 export function projectOnboardingReach(
   input: OnboardingReachProjectionInput,
 ): OnboardingReachProjection {
+  const center = Object.freeze({ ...input.worldToScreen(input.reach.center) });
+  const radius = input.reach.radius * input.zoom;
+  const halfLabelWidth = input.labelSize.x / 2;
+  const halfLabelHeight = input.labelSize.y / 2;
+  const labelX = clamp(
+    center.x,
+    input.visibleBounds.x + halfLabelWidth,
+    input.visibleBounds.x + input.visibleBounds.width - halfLabelWidth,
+  );
+  const labelCandidates = [
+    { x: labelX, y: center.y - radius - 10 },
+    { x: labelX, y: center.y + radius + 10 },
+  ];
+  const labelPosition = labelCandidates.find(candidate =>
+    isLabelVisible(candidate, input.labelSize, input.visibleBounds, input.blockedRects)
+  ) ?? {
+    x: labelX,
+    y: clamp(
+      labelCandidates[1].y,
+      input.visibleBounds.y + halfLabelHeight,
+      input.visibleBounds.y + input.visibleBounds.height - halfLabelHeight,
+    ),
+  };
+
   return Object.freeze({
-    center: Object.freeze({ ...input.worldToScreen(input.reach.center) }),
-    radius: input.reach.radius * input.zoom,
+    center,
+    radius,
+    labelPosition: Object.freeze(labelPosition),
   });
+}
+
+export function getOnboardingCompletionNotice(
+  isVisible: boolean,
+): OnboardingCompletionNotice | null {
+  return isVisible ? COMPLETION_NOTICE : null;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
+function isLabelVisible(
+  center: Readonly<Vec2>,
+  size: Readonly<Vec2>,
+  visibleBounds: Rect,
+  blockedRects: readonly Rect[],
+): boolean {
+  const labelRect = {
+    x: center.x - size.x / 2,
+    y: center.y - size.y / 2,
+    width: size.x,
+    height: size.y,
+  };
+  return containsRect(visibleBounds, labelRect)
+    && blockedRects.every(blockedRect => !rectsOverlap(labelRect, blockedRect));
+}
+
+function containsRect(container: Rect, contained: Rect): boolean {
+  return contained.x >= container.x
+    && contained.y >= container.y
+    && contained.x + contained.width <= container.x + container.width
+    && contained.y + contained.height <= container.y + container.height;
+}
+
+function rectsOverlap(first: Rect, second: Rect): boolean {
+  return first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y;
 }
 
 function getHighlights(step: OnboardingStep): readonly OnboardingHighlight[] {

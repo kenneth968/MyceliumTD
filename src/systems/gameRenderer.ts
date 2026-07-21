@@ -213,7 +213,8 @@ export class GameRenderer {
   ): OnboardingRenderData {
     const path = game.getPath();
     const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
-    const firstTowerPosition = game.getPlacedTowers()[0]?.tower.position ?? null;
+    const firstTowerPosition = game.getPlacedTowers()
+      .find(placed => placed.tower.id === state.firstTowerId)?.tower.position ?? null;
     return buildOnboardingRenderData({
       state,
       kernelPosition,
