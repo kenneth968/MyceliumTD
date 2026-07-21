@@ -6,6 +6,7 @@ import { EvolutionPath } from '../content/evolutionDefinitions';
 import { createEnemy } from '../entities/enemy';
 import { EnemyType } from './wave';
 import { RoundState } from './roundManager';
+import { getTowerSellButton } from './placementPreview';
 
 console.log('=== GameRenderer Tests ===\n');
 
@@ -248,8 +249,18 @@ const placedTowers = game.getPlacedTowers();
 if (placedTowers.length > 0) {
   game.selectTower(placedTowers[0].tower.id);
   const selectRenderData = renderer.render(game);
+  const expectedSellButton = getTowerSellButton(
+    placedTowers[0].tower,
+    { x: placedTowers[0].x, y: placedTowers[0].y },
+  );
   test('tower selection is defined when selecting', () => selectRenderData.towerSelection !== undefined);
   test('sell button is defined when selecting', () => selectRenderData.sellButton !== null);
+  test('rendered sell button uses the same geometry as sell input', () =>
+    selectRenderData.sellButton?.position.x === expectedSellButton.position.x &&
+    selectRenderData.sellButton?.position.y === expectedSellButton.position.y &&
+    selectRenderData.sellButton?.size.width === expectedSellButton.size.width &&
+    selectRenderData.sellButton?.size.height === expectedSellButton.size.height
+  );
 }
 
 // Targeting buttons when not placing

@@ -91,6 +91,24 @@ export function getReleaseHudRegionAtPosition(x: number, y: number): ReleaseHudR
   return null;
 }
 
+export function clampPlayfieldLabelX(x: number, halfWidth: number): number {
+  const { playfield } = RELEASE_HUD_LAYOUT;
+  return Math.max(
+    playfield.x + halfWidth,
+    Math.min(playfield.x + playfield.width - halfWidth, x),
+  );
+}
+
+export function clampReleaseWorldLabelX(x: number, halfWidth: number): number {
+  const screenX = (x - RELEASE_CAMERA.x) * RELEASE_CAMERA.zoom + RELEASE_HUD_LAYOUT.canvas.width / 2;
+  const clampedScreenX = clampPlayfieldLabelX(screenX, halfWidth);
+  return (clampedScreenX - RELEASE_HUD_LAYOUT.canvas.width / 2) / RELEASE_CAMERA.zoom + RELEASE_CAMERA.x;
+}
+
+export function getPrimaryHotkeyLabel(isMenuVisible: boolean): 'Start Game' | 'Start Wave' {
+  return isMenuVisible ? 'Start Game' : 'Start Wave';
+}
+
 export function getPauseSettingsControlAtPosition(x: number, y: number): PauseSettingsControl | null {
   const point = { x, y };
   const { musicVolumeBar, soundVolumeBar, muteButton, speedButtons } = RELEASE_HUD_LAYOUT.pauseSettings;

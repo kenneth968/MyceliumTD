@@ -42,7 +42,7 @@ console.log('--- getSellButtonPosition ---');
   const towerPos: Vec2 = { x: 100, y: 100 };
   const result = getSellButtonPosition(anchor, towerPos);
   
-  expectEqual(result.x, 140, 'x is tower x + 40');
+  expectEqual(result.x, -35, 'x keeps the sell button left of the selected tower');
   expectEqual(result.y, 40, 'y is tower y - 60');
 }
 
@@ -60,7 +60,7 @@ console.log('\n--- getSellButtonAtPosition ---');
   const position: Vec2 = { x: 100, y: 100 };
   const sellButton = getTowerSellButton(tower, position);
   
-  const result = getSellButtonAtPosition(sellButton, 140, 40);
+  const result = getSellButtonAtPosition(sellButton, 5, 40);
   expectTrue(result, 'click at button center is detected');
 }
 
@@ -87,10 +87,10 @@ console.log('\n--- getSellButtonAtPosition ---');
   const position: Vec2 = { x: 200, y: 200 };
   const sellButton = getTowerSellButton(tower, position);
   
-  expectTrue(getSellButtonAtPosition(sellButton, 240, 140), 'click in button bounds');
-  expectTrue(getSellButtonAtPosition(sellButton, 320, 140), 'click at right edge is in bounds');
-  expectTrue(!getSellButtonAtPosition(sellButton, 321, 140), 'click beyond right edge');
-  expectTrue(!getSellButtonAtPosition(sellButton, 240, 181), 'click beyond bottom edge');
+  expectTrue(getSellButtonAtPosition(sellButton, 105, 140), 'click in button bounds');
+  expectTrue(getSellButtonAtPosition(sellButton, 145, 140), 'click at right edge is in bounds');
+  expectTrue(!getSellButtonAtPosition(sellButton, 146, 140), 'click beyond right edge');
+  expectTrue(!getSellButtonAtPosition(sellButton, 105, 177), 'click beyond bottom edge');
 }
 
 console.log('\n--- edge cases ---');

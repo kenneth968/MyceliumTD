@@ -4,11 +4,6 @@ import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './
 import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
 
-export const ONBOARDING_REACH_RADIUS = Object.freeze({
-  kernel: 180,
-  relay: 160,
-});
-
 export interface TargetingModeButton {
   mode: TargetingMode;
   label: string;
@@ -373,8 +368,9 @@ export interface TowerSellButton {
 }
 
 export function getSellButtonPosition(anchorPosition: Vec2, towerPosition: Vec2): Vec2 {
+  const { width } = getSellButtonSize();
   return {
-    x: towerPosition.x + 40,
+    x: towerPosition.x - width - 55,
     y: towerPosition.y - 60,
   };
 }

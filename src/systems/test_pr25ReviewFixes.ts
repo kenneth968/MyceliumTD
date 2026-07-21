@@ -4,6 +4,7 @@ import { createGameRenderer } from './gameRenderer';
 import { createOnboardingState, OnboardingStep } from './onboarding';
 import { integrateGameEventsWithOnboarding } from './onboardingIntegration';
 import { isOnboardingPromptAtPosition } from './onboardingInput';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import {
   getOnboardingCompletionNotice,
   getOnboardingRenderData,
@@ -98,6 +99,8 @@ const afterConnectedPlacement = integrateGameEventsWithOnboarding(initial, conne
 // Then: onboarding advances and records the connected relay anchor.
 assertSame(afterConnectedPlacement.state.step, OnboardingStep.StartFirstWave, 'connected Sporecap advances onboarding');
 assertSame(afterConnectedPlacement.state.firstTowerId, 41, 'connected Sporecap becomes the relay anchor');
+assertSame(afterConnectedPlacement.state.firstTowerPosition?.x, 100, 'connected Sporecap records relay x');
+assertSame(afterConnectedPlacement.state.firstTowerPosition?.y, 100, 'connected Sporecap records relay y');
 
 // Given: a disconnected Sporecap was placed before the connected tutorial anchor.
 const anchorGame = createGameRunner({ startingMoney: 5000 });
@@ -106,11 +109,13 @@ const connectedTower = anchorGame.placeTower(TowerType.Sporecap, 720, 180);
 if (disconnectedTower === null || connectedTower === null) {
   throw new Error('FAIL: renderer anchor fixture places both Sporecaps');
 }
+const anchorPlacement = integrateGameEventsWithOnboarding(initial, anchorGame.drainEvents());
+assertSame(anchorPlacement.state.firstTowerId, connectedTower.id, 'real placement records connected tower ID');
+assertSame(anchorPlacement.state.firstTowerPosition?.x, connectedTower.position.x, 'real placement records connected x');
+assertSame(anchorPlacement.state.firstTowerPosition?.y, connectedTower.position.y, 'real placement records connected y');
 const createConnectionState = {
-  enabled: true,
+  ...anchorPlacement.state,
   step: OnboardingStep.CreateConnection,
-  firstTowerId: connectedTower.id,
-  firstTowerPosition: Object.freeze({ ...connectedTower.position }),
 } as const;
 
 // When: the renderer builds the relay lesson from the recorded tower ID.
@@ -147,7 +152,6 @@ assert(
 );
 
 // Given: a second tower connects directly to the Kernel inside the highlighted relay overlap.
-anchorGame.drainEvents();
 const overlapTower = anchorGame.placeTower(TowerType.Puffball, 650, 220);
 if (overlapTower === null) throw new Error('FAIL: overlap fixture places the second tower');
 const overlapBatch = anchorGame.drainEvents();
@@ -164,18 +168,57 @@ const overlapCompletion = integrateGameEventsWithOnboarding(
 assertSame(overlapCompletion.state.step, OnboardingStep.Complete, 'Kernel overlap completes relay lesson');
 assertSame(overlapCompletion.completionCause, 'connection', 'relay completion records its success cause');
 
-const completionNotice = getOnboardingCompletionNotice(true);
+const completionStartedAt = 1000;
+const completionNotice = getOnboardingCompletionNotice(completionStartedAt, completionStartedAt);
 if (completionNotice === null) throw new Error('FAIL: completed relay lesson exposes success notice');
-assertSame(
-  completionNotice.label,
-  'Connection created — tutorial complete',
-  'completion notice confirms tutorial success',
-);
 assert(
   completionNotice.rect.y >= RELEASE_HUD_LAYOUT.playfield.y,
   'completion notice stays below the top HUD',
 );
-assertSame(getOnboardingCompletionNotice(false), null, 'completion notice expires cleanly');
+assert(
+  getOnboardingCompletionNotice(completionStartedAt, completionStartedAt + 2199) !== null,
+  'completion notice remains visible before its deadline',
+);
+assertSame(
+  getOnboardingCompletionNotice(completionStartedAt, completionStartedAt + 2200),
+  null,
+  'completion notice expires at its deadline',
+);
+assertSame(getOnboardingCompletionNotice(null, completionStartedAt), null, 'Skip exposes no success notice');
+
+const boundaryPosition = {
+  x: connectedTower.position.x + MYCELIUM_NETWORK_REACH.tower,
+  y: connectedTower.position.y,
+};
+const boundaryBatch = [
+  {
+    type: 'tower_placed',
+    timestamp: 3,
+    position: boundaryPosition,
+    towerId: 100,
+    towerType: TowerType.Puffball,
+  },
+  {
+    type: 'network_connection_created',
+    timestamp: 3,
+    position: boundaryPosition,
+    towerId: 100,
+    sourceTowerId: null,
+  },
+] as const;
+const boundaryResult = integrateGameEventsWithOnboarding(createConnectionState, boundaryBatch);
+assertSame(boundaryResult.state.step, OnboardingStep.Complete, 'exact relay boundary completes onboarding');
+
+const beyondBoundaryPosition = { ...boundaryPosition, x: boundaryPosition.x + 0.001 };
+const beyondBoundaryBatch = [
+  { ...boundaryBatch[0], position: beyondBoundaryPosition, towerId: 101 },
+  { ...boundaryBatch[1], position: beyondBoundaryPosition, towerId: 101 },
+] as const;
+const beyondBoundaryResult = integrateGameEventsWithOnboarding(
+  createConnectionState,
+  beyondBoundaryBatch,
+);
+assertSame(beyondBoundaryResult.state, createConnectionState, 'placement beyond relay boundary stays blocked');
 
 // Given: a direct Kernel placement outside the highlighted relay reach.
 const outsideRelayBatch = [

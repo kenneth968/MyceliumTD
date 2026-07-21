@@ -25,7 +25,7 @@ import {
   routeOnboardingCommand,
 } from './onboardingInput';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
-import { ONBOARDING_REACH_RADIUS } from './placementPreview';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -223,7 +223,7 @@ assert(
 assertSame(connectionRender.reach?.center.x, renderContext.firstTowerPosition.x, 'relay reach uses first tower x');
 assertSame(connectionRender.reach?.center.y, renderContext.firstTowerPosition.y, 'relay reach uses first tower y');
 assertSame(connectionRender.reach?.radius, 160, 'relay reach uses the simulation radius');
-assert(Object.isFrozen(ONBOARDING_REACH_RADIUS), 'onboarding reach radii are immutable');
+assert(Object.isFrozen(MYCELIUM_NETWORK_REACH), 'network reach radii are immutable');
 assertSame(completeRender.isVisible, false, 'completed onboarding removes tutorial chrome');
 assertSame(completeRender.skipButton, null, 'completed onboarding removes Skip');
 assertSame(completeRender.replayButton?.rect, ONBOARDING_LAYOUT.replayButton, 'menu Replay uses shared geometry');
@@ -319,7 +319,12 @@ assertSame(mutationCalls, 1, 'blocked mutation routes never invoke the simulatio
 
 // Given the live shell owns both the game loop and animated title menu
 const mainSource = readFileSync(resolve(__dirname, '../main.ts'), 'utf8');
+const startReleaseRunBody = mainSource.match(/private startReleaseRun\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
+const restartGameBody = mainSource.match(/private restartGame\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
 const quitToMenuBody = mainSource.match(/private quitToMenu\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
+const handleOnboardingControlBody = mainSource.match(
+  /private handleOnboardingControl\(control: OnboardingControl\): void \{([\s\S]*?)\n    \}/,
+)?.[1] ?? '';
 
 // When the quit transition is inspected
 
@@ -328,6 +333,22 @@ assert(quitToMenuBody.includes('this.loop.stop();'), 'Quit to Menu stops the gam
 assert(
   quitToMenuBody.indexOf('this.loop.stop();') < quitToMenuBody.indexOf('this.drawMenu();'),
   'gameplay loop stops before the title menu begins drawing',
+);
+assert(
+  startReleaseRunBody.includes('this.clearOnboardingCompletionNotice();'),
+  'new release run clears stale completion notice',
+);
+assert(
+  restartGameBody.includes('this.clearOnboardingCompletionNotice();'),
+  'restart clears stale completion notice',
+);
+assert(
+  quitToMenuBody.includes('this.clearOnboardingCompletionNotice();'),
+  'quit clears stale completion notice',
+);
+assert(
+  handleOnboardingControlBody.includes("control === 'replay'"),
+  'Replay clears stale completion notice explicitly',
 );
 
 console.log('onboarding integration tests passed');

@@ -4,8 +4,8 @@ import {
   getOnboardingPrompt,
   type OnboardingState,
 } from './onboarding';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
-import { ONBOARDING_REACH_RADIUS } from './placementPreview';
 
 export type OnboardingHighlight = Readonly<{
   rect: Rect;
@@ -68,6 +68,24 @@ export type OnboardingReachProjectionInput = Readonly<{
   labelSize: Readonly<Vec2>;
 }>;
 
+export interface OnboardingReachPainter {
+  strokeStyle: CanvasRenderingContext2D['strokeStyle'];
+  fillStyle: CanvasRenderingContext2D['fillStyle'];
+  lineWidth: number;
+  font: string;
+  textAlign: CanvasTextAlign;
+  textBaseline: CanvasTextBaseline;
+  save(): void;
+  restore(): void;
+  setLineDash(segments: number[]): void;
+  beginPath(): void;
+  rect(x: number, y: number, width: number, height: number): void;
+  clip(): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  stroke(): void;
+  fillText(text: string, x: number, y: number): void;
+}
+
 function freezeRect(rect: Rect): Rect {
   return Object.freeze(rect);
 }
@@ -83,6 +101,8 @@ const COMPLETION_NOTICE = Object.freeze({
   rect: ONBOARDING_LAYOUT.completionNotice,
   label: 'Connection created — tutorial complete',
 });
+
+const COMPLETION_NOTICE_DURATION_MS = 2200;
 
 const SKIP_BUTTON = Object.freeze({
   rect: ONBOARDING_LAYOUT.skipButton,
@@ -150,9 +170,44 @@ export function projectOnboardingReach(
 }
 
 export function getOnboardingCompletionNotice(
-  isVisible: boolean,
+  completedAtMs: number | null,
+  nowMs: number,
 ): OnboardingCompletionNotice | null {
-  return isVisible ? COMPLETION_NOTICE : null;
+  if (completedAtMs === null || nowMs - completedAtMs >= COMPLETION_NOTICE_DURATION_MS) {
+    return null;
+  }
+  return COMPLETION_NOTICE;
+}
+
+export function paintOnboardingReach(
+  context: OnboardingReachPainter,
+  projection: OnboardingReachProjection,
+  reach: OnboardingReach,
+  clipRect: Rect,
+): void {
+  context.setLineDash([9, 7]);
+  context.strokeStyle = reach.color;
+  context.lineWidth = 3;
+  context.save();
+  context.beginPath();
+  context.rect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+  context.clip();
+  context.beginPath();
+  context.arc(
+    projection.center.x,
+    projection.center.y,
+    projection.radius,
+    0,
+    Math.PI * 2,
+  );
+  context.stroke();
+  context.restore();
+  context.setLineDash([]);
+  context.fillStyle = '#FFFFFF';
+  context.font = 'bold 12px sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(reach.label, projection.labelPosition.x, projection.labelPosition.y);
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -224,7 +279,7 @@ function getReach(context: OnboardingRenderContext): OnboardingReach | null {
     case OnboardingStep.PlaceSporecap:
       return createReach(
         context.kernelPosition,
-        ONBOARDING_REACH_RADIUS.kernel,
+        MYCELIUM_NETWORK_REACH.kernel,
         'Kernel connection reach',
       );
     case OnboardingStep.CreateConnection:
@@ -232,7 +287,7 @@ function getReach(context: OnboardingRenderContext): OnboardingReach | null {
         ? null
         : createReach(
             context.firstTowerPosition,
-            ONBOARDING_REACH_RADIUS.relay,
+            MYCELIUM_NETWORK_REACH.tower,
             'First tower relay reach',
           );
     case OnboardingStep.Disabled:

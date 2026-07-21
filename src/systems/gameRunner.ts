@@ -22,6 +22,7 @@ import { Vec2, vec2Distance } from '../utils/vec2';
 import { applyHitEffects, getProjectileHitEffects, calculateAreaDamage } from './collision';
 import { processEnemyStatusTick, isEnemyStunned, getSlowFactor } from './statusEffects';
 import { PlacementMode, TowerPlacer, createTowerPlacer, RangePreview, PathPreview } from './input';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { 
   PlacementPreviewRenderData,
   PlacementPreviewWithTargetingRenderData,
@@ -30,6 +31,8 @@ import {
   getPlacementGhostRenderData,
   getRangeCircleRenderData,
   getPathCoverageRenderData,
+  getSellButtonAtPosition,
+  getTowerSellButton,
   getTowerSelectionPreviewRenderData,
   getTargetingModeSelectionRenderData
 } from './placementPreview';
@@ -129,25 +132,31 @@ import {
 } from './myceliumNetwork';
 import type { GameEvent } from './gameEvents';
 
-export enum GameSpeed {
-  Normal = 1,
-  Fast = 2,
-  Faster = 3,
-}
+export const GameSpeed = {
+  Normal: 1,
+  Fast: 2,
+  Faster: 3,
+} as const;
 
-export enum PlacementState {
-  None = 'none',
-  Placing = 'placing',
-  Selecting = 'selecting',
-}
+export type GameSpeed = (typeof GameSpeed)[keyof typeof GameSpeed];
 
-export enum GameState {
-  Idle = 'idle',
-  Playing = 'playing',
-  Paused = 'paused',
-  GameOver = 'game_over',
-  Victory = 'victory',
-}
+export const PlacementState = {
+  None: 'none',
+  Placing: 'placing',
+  Selecting: 'selecting',
+} as const;
+
+export type PlacementState = (typeof PlacementState)[keyof typeof PlacementState];
+
+export const GameState = {
+  Idle: 'idle',
+  Playing: 'playing',
+  Paused: 'paused',
+  GameOver: 'game_over',
+  Victory: 'victory',
+} as const;
+
+export type GameState = (typeof GameState)[keyof typeof GameState];
 
 export interface PlacedTower {
   tower: TowerWithGrowth;
@@ -221,8 +230,6 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   maxWaves: 10,
 };
 
-const KERNEL_NETWORK_RADIUS = 180;
-const NETWORK_LINK_RADIUS = 160;
 const NETWORK_REVEAL_DURATION_MULTIPLIER = 1.5;
 const NETWORK_REVEAL_SLOW_STRENGTH = 0.1;
 const MARK_DURATION = 4000;
@@ -1325,20 +1332,21 @@ export class GameRunner {
 
   private updateHero(deltaTime: number): void {
     if (!this.hero || !this.hero.alive) return;
+    const hero = this.hero;
 
-    updateHeroAbilities(this.hero, deltaTime);
-    updateHeroPosition(this.hero, this.path, deltaTime);
+    updateHeroAbilities(hero, deltaTime);
+    updateHeroPosition(hero, this.path, deltaTime);
 
-    if (this.hero.isMoving) return;
+    if (hero.isMoving) return;
 
     const enemiesInRange = this.activeEnemies.filter(
-      e => e.alive && vec2Distance(this.hero!.position, e.position) <= this.hero!.range
+      enemy => enemy.alive && vec2Distance(hero.position, enemy.position) <= hero.range
     );
 
     if (enemiesInRange.length > 0) {
       const target = enemiesInRange[0];
       const killed = heroAttackEnemy(
-        this.hero,
+        hero,
         target,
         (enemy, damage) => this.applyEnemyDamageWithFreshTraits(enemy, damage).killed
       );
@@ -1607,15 +1615,8 @@ export class GameRunner {
       return { status: 'not_found', refund: 0, disconnects: [], disconnectLabels: [] };
     }
 
-    const sellButtonPosition = { x: placed.x + 40, y: placed.y - 60 };
-    const sellButtonSize = { width: 80, height: 36 };
-
-    if (
-      x >= sellButtonPosition.x &&
-      x <= sellButtonPosition.x + sellButtonSize.width &&
-      y >= sellButtonPosition.y &&
-      y <= sellButtonPosition.y + sellButtonSize.height
-    ) {
+    const sellButton = getTowerSellButton(placed.tower, { x: placed.x, y: placed.y });
+    if (getSellButtonAtPosition(sellButton, x, y)) {
       return this.sellTower(this.selectedTowerId, confirmDisconnect);
     }
 
@@ -2011,8 +2012,8 @@ export class GameRunner {
   private getNetworkConfig(): MyceliumNetworkConfig {
     return {
       kernelPosition: this.getKernelNetworkPosition(),
-      kernelReach: KERNEL_NETWORK_RADIUS,
-      towerReach: NETWORK_LINK_RADIUS,
+      kernelReach: MYCELIUM_NETWORK_REACH.kernel,
+      towerReach: MYCELIUM_NETWORK_REACH.tower,
       towers: this.placedTowers.map(placed => ({
         id: placed.tower.id,
         position: placed.tower.position,

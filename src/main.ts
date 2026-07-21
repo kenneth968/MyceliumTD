@@ -18,7 +18,10 @@ import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
-import { getGameOverVictoryButtonAtPosition, GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
+import {
+    getGameOverVictoryButtonAtPosition,
+    GameOverVictoryRenderData,
+} from './systems/gameOverVictoryRender';
 import {
     EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR,
     getEvolutionCardStatusColor,
@@ -43,6 +46,8 @@ import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from '
 import {
     getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
+    clampReleaseWorldLabelX,
+    getPrimaryHotkeyLabel,
     RELEASE_CAMERA,
     RELEASE_HUD_LAYOUT,
     type Rect,
@@ -70,6 +75,7 @@ import {
 } from './systems/onboardingInput';
 import {
     getOnboardingCompletionNotice,
+    paintOnboardingReach,
     projectOnboardingReach,
     type OnboardingRenderData,
 } from './systems/onboardingRender';
@@ -507,7 +513,7 @@ class Game {
     private lastTrackedWaveIndex: number = -1;
     private onboarding: OnboardingState = createOnboardingState(true);
     private onboardingPulseUntil: number = 0;
-    private onboardingCompletionNoticeUntil: number = 0;
+    private onboardingCompletionStartedAt: number | null = null;
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -561,7 +567,7 @@ class Game {
             ctx.font = 'bold 64px sans-serif';
             ctx.fillText('Mycelium TD', CANVAS_WIDTH / 2, titleY);
 
-            ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
+            ctx.fillStyle = 'rgba(134, 239, 172, 0.78)';
             ctx.font = '18px sans-serif';
             ctx.fillText('A Mycelium Tower Defense', CANVAS_WIDTH / 2, titleY + 50);
 
@@ -603,7 +609,7 @@ class Game {
             }
 
             // Hint
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillStyle = 'rgba(255,255,255,0.68)';
             ctx.font = '14px sans-serif';
             ctx.fillText('Click to begin or press Enter', CANVAS_WIDTH / 2, 520);
 
@@ -623,12 +629,14 @@ class Game {
     }
 
     private startReleaseRun(): void {
+        this.clearOnboardingCompletionNotice();
         this.game.reset();
         if (!this.game.setMap(RELEASE_MAP_ID)) {
             throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
         }
         this.game.start();
         this.showingMenu = false;
+        this.updatePrimaryHotkeyLabel();
     }
 
     private startNextWave(): boolean {
@@ -661,7 +669,7 @@ class Game {
         if (!isNewOnboardingCompletion(previous, next)) return;
 
         if (completionCause === 'connection') {
-            this.onboardingCompletionNoticeUntil = performance.now() + 2200;
+            this.onboardingCompletionStartedAt = performance.now();
         }
 
         const path = this.game.getPath();
@@ -671,7 +679,17 @@ class Game {
     }
 
     private handleOnboardingControl(control: OnboardingControl): void {
+        if (control === 'replay') this.clearOnboardingCompletionNotice();
         this.transitionOnboarding(applyOnboardingControl(this.onboarding, control));
+    }
+
+    private clearOnboardingCompletionNotice(): void {
+        this.onboardingCompletionStartedAt = null;
+    }
+
+    private updatePrimaryHotkeyLabel(): void {
+        const label = document.getElementById('primaryActionLabel');
+        if (label) label.textContent = getPrimaryHotkeyLabel(this.showingMenu);
     }
 
     private runOnboardingCommand<T>(
@@ -1120,6 +1138,7 @@ class Game {
     }
 
     private restartGame(): void {
+        this.clearOnboardingCompletionNotice();
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
@@ -1131,10 +1150,12 @@ class Game {
     }
 
     private quitToMenu(): void {
+        this.clearOnboardingCompletionNotice();
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
         this.showingMenu = true;
+        this.updatePrimaryHotkeyLabel();
         this.loop.stop();
         this.game.reset();
         this.lastTrackedWaveIndex = -1;
@@ -1250,9 +1271,17 @@ class Game {
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillStyle = '#4ade80';
-            this.ctx.fillText('START', first.start.x, first.start.y - 20);
+            this.ctx.fillText(
+                'START',
+                clampReleaseWorldLabelX(first.start.x, 28),
+                first.start.y - 20,
+            );
             this.ctx.fillStyle = '#f87171';
-            this.ctx.fillText('END', last.end.x, last.end.y - 20);
+            this.ctx.fillText(
+                'END',
+                clampReleaseWorldLabelX(last.end.x, 22),
+                last.end.y - 20,
+            );
         }
     }
 
@@ -2112,36 +2141,11 @@ class Game {
                     y: 14,
                 },
             });
-            this.ctx.setLineDash([9, 7]);
-            this.ctx.strokeStyle = onboarding.reach.color;
-            this.ctx.lineWidth = 3;
-            this.ctx.save();
-            this.ctx.beginPath();
-            this.ctx.rect(
-                RELEASE_HUD_LAYOUT.playfield.x,
-                RELEASE_HUD_LAYOUT.playfield.y,
-                RELEASE_HUD_LAYOUT.playfield.width,
-                RELEASE_HUD_LAYOUT.playfield.height,
-            );
-            this.ctx.clip();
-            this.ctx.beginPath();
-            this.ctx.arc(
-                projection.center.x,
-                projection.center.y,
-                projection.radius,
-                0,
-                Math.PI * 2,
-            );
-            this.ctx.stroke();
-            this.ctx.restore();
-            this.ctx.setLineDash([]);
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(
-                onboarding.reach.label,
-                projection.labelPosition.x,
-                projection.labelPosition.y,
+            paintOnboardingReach(
+                this.ctx,
+                projection,
+                onboarding.reach,
+                RELEASE_HUD_LAYOUT.playfield,
             );
         }
 
@@ -2203,7 +2207,8 @@ class Game {
 
     private drawOnboardingCompletionNotice(): void {
         const notice = getOnboardingCompletionNotice(
-            performance.now() < this.onboardingCompletionNoticeUntil,
+            this.onboardingCompletionStartedAt,
+            performance.now(),
         );
         if (notice === null) return;
 

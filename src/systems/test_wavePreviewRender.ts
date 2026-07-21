@@ -135,4 +135,29 @@ assert(Object.isFrozen(repeatedPreview), 'preview payload is immutable');
 assert(Object.isFrozen(repeatedPreview.enemies), 'enemy collection is immutable');
 assert(Object.isFrozen(repeatedPreview.traits), 'trait collection is immutable');
 
+// Given one enemy type appears in normal and elite groups
+const mixedVariantWave: Wave = {
+  ...repeatedWave,
+  groups: [
+    { type: EnemyType.ShellBeetle, count: 2, interval: 100, delay: 0 },
+    {
+      type: EnemyType.ShellBeetle,
+      variant: EnemyVariant.Elite,
+      count: 3,
+      interval: 100,
+      delay: 100,
+    },
+  ],
+};
+
+// When the mixed-variant wave is converted to preview rows
+const mixedVariantPreview = getWavePreviewRenderData(mixedVariantWave, 100);
+
+// Then each variant retains an independent row and count
+assertEqual(mixedVariantPreview.enemies.length, 2, 'mixed variants use separate rows');
+assertEqual(mixedVariantPreview.enemies[0]?.variant, EnemyVariant.Normal, 'normal row keeps its variant');
+assertEqual(mixedVariantPreview.enemies[0]?.count, 2, 'normal row keeps its count');
+assertEqual(mixedVariantPreview.enemies[1]?.variant, EnemyVariant.Elite, 'elite row keeps its variant');
+assertEqual(mixedVariantPreview.enemies[1]?.count, 3, 'elite row keeps its count');
+
 console.log('Wave preview render tests passed');

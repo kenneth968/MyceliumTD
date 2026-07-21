@@ -7,7 +7,7 @@ import {
   reduceOnboarding,
   type OnboardingState,
 } from './onboarding';
-import { ONBOARDING_REACH_RADIUS } from './placementPreview';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 
 export type OnboardingIntegrationResult = Readonly<{
   state: OnboardingState;
@@ -135,7 +135,7 @@ function findRelevantEvent(
                 placed.type === 'tower_placed'
                 && placed.towerId === event.towerId
                 && vec2Distance(firstTowerPosition, placed.position)
-                  <= ONBOARDING_REACH_RADIUS.relay
+                  <= MYCELIUM_NETWORK_REACH.tower
               ))
             )
           ),
