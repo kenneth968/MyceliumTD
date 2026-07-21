@@ -1,5 +1,6 @@
 import {
   ENEMY_DEFINITIONS,
+  EnemyVariant,
   type EnemyTrait,
   type EnemyType,
 } from '../content/enemyDefinitions';
@@ -9,6 +10,7 @@ import { getTraitVisual, type TraitVisual } from './traitVisuals';
 
 export interface WavePreviewEnemy {
   readonly type: EnemyType;
+  readonly variant: EnemyVariant;
   readonly displayName: string;
   readonly count: number;
   readonly traits: readonly EnemyTrait[];
@@ -24,6 +26,12 @@ export interface WavePreviewRenderData {
 
 type WavePreviewSource = Wave | WaveDefinition;
 
+const VARIANT_LABELS: Readonly<Record<EnemyVariant, string>> = Object.freeze({
+  [EnemyVariant.Normal]: '',
+  [EnemyVariant.Elite]: 'Elite ',
+  [EnemyVariant.Boss]: 'Boss ',
+});
+
 function getWaveNumber(wave: WavePreviewSource): number {
   return 'number' in wave ? wave.number : wave.id;
 }
@@ -37,13 +45,32 @@ export function getWavePreviewRenderData(
   wave: WavePreviewSource,
   reward: number,
 ): WavePreviewRenderData {
-  const countsByType = new Map<EnemyType, number>();
+  const enemies: WavePreviewEnemy[] = [];
   const traitsInOrder: EnemyTrait[] = [];
   const seenTraits = new Set<EnemyTrait>();
 
   for (const group of wave.groups) {
     const type = getGroupType(group);
-    countsByType.set(type, (countsByType.get(type) ?? 0) + group.count);
+    const variant = group.variant ?? EnemyVariant.Normal;
+    const existingIndex = enemies.findIndex(
+      enemy => enemy.type === type && enemy.variant === variant,
+    );
+    const existing = enemies[existingIndex];
+    if (existing === undefined) {
+      const definition = ENEMY_DEFINITIONS[type];
+      enemies.push(Object.freeze({
+        type,
+        variant,
+        displayName: `${VARIANT_LABELS[variant]}${definition.displayName}`,
+        count: group.count,
+        traits: Object.freeze([...definition.traits]),
+      }));
+    } else {
+      enemies[existingIndex] = Object.freeze({
+        ...existing,
+        count: existing.count + group.count,
+      });
+    }
 
     for (const trait of ENEMY_DEFINITIONS[type].traits) {
       if (seenTraits.has(trait)) continue;
@@ -52,23 +79,12 @@ export function getWavePreviewRenderData(
     }
   }
 
-  const enemies = Object.freeze(
-    Array.from(countsByType, ([type, count]) => {
-      const definition = ENEMY_DEFINITIONS[type];
-      return Object.freeze({
-        type,
-        displayName: definition.displayName,
-        count,
-        traits: Object.freeze([...definition.traits]),
-      });
-    }),
-  );
   const traits = Object.freeze(traitsInOrder.map(getTraitVisual));
 
   return Object.freeze({
     waveNumber: getWaveNumber(wave),
     name: wave.name,
-    enemies,
+    enemies: Object.freeze(enemies),
     traits,
     rewardLabel: `+${reward} Nutrients`,
   });

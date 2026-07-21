@@ -25,7 +25,7 @@ import {
   routeOnboardingCommand,
 } from './onboardingInput';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
-import { ONBOARDING_REACH_RADIUS } from './placementPreview';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -105,9 +105,8 @@ assertSame(
 
 // Given onboarding already waiting for a later useful connection
 const createConnection: OnboardingState = {
-  enabled: true,
+  ...afterPlacement,
   step: OnboardingStep.CreateConnection,
-  firstTowerId: placedTower?.id ?? null,
 };
 const connectionBatch = [{
   type: 'network_connection_created',
@@ -192,9 +191,8 @@ const placeRender = getOnboardingRenderData({ state: initial, ...renderContext }
 const startRender = getOnboardingRenderData({ state: afterPlacement, ...renderContext });
 const activeWaveRender = getOnboardingRenderData({ state: afterRealWaveStart, ...renderContext });
 const reviewState: OnboardingState = {
-  enabled: true,
+  ...afterPlacement,
   step: OnboardingStep.ReviewThreat,
-  firstTowerId: placedTower?.id ?? null,
 };
 const reviewRender = getOnboardingRenderData({ state: reviewState, ...renderContext });
 const connectionRender = getOnboardingRenderData({ state: createConnection, ...renderContext });
@@ -225,7 +223,7 @@ assert(
 assertSame(connectionRender.reach?.center.x, renderContext.firstTowerPosition.x, 'relay reach uses first tower x');
 assertSame(connectionRender.reach?.center.y, renderContext.firstTowerPosition.y, 'relay reach uses first tower y');
 assertSame(connectionRender.reach?.radius, 160, 'relay reach uses the simulation radius');
-assert(Object.isFrozen(ONBOARDING_REACH_RADIUS), 'onboarding reach radii are immutable');
+assert(Object.isFrozen(MYCELIUM_NETWORK_REACH), 'network reach radii are immutable');
 assertSame(completeRender.isVisible, false, 'completed onboarding removes tutorial chrome');
 assertSame(completeRender.skipButton, null, 'completed onboarding removes Skip');
 assertSame(completeRender.replayButton?.rect, ONBOARDING_LAYOUT.replayButton, 'menu Replay uses shared geometry');
@@ -245,6 +243,9 @@ const projectedReach = projectOnboardingReach({
   },
   worldToScreen: point => ({ x: point.x * 2 + 10, y: point.y * 3 - 5 }),
   zoom: 1.25,
+  visibleBounds: { x: -1000, y: -1000, width: 2000, height: 2000 },
+  blockedRects: [],
+  labelSize: { x: 80, y: 14 },
 });
 
 // When the focused render helper projects it
@@ -318,7 +319,12 @@ assertSame(mutationCalls, 1, 'blocked mutation routes never invoke the simulatio
 
 // Given the live shell owns both the game loop and animated title menu
 const mainSource = readFileSync(resolve(__dirname, '../main.ts'), 'utf8');
+const startReleaseRunBody = mainSource.match(/private startReleaseRun\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
+const restartGameBody = mainSource.match(/private restartGame\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
 const quitToMenuBody = mainSource.match(/private quitToMenu\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
+const handleOnboardingControlBody = mainSource.match(
+  /private handleOnboardingControl\(control: OnboardingControl\): void \{([\s\S]*?)\n    \}/,
+)?.[1] ?? '';
 
 // When the quit transition is inspected
 
@@ -327,6 +333,22 @@ assert(quitToMenuBody.includes('this.loop.stop();'), 'Quit to Menu stops the gam
 assert(
   quitToMenuBody.indexOf('this.loop.stop();') < quitToMenuBody.indexOf('this.drawMenu();'),
   'gameplay loop stops before the title menu begins drawing',
+);
+assert(
+  startReleaseRunBody.includes('this.clearOnboardingCompletionNotice();'),
+  'new release run clears stale completion notice',
+);
+assert(
+  restartGameBody.includes('this.clearOnboardingCompletionNotice();'),
+  'restart clears stale completion notice',
+);
+assert(
+  quitToMenuBody.includes('this.clearOnboardingCompletionNotice();'),
+  'quit clears stale completion notice',
+);
+assert(
+  handleOnboardingControlBody.includes("control === 'replay'"),
+  'Replay clears stale completion notice explicitly',
 );
 
 console.log('onboarding integration tests passed');

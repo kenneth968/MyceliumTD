@@ -18,7 +18,10 @@ import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
 import { getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
-import { getGameOverVictoryButtonAtPosition, GameOverVictoryRenderData } from './systems/gameOverVictoryRender';
+import {
+    getGameOverVictoryButtonAtPosition,
+    GameOverVictoryRenderData,
+} from './systems/gameOverVictoryRender';
 import {
     EVOLUTION_CARD_SELECTED_BACKGROUND_COLOR,
     getEvolutionCardStatusColor,
@@ -43,6 +46,8 @@ import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from '
 import {
     getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
+    clampReleaseWorldLabelX,
+    getPrimaryHotkeyLabel,
     RELEASE_CAMERA,
     RELEASE_HUD_LAYOUT,
     type Rect,
@@ -69,6 +74,8 @@ import {
     type OnboardingControl,
 } from './systems/onboardingInput';
 import {
+    getOnboardingCompletionNotice,
+    paintOnboardingReach,
     projectOnboardingReach,
     type OnboardingRenderData,
 } from './systems/onboardingRender';
@@ -506,10 +513,13 @@ class Game {
     private lastTrackedWaveIndex: number = -1;
     private onboarding: OnboardingState = createOnboardingState(true);
     private onboardingPulseUntil: number = 0;
+    private onboardingCompletionStartedAt: number | null = null;
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-        this.ctx = this.canvas.getContext('2d')!;
+        const context = this.canvas.getContext('2d');
+        if (context === null) throw new Error('Canvas 2D context is unavailable');
+        this.ctx = context;
 
         this.game = new GameRunner();
         this.waveControls = createWaveControls(this.game);
@@ -557,7 +567,7 @@ class Game {
             ctx.font = 'bold 64px sans-serif';
             ctx.fillText('Mycelium TD', CANVAS_WIDTH / 2, titleY);
 
-            ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
+            ctx.fillStyle = 'rgba(134, 239, 172, 0.78)';
             ctx.font = '18px sans-serif';
             ctx.fillText('A Mycelium Tower Defense', CANVAS_WIDTH / 2, titleY + 50);
 
@@ -599,7 +609,7 @@ class Game {
             }
 
             // Hint
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillStyle = 'rgba(255,255,255,0.68)';
             ctx.font = '14px sans-serif';
             ctx.fillText('Click to begin or press Enter', CANVAS_WIDTH / 2, 520);
 
@@ -619,12 +629,14 @@ class Game {
     }
 
     private startReleaseRun(): void {
+        this.clearOnboardingCompletionNotice();
         this.game.reset();
         if (!this.game.setMap(RELEASE_MAP_ID)) {
             throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
         }
         this.game.start();
         this.showingMenu = false;
+        this.updatePrimaryHotkeyLabel();
     }
 
     private startNextWave(): boolean {
@@ -650,10 +662,15 @@ class Game {
     private transitionOnboarding(
         next: OnboardingState,
         bloomPosition: Readonly<Vec2> | null = null,
+        completionCause: 'connection' | null = null,
     ): void {
         const previous = this.onboarding;
         this.onboarding = next;
         if (!isNewOnboardingCompletion(previous, next)) return;
+
+        if (completionCause === 'connection') {
+            this.onboardingCompletionStartedAt = performance.now();
+        }
 
         const path = this.game.getPath();
         const position = bloomPosition
@@ -662,7 +679,17 @@ class Game {
     }
 
     private handleOnboardingControl(control: OnboardingControl): void {
+        if (control === 'replay') this.clearOnboardingCompletionNotice();
         this.transitionOnboarding(applyOnboardingControl(this.onboarding, control));
+    }
+
+    private clearOnboardingCompletionNotice(): void {
+        this.onboardingCompletionStartedAt = null;
+    }
+
+    private updatePrimaryHotkeyLabel(): void {
+        const label = document.getElementById('primaryActionLabel');
+        if (label) label.textContent = getPrimaryHotkeyLabel(this.showingMenu);
     }
 
     private runOnboardingCommand<T>(
@@ -927,9 +954,10 @@ class Game {
                 return;
             }
             this.game.updatePlacementPosition(x, y);
+            const selectedTowerType = this.game.getSelectedTowerType();
             const result = this.game.confirmPlacement(this.game.getSelectedTargetingMode());
-            if (result) {
-                this.game.startTowerPlacement(this.game.getSelectedTowerType()!);
+            if (result && selectedTowerType !== null) {
+                this.game.startTowerPlacement(selectedTowerType);
                 setTimeout(() => this.game.cancelPlacement(), 100);
             }
         } else if (placementState === PlacementState.Selecting) {
@@ -1110,6 +1138,7 @@ class Game {
     }
 
     private restartGame(): void {
+        this.clearOnboardingCompletionNotice();
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
@@ -1121,10 +1150,12 @@ class Game {
     }
 
     private quitToMenu(): void {
+        this.clearOnboardingCompletionNotice();
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
         this.showingMenu = true;
+        this.updatePrimaryHotkeyLabel();
         this.loop.stop();
         this.game.reset();
         this.lastTrackedWaveIndex = -1;
@@ -1168,7 +1199,11 @@ class Game {
                 this.audio.processGameEvents(events);
             },
         );
-        this.transitionOnboarding(eventResult.state, eventResult.completionBloom);
+        this.transitionOnboarding(
+            eventResult.state,
+            eventResult.completionBloom,
+            eventResult.completionCause,
+        );
         this.particles.update(particleDt);
         renderData.onboarding = this.getCurrentOnboardingRenderData();
 
@@ -1236,9 +1271,17 @@ class Game {
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillStyle = '#4ade80';
-            this.ctx.fillText('START', first.start.x, first.start.y - 20);
+            this.ctx.fillText(
+                'START',
+                clampReleaseWorldLabelX(first.start.x, 28),
+                first.start.y - 20,
+            );
             this.ctx.fillStyle = '#f87171';
-            this.ctx.fillText('END', last.end.x, last.end.y - 20);
+            this.ctx.fillText(
+                'END',
+                clampReleaseWorldLabelX(last.end.x, 22),
+                last.end.y - 20,
+            );
         }
     }
 
@@ -2055,12 +2098,16 @@ class Game {
         this.ctx.strokeStyle = '#FF4444';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(button.position.x, button.position.y, button.size.width, button.size.height);
-        
+
+        const [amountLabel, unitLabel] = formatNutrients(button.sellValue).split(' ');
+        const centerX = button.position.x + button.size.width / 2;
         this.ctx.fillStyle = '#fff';
-        this.ctx.font = 'bold 14px sans-serif';
+        this.ctx.font = 'bold 11px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`Sell ${formatNutrients(button.sellValue)}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
+        this.ctx.fillText(`Sell ${amountLabel}`, centerX, button.position.y + 12);
+        this.ctx.font = '9px sans-serif';
+        this.ctx.fillText(unitLabel ?? 'Nutrients', centerX, button.position.y + 25);
     }
 
     private drawHUD(renderData: GameFrameRenderData): void {
@@ -2073,6 +2120,7 @@ class Game {
         this.drawWavePreview(renderData.wavePreview);
         this.drawStartWaveButton();
         this.drawOnboarding(renderData.onboarding);
+        this.drawOnboardingCompletionNotice();
         if (RELEASE_FEATURES.mapSelection) {
             this.drawMapSelection(renderData.mapSelection);
         }
@@ -2085,31 +2133,23 @@ class Game {
 
         this.ctx.save();
         if (onboarding.reach) {
+            this.ctx.font = 'bold 12px sans-serif';
             const projection = projectOnboardingReach({
                 reach: onboarding.reach,
                 worldToScreen: point => this.renderer.worldToScreen(point.x, point.y),
                 zoom: this.renderer.getCamera().zoom,
+                visibleBounds: RELEASE_HUD_LAYOUT.playfield,
+                blockedRects: [onboarding.promptRect],
+                labelSize: {
+                    x: this.ctx.measureText(onboarding.reach.label).width,
+                    y: 14,
+                },
             });
-            this.ctx.setLineDash([9, 7]);
-            this.ctx.strokeStyle = onboarding.reach.color;
-            this.ctx.lineWidth = 3;
-            this.ctx.beginPath();
-            this.ctx.arc(
-                projection.center.x,
-                projection.center.y,
-                projection.radius,
-                0,
-                Math.PI * 2,
-            );
-            this.ctx.stroke();
-            this.ctx.setLineDash([]);
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = 'bold 12px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(
-                onboarding.reach.label,
-                projection.center.x,
-                projection.center.y - projection.radius - 10,
+            paintOnboardingReach(
+                this.ctx,
+                projection,
+                onboarding.reach,
+                RELEASE_HUD_LAYOUT.playfield,
             );
         }
 
@@ -2166,6 +2206,31 @@ class Game {
                 skip.rect.y + skip.rect.height / 2,
             );
         }
+        this.ctx.restore();
+    }
+
+    private drawOnboardingCompletionNotice(): void {
+        const notice = getOnboardingCompletionNotice(
+            this.onboardingCompletionStartedAt,
+            performance.now(),
+        );
+        if (notice === null) return;
+
+        this.ctx.save();
+        this.ctx.fillStyle = 'rgba(20, 83, 45, 0.95)';
+        this.ctx.fillRect(notice.rect.x, notice.rect.y, notice.rect.width, notice.rect.height);
+        this.ctx.strokeStyle = '#4ADE80';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(notice.rect.x, notice.rect.y, notice.rect.width, notice.rect.height);
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 15px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            notice.label,
+            notice.rect.x + notice.rect.width / 2,
+            notice.rect.y + notice.rect.height / 2,
+        );
         this.ctx.restore();
     }
 
@@ -2533,30 +2598,40 @@ class Game {
 
     private drawWaveProgress(progress: WaveProgressRenderData): void {
         if (progress.state === 'hidden') return;
-        
-        const x = CANVAS_WIDTH - 220;
-        const y = 20;
-        const width = 200;
-        const height = 30;
-        
+
+        const panel = RELEASE_HUD_LAYOUT.waveProgress;
+        const padding = 8;
+        const barX = panel.x + padding;
+        const barY = panel.y + 23;
+        const barWidth = 140;
+        const barHeight = 10;
+
+        this.ctx.save();
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(x - 10, y - 10, width + 20, height + 60);
-        
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = '16px sans-serif';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(progress.waveText, x, y + 10);
-        
-        this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(x, y + 25, width, height);
-        
-        const fillWidth = width * progress.progress;
-        this.ctx.fillStyle = '#4CAF50';
-        this.ctx.fillRect(x, y + 25, fillWidth, height);
-        
+        this.ctx.fillRect(panel.x, panel.y, panel.width, panel.height);
+
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px sans-serif';
-        this.ctx.fillText(`${progress.enemiesDefeated}/${progress.enemiesTotal}`, x, y + 55);
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'alphabetic';
+        this.ctx.fillText(progress.waveText, panel.x + padding, panel.y + 15);
+
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        const fillWidth = barWidth * progress.progress;
+        this.ctx.fillStyle = '#4CAF50';
+        this.ctx.fillRect(barX, barY, fillWidth, barHeight);
+
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = '11px sans-serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(
+            `${progress.enemiesDefeated}/${progress.enemiesTotal}`,
+            panel.x + panel.width - padding,
+            panel.y + 32,
+        );
+        this.ctx.restore();
     }
 
     private drawGameOverVictory(gov: GameOverVictoryRenderData): void {

@@ -54,6 +54,7 @@ let state = createOnboardingState(true);
 assert(state.enabled === true, 'enabled onboarding remains enabled');
 assert(state.step === OnboardingStep.PlaceSporecap, 'tutorial begins with placement');
 assert(state.firstTowerId === null, 'new onboarding has no relay anchor');
+assert(state.firstTowerPosition === null, 'new onboarding has no relay position');
 assert(
   getOnboardingPrompt(state) === 'Grow a Sporecap inside the glowing mycelium.',
   'placement step uses the exact prompt',
@@ -73,7 +74,11 @@ assert(
 );
 
 // When: the simulation confirms Sporecap placement.
-state = reduceOnboarding(state, { type: OnboardingEvent.SporecapPlaced, towerId: 41 });
+state = reduceOnboarding(state, {
+  type: OnboardingEvent.SporecapPlaced,
+  towerId: 41,
+  towerPosition: { x: 720, y: 180 },
+});
 
 // Then: Wave 1 start is the only progression action.
 assert(state.step === OnboardingStep.StartFirstWave, 'placement advances tutorial');
@@ -83,6 +88,8 @@ assert(
 );
 assertAllowedActions(state, [OnboardingAction.StartWave, ...harmlessActions], 'wave start step');
 assert(state.firstTowerId === 41, 'confirmed Sporecap becomes the relay anchor');
+assert(state.firstTowerPosition?.x === 720, 'confirmed Sporecap records the relay x');
+assert(state.firstTowerPosition?.y === 180, 'confirmed Sporecap records the relay y');
 
 // When: Wave 1 starts.
 state = reduceOnboarding(state, { type: OnboardingEvent.FirstWaveStarted });

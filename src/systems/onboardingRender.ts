@@ -4,8 +4,8 @@ import {
   getOnboardingPrompt,
   type OnboardingState,
 } from './onboarding';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
-import { ONBOARDING_REACH_RADIUS } from './placementPreview';
 
 export type OnboardingHighlight = Readonly<{
   rect: Rect;
@@ -30,6 +30,11 @@ export type OnboardingButton = Readonly<{
   hotkey: string;
 }>;
 
+export type OnboardingCompletionNotice = Readonly<{
+  rect: Rect;
+  label: string;
+}>;
+
 export type OnboardingRenderData = Readonly<{
   isVisible: boolean;
   prompt: string | null;
@@ -51,13 +56,35 @@ export type OnboardingRenderContext = Readonly<{
 export type OnboardingReachProjection = Readonly<{
   center: Readonly<Vec2>;
   radius: number;
+  labelPosition: Readonly<Vec2>;
 }>;
 
 export type OnboardingReachProjectionInput = Readonly<{
   reach: OnboardingReach;
   worldToScreen: (point: Readonly<Vec2>) => Readonly<Vec2>;
   zoom: number;
+  visibleBounds: Rect;
+  blockedRects: readonly Rect[];
+  labelSize: Readonly<Vec2>;
 }>;
+
+export interface OnboardingReachPainter {
+  strokeStyle: CanvasRenderingContext2D['strokeStyle'];
+  fillStyle: CanvasRenderingContext2D['fillStyle'];
+  lineWidth: number;
+  font: string;
+  textAlign: CanvasTextAlign;
+  textBaseline: CanvasTextBaseline;
+  save(): void;
+  restore(): void;
+  setLineDash(segments: number[]): void;
+  beginPath(): void;
+  rect(x: number, y: number, width: number, height: number): void;
+  clip(): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
+  stroke(): void;
+  fillText(text: string, x: number, y: number): void;
+}
 
 function freezeRect(rect: Rect): Rect {
   return Object.freeze(rect);
@@ -67,7 +94,15 @@ export const ONBOARDING_LAYOUT = Object.freeze({
   prompt: freezeRect({ x: 288, y: 64, width: 656, height: 64 }),
   skipButton: freezeRect({ x: 848, y: 74, width: 80, height: 44 }),
   replayButton: freezeRect({ x: 520, y: 548, width: 240, height: 48 }),
+  completionNotice: freezeRect({ x: 352, y: 72, width: 576, height: 44 }),
 });
+
+const COMPLETION_NOTICE = Object.freeze({
+  rect: ONBOARDING_LAYOUT.completionNotice,
+  label: 'Connection created — tutorial complete',
+});
+
+const COMPLETION_NOTICE_DURATION_MS = 2200;
 
 const SKIP_BUTTON = Object.freeze({
   rect: ONBOARDING_LAYOUT.skipButton,
@@ -103,10 +138,110 @@ export function getOnboardingRenderData(
 export function projectOnboardingReach(
   input: OnboardingReachProjectionInput,
 ): OnboardingReachProjection {
+  const center = Object.freeze({ ...input.worldToScreen(input.reach.center) });
+  const radius = input.reach.radius * input.zoom;
+  const halfLabelWidth = input.labelSize.x / 2;
+  const halfLabelHeight = input.labelSize.y / 2;
+  const labelX = clamp(
+    center.x,
+    input.visibleBounds.x + halfLabelWidth,
+    input.visibleBounds.x + input.visibleBounds.width - halfLabelWidth,
+  );
+  const labelCandidates = [
+    { x: labelX, y: center.y - radius - 10 },
+    { x: labelX, y: center.y + radius + 10 },
+  ];
+  const labelPosition = labelCandidates.find(candidate =>
+    isLabelVisible(candidate, input.labelSize, input.visibleBounds, input.blockedRects)
+  ) ?? {
+    x: labelX,
+    y: clamp(
+      labelCandidates[1].y,
+      input.visibleBounds.y + halfLabelHeight,
+      input.visibleBounds.y + input.visibleBounds.height - halfLabelHeight,
+    ),
+  };
+
   return Object.freeze({
-    center: Object.freeze({ ...input.worldToScreen(input.reach.center) }),
-    radius: input.reach.radius * input.zoom,
+    center,
+    radius,
+    labelPosition: Object.freeze(labelPosition),
   });
+}
+
+export function getOnboardingCompletionNotice(
+  completedAtMs: number | null,
+  nowMs: number,
+): OnboardingCompletionNotice | null {
+  if (completedAtMs === null || nowMs - completedAtMs >= COMPLETION_NOTICE_DURATION_MS) {
+    return null;
+  }
+  return COMPLETION_NOTICE;
+}
+
+export function paintOnboardingReach(
+  context: OnboardingReachPainter,
+  projection: OnboardingReachProjection,
+  reach: OnboardingReach,
+  clipRect: Rect,
+): void {
+  context.setLineDash([9, 7]);
+  context.strokeStyle = reach.color;
+  context.lineWidth = 3;
+  context.save();
+  context.beginPath();
+  context.rect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+  context.clip();
+  context.beginPath();
+  context.arc(
+    projection.center.x,
+    projection.center.y,
+    projection.radius,
+    0,
+    Math.PI * 2,
+  );
+  context.stroke();
+  context.restore();
+  context.setLineDash([]);
+  context.fillStyle = '#FFFFFF';
+  context.font = 'bold 12px sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(reach.label, projection.labelPosition.x, projection.labelPosition.y);
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
+function isLabelVisible(
+  center: Readonly<Vec2>,
+  size: Readonly<Vec2>,
+  visibleBounds: Rect,
+  blockedRects: readonly Rect[],
+): boolean {
+  const labelRect = {
+    x: center.x - size.x / 2,
+    y: center.y - size.y / 2,
+    width: size.x,
+    height: size.y,
+  };
+  return containsRect(visibleBounds, labelRect)
+    && blockedRects.every(blockedRect => !rectsOverlap(labelRect, blockedRect));
+}
+
+function containsRect(container: Rect, contained: Rect): boolean {
+  return contained.x >= container.x
+    && contained.y >= container.y
+    && contained.x + contained.width <= container.x + container.width
+    && contained.y + contained.height <= container.y + container.height;
+}
+
+function rectsOverlap(first: Rect, second: Rect): boolean {
+  return first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y;
 }
 
 function getHighlights(step: OnboardingStep): readonly OnboardingHighlight[] {
@@ -144,7 +279,7 @@ function getReach(context: OnboardingRenderContext): OnboardingReach | null {
     case OnboardingStep.PlaceSporecap:
       return createReach(
         context.kernelPosition,
-        ONBOARDING_REACH_RADIUS.kernel,
+        MYCELIUM_NETWORK_REACH.kernel,
         'Kernel connection reach',
       );
     case OnboardingStep.CreateConnection:
@@ -152,7 +287,7 @@ function getReach(context: OnboardingRenderContext): OnboardingReach | null {
         ? null
         : createReach(
             context.firstTowerPosition,
-            ONBOARDING_REACH_RADIUS.relay,
+            MYCELIUM_NETWORK_REACH.tower,
             'First tower relay reach',
           );
     case OnboardingStep.Disabled:
