@@ -3,6 +3,7 @@ import { TowerType, TOWER_STATS } from '../entities/tower';
 import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './input';
 import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
+import { RELEASE_WORLD_PLAYFIELD } from './releaseHudLayout';
 
 export interface TargetingModeButton {
   mode: TargetingMode;
@@ -367,11 +368,16 @@ export interface TowerSellButton {
   textColor: string;
 }
 
-export function getSellButtonPosition(anchorPosition: Vec2, towerPosition: Vec2): Vec2 {
-  const { width } = getSellButtonSize();
+export function getSellButtonPosition(_anchorPosition: Vec2, towerPosition: Vec2): Vec2 {
+  const { width, height } = getSellButtonSize();
+  const minX = RELEASE_WORLD_PLAYFIELD.x;
+  const minY = RELEASE_WORLD_PLAYFIELD.y;
+  const maxX = minX + RELEASE_WORLD_PLAYFIELD.width - width;
+  const maxY = minY + RELEASE_WORLD_PLAYFIELD.height - height;
+
   return {
-    x: towerPosition.x - width - 55,
-    y: towerPosition.y - 60,
+    x: Math.max(minX, Math.min(maxX, towerPosition.x - width - 55)),
+    y: Math.max(minY, Math.min(maxY, towerPosition.y - 60)),
   };
 }
 

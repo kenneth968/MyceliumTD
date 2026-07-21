@@ -49,6 +49,7 @@ const pauseSettings = Object.freeze({
 export const RELEASE_HUD_LAYOUT = Object.freeze({
   canvas: freezeRect({ x: 0, y: 0, width: 1280, height: 720 }),
   topBar: freezeRect({ x: 0, y: 0, width: 1280, height: 56 }),
+  waveProgress: freezeRect({ x: 1056, y: 8, width: 208, height: 40 }),
   playfield: freezeRect({ x: 0, y: 56, width: 960, height: 544 }),
   towerPanel: freezeRect({ x: 968, y: 72, width: 296, height: 360 }),
   wavePreview: freezeRect({ x: 968, y: 440, width: 296, height: 160 }),
@@ -66,6 +67,15 @@ export const RELEASE_CAMERA = Object.freeze({
   x: 400 + (RELEASE_HUD_LAYOUT.canvas.width - RELEASE_HUD_LAYOUT.playfield.width) / (2 * RELEASE_CAMERA_ZOOM),
   y: 300,
   zoom: RELEASE_CAMERA_ZOOM,
+});
+
+export const RELEASE_WORLD_PLAYFIELD = freezeRect({
+  x: (RELEASE_HUD_LAYOUT.playfield.x - RELEASE_HUD_LAYOUT.canvas.width / 2) / RELEASE_CAMERA.zoom
+    + RELEASE_CAMERA.x,
+  y: (RELEASE_HUD_LAYOUT.playfield.y - RELEASE_HUD_LAYOUT.canvas.height / 2) / RELEASE_CAMERA.zoom
+    + RELEASE_CAMERA.y,
+  width: RELEASE_HUD_LAYOUT.playfield.width / RELEASE_CAMERA.zoom,
+  height: RELEASE_HUD_LAYOUT.playfield.height / RELEASE_CAMERA.zoom,
 });
 
 export function rectsOverlap(a: Rect, b: Rect): boolean {

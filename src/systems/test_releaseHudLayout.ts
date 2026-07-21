@@ -25,7 +25,17 @@ function isContainedBy(inner: Rect, outer: Rect): boolean {
 }
 
 // Given the contractual fixed release canvas
-const { canvas, topBar, playfield, towerPanel, wavePreview, towerBar, startWaveButton, towerCards } = RELEASE_HUD_LAYOUT;
+const {
+  canvas,
+  topBar,
+  waveProgress,
+  playfield,
+  towerPanel,
+  wavePreview,
+  towerBar,
+  startWaveButton,
+  towerCards,
+} = RELEASE_HUD_LAYOUT;
 
 // Given endpoint labels whose anchors touch the playfield edges
 assert(clampPlayfieldLabelX(playfield.x, 28) === 28, 'START label is clamped fully inside the playfield');
@@ -43,6 +53,8 @@ const interactiveCardsOverlap = towerCards.some(card => rectsOverlap(card, start
 assert(canvas.width === 1280 && canvas.height === 720, 'release canvas is 1280x720');
 assert(!rectsOverlap(topBar, towerBar), 'top and tower bars do not overlap');
 assert(!rectsOverlap(towerPanel, wavePreview), 'tower and wave panels do not overlap');
+assert(isContainedBy(waveProgress, topBar), 'wave progress fits entirely inside the top bar');
+assert(!rectsOverlap(waveProgress, towerPanel), 'wave progress does not overlap the selected-tower panel');
 assert(towerCards.length === 6, 'layout contains six tower cards');
 assert(towerCards.every(card => isContainedBy(card, towerBar)), 'tower cards fit the tower bar');
 assert(isContainedBy(startWaveButton, towerBar), 'start-wave button fits the tower bar');

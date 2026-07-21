@@ -2098,12 +2098,16 @@ class Game {
         this.ctx.strokeStyle = '#FF4444';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(button.position.x, button.position.y, button.size.width, button.size.height);
-        
+
+        const [amountLabel, unitLabel] = formatNutrients(button.sellValue).split(' ');
+        const centerX = button.position.x + button.size.width / 2;
         this.ctx.fillStyle = '#fff';
-        this.ctx.font = 'bold 14px sans-serif';
+        this.ctx.font = 'bold 11px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`Sell ${formatNutrients(button.sellValue)}`, button.position.x + button.size.width / 2, button.position.y + button.size.height / 2);
+        this.ctx.fillText(`Sell ${amountLabel}`, centerX, button.position.y + 12);
+        this.ctx.font = '9px sans-serif';
+        this.ctx.fillText(unitLabel ?? 'Nutrients', centerX, button.position.y + 25);
     }
 
     private drawHUD(renderData: GameFrameRenderData): void {
@@ -2594,30 +2598,40 @@ class Game {
 
     private drawWaveProgress(progress: WaveProgressRenderData): void {
         if (progress.state === 'hidden') return;
-        
-        const x = CANVAS_WIDTH - 220;
-        const y = 20;
-        const width = 200;
-        const height = 30;
-        
+
+        const panel = RELEASE_HUD_LAYOUT.waveProgress;
+        const padding = 8;
+        const barX = panel.x + padding;
+        const barY = panel.y + 23;
+        const barWidth = 140;
+        const barHeight = 10;
+
+        this.ctx.save();
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(x - 10, y - 10, width + 20, height + 60);
-        
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = '16px sans-serif';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(progress.waveText, x, y + 10);
-        
-        this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(x, y + 25, width, height);
-        
-        const fillWidth = width * progress.progress;
-        this.ctx.fillStyle = '#4CAF50';
-        this.ctx.fillRect(x, y + 25, fillWidth, height);
-        
+        this.ctx.fillRect(panel.x, panel.y, panel.width, panel.height);
+
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px sans-serif';
-        this.ctx.fillText(`${progress.enemiesDefeated}/${progress.enemiesTotal}`, x, y + 55);
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'alphabetic';
+        this.ctx.fillText(progress.waveText, panel.x + padding, panel.y + 15);
+
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        const fillWidth = barWidth * progress.progress;
+        this.ctx.fillStyle = '#4CAF50';
+        this.ctx.fillRect(barX, barY, fillWidth, barHeight);
+
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = '11px sans-serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(
+            `${progress.enemiesDefeated}/${progress.enemiesTotal}`,
+            panel.x + panel.width - padding,
+            panel.y + 32,
+        );
+        this.ctx.restore();
     }
 
     private drawGameOverVictory(gov: GameOverVictoryRenderData): void {
