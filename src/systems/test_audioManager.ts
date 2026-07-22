@@ -47,6 +47,7 @@ class FakeAudio {
   playCalls = 0;
   pauseCalls = 0;
   rejectNextPlay = false;
+  private readonly deferredPlays: Promise<void>[] = [];
   private readonly listeners = new Map<string, Array<() => void>>();
 
   constructor(src: string) {
@@ -65,11 +66,19 @@ class FakeAudio {
 
   play(): Promise<void> {
     this.playCalls++;
+    const deferred = this.deferredPlays.shift();
+    if (deferred !== undefined) return deferred;
     if (this.rejectNextPlay) {
       this.rejectNextPlay = false;
       return Promise.reject(new Error('play rejected'));
     }
     return Promise.resolve();
+  }
+
+  deferNextPlay(): Readonly<{ reject: (error: Error) => void }> {
+    let rejectPlay = (_error: Error): void => {};
+    this.deferredPlays.push(new Promise<void>((_resolve, reject) => { rejectPlay = reject; }));
+    return Object.freeze({ reject: rejectPlay });
   }
 
   pause(): void {
@@ -228,6 +237,34 @@ async function runAudioIntegrationTest(): Promise<void> {
     // Then the second attempt succeeds and becomes current
     assertEqual(chantarelle.playCalls, callsBeforeRecovery + 2, 'trusted unlock retries rejected music');
     assertEqual(manager.getCurrentTrack(), MusicTrack.Chantarelle, 'successful retry becomes current');
+
+    // Given an older deferred attempt and a newer successful attempt on the same element
+    const staleAttempt = chantarelle.deferNextPlay();
+    manager.stop();
+    manager.playNormalTrack();
+    manager.pause();
+    manager.resume();
+    await Promise.resolve();
+
+    // When the older attempt rejects after the newer attempt succeeds
+    staleAttempt.reject(new Error('stale rejection'));
+    await Promise.resolve();
+
+    // Then the newer successful attempt remains current
+    assertEqual(manager.getCurrentTrack(), MusicTrack.Chantarelle, 'stale rejection cannot clear a newer successful attempt');
+
+    // Given an active outgoing track and a deferred incoming crossfade attempt
+    const rejectedCrossfade = lionsMane1.deferNextPlay();
+    const outgoingPausesBeforeMenu = chantarelle.pauseCalls;
+    manager.play(MusicTrack.LionsMane1);
+
+    // When the incoming attempt rejects and the dedicated menu route runs
+    rejectedCrossfade.reject(new Error('crossfade rejected'));
+    await Promise.resolve();
+    new BrowserGameAudio(manager).enterMenu();
+
+    // Then menu teardown still reaches and stops the outgoing track
+    assertEqual(chantarelle.pauseCalls, outgoingPausesBeforeMenu + 1, 'menu stops outgoing music after rejected crossfade');
 
     manager.ensureInitialized();
     assertEqual(FakeAudioContext.instances.length, 0, 'music initialization does not create a legacy sound context');

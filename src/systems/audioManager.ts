@@ -44,6 +44,7 @@ export class AudioFailureRegistry {
 /** Owns preloaded gameplay music elements, crossfades, and session volume values. */
 export class AudioManager {
   private readonly audioElements = new Map<MusicTrack, HTMLAudioElement>();
+  private readonly playbackAttempts = new Map<HTMLAudioElement, number>();
   private readonly failures = new AudioFailureRegistry();
   private currentTrack: MusicTrack | null = null;
   private fadingTrack: MusicTrack | null = null;
@@ -132,9 +133,9 @@ export class AudioManager {
   }
   resume(): void {
     this.playbackPaused = false;
-    for (const audio of this.getActiveAudios()) {
-      const track = this.getTrackForAudio(audio);
-      if (track !== null) this.startPlayback(track, audio);
+    const active = new Set(this.getActiveAudios());
+    for (const [track, audio] of this.audioElements) {
+      if (active.has(audio)) this.startPlayback(track, audio);
     }
   }
 
@@ -227,23 +228,22 @@ export class AudioManager {
     this.fadingTrack = null;
   }
   private startPlayback(track: MusicTrack, audio: HTMLAudioElement): void {
-    void audio.play().catch(error => this.handlePlayFailure(track, audio, error));
+    const attempt = (this.playbackAttempts.get(audio) ?? 0) + 1;
+    this.playbackAttempts.set(audio, attempt);
+    void audio.play().catch(error => this.handlePlayFailure(track, audio, attempt, error));
   }
-  private handlePlayFailure(track: MusicTrack, audio: HTMLAudioElement, error: unknown): void {
+  private handlePlayFailure(track: MusicTrack, audio: HTMLAudioElement, attempt: number, error: unknown): void {
+    if (this.playbackAttempts.get(audio) !== attempt) return;
     this.warnPlayFailure(track, error);
     if (this.getTrackAudio(this.currentTrack) !== audio) return;
     this.clearCrossfade();
     this.stopAudio(audio);
-    this.currentTrack = null;
+    const outgoing = this.getTrackAudio(this.fadingTrack);
+    this.currentTrack = this.fadingTrack;
     this.fadingTrack = null;
+    if (outgoing !== null) outgoing.volume = this.muted ? 0 : this.musicVolume;
     this.pendingTrack = track;
     this.playbackPaused = false;
-  }
-  private getTrackForAudio(audio: HTMLAudioElement): MusicTrack | null {
-    for (const [track, candidate] of this.audioElements) {
-      if (candidate === audio) return track;
-    }
-    return null;
   }
   private warnPlayFailure(track: MusicTrack | null, error: unknown): void {
     if (track !== null && this.failures.record(track)) console.warn(`Music unavailable: ${track}`, error);
