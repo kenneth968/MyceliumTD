@@ -93,12 +93,12 @@ function createAtlas(url: string): TowerSpriteAtlasDefinition {
 
 /** Packaged sprite atlas definitions for every playable tower type. */
 export const TOWER_SPRITE_ATLASES: Readonly<Record<TowerType, TowerSpriteAtlasDefinition>> = Object.freeze({
-  [TowerType.Sporecap]: createAtlas('/assets/sprites/towers/sporecap.png'),
-  [TowerType.ThornSniper]: createAtlas('/assets/sprites/towers/thorn-sniper.png'),
-  [TowerType.Puffball]: createAtlas('/assets/sprites/towers/puffball.png'),
-  [TowerType.Slimefungus]: createAtlas('/assets/sprites/towers/slimefungus.png'),
-  [TowerType.BulbShooter]: createAtlas('/assets/sprites/towers/bulb-shooter.png'),
-  [TowerType.LumenOracle]: createAtlas('/assets/sprites/towers/lumen-oracle.png'),
+  [TowerType.Sporecap]: createAtlas('./assets/sprites/towers/sporecap.png'),
+  [TowerType.ThornSniper]: createAtlas('./assets/sprites/towers/thorn-sniper.png'),
+  [TowerType.Puffball]: createAtlas('./assets/sprites/towers/puffball.png'),
+  [TowerType.Slimefungus]: createAtlas('./assets/sprites/towers/slimefungus.png'),
+  [TowerType.BulbShooter]: createAtlas('./assets/sprites/towers/bulb-shooter.png'),
+  [TowerType.LumenOracle]: createAtlas('./assets/sprites/towers/lumen-oracle.png'),
 });
 
 function getForm(stage: TowerStage, evolution: EvolutionPath | null): TowerSpriteForm {

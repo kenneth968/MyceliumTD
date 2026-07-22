@@ -1892,14 +1892,19 @@ class Game {
 
     private drawEnemyCount(ec: EnemyCountDisplayRenderData): void {
         if (!ec.isVisible) return;
-        
+
+        const { x, y } = ec.position;
+        const { width, height } = ec.size;
+        this.ctx.save();
+        this.ctx.globalAlpha = ec.enemyCount.opacity;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(CANVAS_WIDTH / 2 - 60, 75, 120, 30);
-        
+        this.ctx.fillRect(x, y, width, height);
+
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '16px sans-serif';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(ec.enemyCount.countText, CANVAS_WIDTH / 2, 95);
+        this.ctx.fillText(ec.enemyCount.countText, x + width / 2, y + height * 2 / 3);
+        this.ctx.restore();
     }
 
     private drawTowerPurchase(purchase: TowerPurchaseRenderData | null): void {

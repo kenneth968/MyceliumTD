@@ -17,17 +17,17 @@ export const SoundCue = Object.freeze({
 export type SoundCue = typeof SoundCue[keyof typeof SoundCue];
 
 export const SOUND_ASSET_URLS = Object.freeze({
-  [SoundCue.Place]: '/assets/sfx/place.mp3',
-  [SoundCue.NetworkBloom]: '/assets/sfx/network-bloom.mp3',
-  [SoundCue.Mature]: '/assets/sfx/mature.mp3',
-  [SoundCue.Evolve]: '/assets/sfx/evolve.mp3',
-  [SoundCue.LayerBreak]: '/assets/sfx/layer-break.mp3',
-  [SoundCue.TraitBreak]: '/assets/sfx/trait-break.mp3',
-  [SoundCue.SeedDetonate]: '/assets/sfx/seed-detonate.mp3',
-  [SoundCue.Leak]: '/assets/sfx/leak.mp3',
-  [SoundCue.WaveComplete]: '/assets/sfx/wave-complete.mp3',
-  [SoundCue.Victory]: '/assets/sfx/victory.mp3',
-  [SoundCue.Defeat]: '/assets/sfx/defeat.mp3',
+  [SoundCue.Place]: './assets/sfx/place.mp3',
+  [SoundCue.NetworkBloom]: './assets/sfx/network-bloom.mp3',
+  [SoundCue.Mature]: './assets/sfx/mature.mp3',
+  [SoundCue.Evolve]: './assets/sfx/evolve.mp3',
+  [SoundCue.LayerBreak]: './assets/sfx/layer-break.mp3',
+  [SoundCue.TraitBreak]: './assets/sfx/trait-break.mp3',
+  [SoundCue.SeedDetonate]: './assets/sfx/seed-detonate.mp3',
+  [SoundCue.Leak]: './assets/sfx/leak.mp3',
+  [SoundCue.WaveComplete]: './assets/sfx/wave-complete.mp3',
+  [SoundCue.Victory]: './assets/sfx/victory.mp3',
+  [SoundCue.Defeat]: './assets/sfx/defeat.mp3',
 } satisfies Record<SoundCue, string>);
 
 const SOUND_CUE_BY_EVENT = Object.freeze({

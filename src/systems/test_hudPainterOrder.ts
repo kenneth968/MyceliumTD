@@ -17,6 +17,9 @@ const mainSource = readFileSync(join(__dirname, '..', 'main.ts'), 'utf8');
 const drawHudStart = mainSource.indexOf('private drawHUD(renderData: GameFrameRenderData): void');
 const drawHudEnd = mainSource.indexOf('private isWaveButtonVisible()', drawHudStart);
 const drawHudSource = mainSource.slice(drawHudStart, drawHudEnd);
+const drawEnemyCountStart = mainSource.indexOf('private drawEnemyCount(', drawHudStart);
+const drawEnemyCountEnd = mainSource.indexOf('private drawTowerPurchase(', drawEnemyCountStart);
+const drawEnemyCountSource = mainSource.slice(drawEnemyCountStart, drawEnemyCountEnd);
 const drawWavePreviewStart = mainSource.indexOf('private drawWavePreview(', drawHudStart);
 const drawWavePreviewEnd = mainSource.indexOf('private drawTraitShape(', drawWavePreviewStart);
 const drawWavePreviewSource = mainSource.slice(drawWavePreviewStart, drawWavePreviewEnd);
@@ -57,6 +60,9 @@ assert(
   'wave preview drawing uses the shared release HUD rectangle',
 );
 assert(drawWavePreviewSource.includes('this.ctx.clip()'), 'wave preview drawing clips content to its rectangle');
+assert(drawEnemyCountSource.includes('ec.position'), 'enemy counter painter consumes the render-model position');
+assert(drawEnemyCountSource.includes('ec.size'), 'enemy counter painter consumes the render-model size');
+assert(drawEnemyCountSource.includes('ec.enemyCount.opacity'), 'enemy counter painter consumes the render-model opacity');
 assert(
   drawWavePreviewSource.includes('BUILD PHASE'),
   'intermission wave preview has an explicit phase cue',

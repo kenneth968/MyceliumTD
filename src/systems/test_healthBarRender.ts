@@ -223,6 +223,20 @@ function getHealthBarRenderDataTests() {
   assertEqual(data.isVisible, true, 'damaged visible');
   assertEqual(data.label, 'Elder Ward Moth', 'boss label');
   assert(data.position.y > 56, 'boss bar sits below the top HUD');
+  const bossBounds = {
+    left: data.position.x - data.width / 2,
+    right: data.position.x + data.width / 2,
+    top: data.position.y - data.height / 2,
+    bottom: data.position.y + data.height / 2,
+  };
+  const enemyCountBounds = { left: 20, right: 120, top: 75, bottom: 105 };
+  assert(
+    bossBounds.right <= enemyCountBounds.left
+      || bossBounds.left >= enemyCountBounds.right
+      || bossBounds.bottom <= enemyCountBounds.top
+      || bossBounds.top >= enemyCountBounds.bottom,
+    'boss bar does not overlap the enemy counter model bounds',
+  );
   assertEqual(data.enemyId, 2, 'enemy id');
   assertEqual(data.currentHp, 20, 'current hp');
   assertEqual(data.maxHp, 48, 'max hp');

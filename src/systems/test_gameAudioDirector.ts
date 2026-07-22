@@ -11,7 +11,8 @@ function assertEqual<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) throw new Error(`FAIL: ${message} (expected ${String(expected)}, got ${String(actual)})`);
 }
 
-assertEqual(getMusicTrackForWave(-1), null, 'menu has no gameplay track');
+assertEqual(getMusicTrackForWave(-2), null, 'invalid wave index has no gameplay track');
+assertEqual(getMusicTrackForWave(-1), MusicTrack.Chantarelle, 'initial build phase uses the opening track');
 for (let wave = 0; wave < 5; wave += 1) assertEqual(getMusicTrackForWave(wave), MusicTrack.Chantarelle, `wave ${wave + 1}`);
 for (let wave = 5; wave < 9; wave += 1) assertEqual(getMusicTrackForWave(wave), MusicTrack.LionsMane1, `wave ${wave + 1}`);
 assertEqual(getMusicTrackForWave(9), MusicTrack.LionsMane2, 'wave 10');
@@ -50,6 +51,7 @@ function enterMenu(director: GameAudioDirector): void {
 const music = new FakeMusic();
 const effects = new FakeEffects();
 const director = new GameAudioDirector(music, effects);
+director.update([], GameState.Playing, -1);
 director.update([], GameState.Playing, 0);
 director.update([], GameState.Playing, 4);
 director.update([], GameState.Playing, 5);
@@ -62,6 +64,17 @@ director.update([], GameState.Playing, 9);
 assertEqual(music.calls.slice(-2).join(','), 'pause,resume', 'pause and resume current track once');
 assertEqual(effects.pauseCalls, 1, 'pause reaches effects');
 assertEqual(effects.resumeCalls, 1, 'resume reaches effects');
+
+const idleMusic = new FakeMusic();
+const idleEffects = new FakeEffects();
+const idleDirector = new GameAudioDirector(idleMusic, idleEffects);
+idleDirector.update([], GameState.Playing, 0);
+idleDirector.update([], GameState.Paused, 0);
+idleDirector.update([], GameState.Idle, -1);
+assertEqual(idleMusic.calls.includes('resume'), false, 'paused-to-idle never resumes music');
+assertEqual(idleEffects.resumeCalls, 0, 'paused-to-idle never resumes active effects');
+assertEqual(idleMusic.calls.at(-1), 'stop', 'paused-to-idle stops music');
+assertEqual(idleEffects.stopCalls, 1, 'paused-to-idle retires every active effect');
 
 const victory: GameEvent = { type: 'victory', timestamp: 0, waveNumber: 10 };
 director.update([victory], GameState.Victory, 9);

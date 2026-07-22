@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { EvolutionEffect, EvolutionPath } from '../content/evolutionDefinitions';
 import { TowerType } from '../entities/tower';
 import { EnemyTrait } from '../entities/enemy';
@@ -38,7 +40,12 @@ for (const [event, cue] of eventCases) assertEqual(getSoundCuesForEvent(event).j
 assertEqual(getSoundCuesForEvent({ type: 'wave_started', timestamp: 0, waveNumber: 1 }).length, 0, 'non-critical event stays silent');
 assertEqual(Object.keys(SOUND_ASSET_URLS).length, Object.keys(SoundCue).length, 'every cue has an asset URL');
 assertEqual(new Set(Object.values(SOUND_ASSET_URLS)).size, Object.keys(SoundCue).length, 'cue URLs are unique');
-assert(Object.values(SOUND_ASSET_URLS).every(url => url.startsWith('/assets/sfx/') && url.endsWith('.mp3')), 'runtime cues use packaged MP3 files');
+for (const url of Object.values(SOUND_ASSET_URLS)) {
+  assert(url.startsWith('./assets/sfx/') && url.endsWith('.mp3'), 'runtime cues use public-relative packaged MP3 files');
+  const browserPath = new URL(url, 'http://localhost:8080/public/index.html').pathname;
+  assert(browserPath.startsWith('/public/assets/sfx/'), 'runtime cue resolves beneath the served public page');
+  assert(existsSync(join(process.cwd(), browserPath.slice(1))), `runtime cue exists at ${browserPath}`);
+}
 
 class FakeVoice implements SoundAssetVoice {
   readonly clones: FakeVoice[] = [];

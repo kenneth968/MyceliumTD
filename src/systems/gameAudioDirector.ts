@@ -21,7 +21,7 @@ export interface SoundEffectsPort {
 
 /** Resolves a zero-based wave index to the exact presentation-plan music band. */
 export function getMusicTrackForWave(waveIndex: number): MusicTrackValue | null {
-  if (waveIndex < 0) return null;
+  if (waveIndex < -1) return null;
   if (waveIndex <= 4) return MusicTrack.Chantarelle;
   if (waveIndex <= 8) return MusicTrack.LionsMane1;
   return MusicTrack.LionsMane2;
@@ -41,6 +41,15 @@ export class GameAudioDirector {
     for (const event of events) {
       for (const cue of getSoundCuesForEvent(event)) this.effects.play(cue);
     }
+    if (gameState === GameState.Idle) {
+      if (this.previousState !== GameState.Idle || !this.terminalStopped) {
+        this.music.stop();
+        this.effects.stop();
+      }
+      this.terminalStopped = true;
+      this.previousState = gameState;
+      return;
+    }
     if (gameState === GameState.Paused) {
       if (this.previousState !== GameState.Paused) {
         this.music.pause();
@@ -53,7 +62,7 @@ export class GameAudioDirector {
       this.music.resume();
       this.effects.resume();
     }
-    if (gameState === GameState.Victory || gameState === GameState.GameOver || gameState === GameState.Idle) {
+    if (gameState === GameState.Victory || gameState === GameState.GameOver) {
       if (!this.terminalStopped) this.music.stop();
       this.terminalStopped = true;
       this.previousState = gameState;
