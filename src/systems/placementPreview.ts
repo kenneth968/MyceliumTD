@@ -4,11 +4,7 @@ import { TowerType, TOWER_STATS } from '../entities/tower';
 import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './input';
 import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
 import { TargetingMode } from './targeting';
-
-export const ONBOARDING_REACH_RADIUS = Object.freeze({
-  kernel: 180,
-  relay: 160,
-});
+import { RELEASE_WORLD_PLAYFIELD } from './releaseHudLayout';
 
 export interface TargetingModeButton {
   mode: TargetingMode;
@@ -377,10 +373,24 @@ export interface TowerSellButton {
   textColor: string;
 }
 
-export function getSellButtonPosition(anchorPosition: Vec2, towerPosition: Vec2): Vec2 {
+export function getSellButtonPosition(_anchorPosition: Vec2, towerPosition: Vec2): Vec2 {
+  const { width, height } = getSellButtonSize();
+  const horizontalOffset = 55;
+  const minX = RELEASE_WORLD_PLAYFIELD.x;
+  const minY = RELEASE_WORLD_PLAYFIELD.y;
+  const maxX = minX + RELEASE_WORLD_PLAYFIELD.width - width;
+  const maxY = minY + RELEASE_WORLD_PLAYFIELD.height - height;
+  const preferredLeftX = towerPosition.x - width - horizontalOffset;
+  const preferredRightX = towerPosition.x + horizontalOffset;
+  const x = preferredLeftX >= minX
+    ? preferredLeftX
+    : preferredRightX <= maxX
+      ? preferredRightX
+      : Math.max(minX, Math.min(maxX, preferredLeftX));
+
   return {
-    x: towerPosition.x + 40,
-    y: towerPosition.y - 60,
+    x,
+    y: Math.max(minY, Math.min(maxY, towerPosition.y - 60)),
   };
 }
 

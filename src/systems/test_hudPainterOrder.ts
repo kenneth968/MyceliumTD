@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  paintOnboardingReach,
+  type OnboardingReachPainter,
+} from './onboardingRender';
+import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -57,5 +62,59 @@ assert(
   drawOnboardingSource.includes('projectOnboardingReach'),
   'concrete onboarding painting consumes the focused pure reach projection',
 );
+
+// Given a recording Canvas context and a reach crossing HUD boundaries
+const operations: string[] = [];
+const painter = {
+  strokeStyle: '',
+  fillStyle: '',
+  lineWidth: 0,
+  font: '',
+  textAlign: 'start',
+  textBaseline: 'alphabetic',
+  save: () => operations.push('save'),
+  restore: () => operations.push('restore'),
+  setLineDash: () => operations.push('dash'),
+  beginPath: () => operations.push('begin'),
+  rect: (x: number, y: number, width: number, height: number) => {
+    operations.push(`rect:${x},${y},${width},${height}`);
+  },
+  clip: () => operations.push('clip'),
+  arc: () => operations.push('arc'),
+  stroke: () => operations.push('stroke'),
+  fillText: () => operations.push('label'),
+} satisfies OnboardingReachPainter;
+
+// When the focused reach painter draws it
+paintOnboardingReach(
+  painter,
+  {
+    center: { x: 864, y: 216 },
+    radius: 192,
+    labelPosition: { x: 864, y: 418 },
+  },
+  {
+    center: { x: 720, y: 180 },
+    radius: 160,
+    label: 'Reach',
+    shape: 'circle',
+    lineStyle: 'dashed',
+    color: '#4ADE80',
+  },
+  RELEASE_HUD_LAYOUT.playfield,
+);
+
+// Then clipping wraps only the ring and is restored before its label
+const clipPosition = operations.indexOf('clip');
+const arcPosition = operations.indexOf('arc');
+const clippedRestorePosition = operations.indexOf('restore');
+const labelPosition = operations.indexOf('label');
+assert(
+  operations.includes('rect:0,56,960,544'),
+  'reach painter clips to the shared playfield rectangle',
+);
+assert(clipPosition < arcPosition, 'reach painter clips before drawing the ring');
+assert(arcPosition < clippedRestorePosition, 'reach painter restores after drawing the ring');
+assert(clippedRestorePosition < labelPosition, 'reach label draws after clip restoration');
 
 console.log('HUD painter order tests passed');

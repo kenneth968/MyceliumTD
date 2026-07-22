@@ -182,6 +182,18 @@ function paintKernel(ctx: CanvasRenderingContext2D, data: EnvironmentRenderData)
   ctx.restore();
 }
 
+function paintPathLabels(ctx: CanvasRenderingContext2D, data: EnvironmentRenderData): void {
+  ctx.save();
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const label of data.pathLabels) {
+    ctx.fillStyle = label.color;
+    ctx.fillText(label.text, label.position.x, label.position.y);
+  }
+  ctx.restore();
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unsupported environment layer: ${String(value)}`);
 }
@@ -211,6 +223,7 @@ export function paintEnvironment(
       case 'landmarks':
         paintEntrance(ctx, data);
         paintKernel(ctx, data);
+        paintPathLabels(ctx, data);
         break;
       default:
         assertNever(layer);

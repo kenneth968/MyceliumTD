@@ -12,7 +12,7 @@ import {
 } from './projectileRender';
 import { TOWER_STATS, TowerType, Tower, Projectile } from '../entities/tower';
 import { Enemy, StatusEffectType } from '../entities/enemy';
-import { PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './placementPreview';
+import { getTowerSellButton, PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './placementPreview';
 import { HealthBarRenderData } from './healthBarRender';
 import { WaveUIAnnouncementRenderData } from './waveAnnouncementRender';
 import { PauseMenuRenderData } from './pauseMenuRender';
@@ -22,7 +22,7 @@ import { TowerInfoPanelRenderData } from './towerInfoPanel';
 import { LivesMoneyDisplayRenderData } from './livesMoneyDisplayRender';
 import { EnemyCountDisplayRenderData } from './enemyCountDisplayRender';
 import { TargetingMode } from './targeting';
-import { TowerWithGrowth, getGrowthVisualTier, getGrowthVisualValue, getTotalSellValue } from './upgrade';
+import { TowerWithGrowth, getGrowthVisualTier, getGrowthVisualValue } from './upgrade';
 import { TowerPurchaseRenderData, getTowerPurchaseRenderData } from './towerPurchaseRender';
 import { MapSelectionRenderData } from './mapSelectionRender';
 import { RoundState } from './roundManager';
@@ -226,7 +226,8 @@ export class GameRenderer {
   ): OnboardingRenderData {
     const path = game.getPath();
     const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
-    const firstTowerPosition = game.getPlacedTowers()[0]?.tower.position ?? null;
+    const firstTowerPosition = game.getPlacedTowers()
+      .find(placed => placed.tower.id === state.firstTowerId)?.tower.position ?? null;
     return buildOnboardingRenderData({
       state,
       kernelPosition,
@@ -602,10 +603,9 @@ export class GameRenderer {
       return null;
     }
 
+    const sellButton = getTowerSellButton(placed.tower, { x: placed.x, y: placed.y });
     return {
-      position: { x: placed.x + 40, y: placed.y - 60 },
-      size: { width: 80, height: 36 },
-      sellValue: getTotalSellValue(placed.tower),
+      ...sellButton,
       isHovered: false,
     };
   }

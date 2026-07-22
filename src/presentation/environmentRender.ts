@@ -1,4 +1,5 @@
 import type { Vec2 } from '../utils/vec2';
+import { clampReleaseWorldLabelX } from '../systems/releaseHudLayout';
 import { VISUAL_THEME } from './visualTheme';
 
 export interface EnvironmentPathSource {
@@ -35,12 +36,19 @@ export interface EnvironmentEntrance {
   readonly direction: Readonly<Vec2>;
 }
 
+export interface EnvironmentPathLabel {
+  readonly text: 'START' | 'END';
+  readonly position: Readonly<Vec2>;
+  readonly color: string;
+}
+
 export interface EnvironmentRenderData {
   readonly background: string;
   readonly pathSegments: readonly EnvironmentPathSegment[];
   readonly roots: readonly EnvironmentRoot[];
   readonly mossPatches: readonly EnvironmentPatch[];
   readonly spores: readonly EnvironmentPatch[];
+  readonly pathLabels: readonly EnvironmentPathLabel[];
   readonly entrance: EnvironmentEntrance;
   readonly kernel: EnvironmentKernel;
 }
@@ -132,6 +140,33 @@ function getSpores(timestamp: number): EnvironmentPatch[] {
   });
 }
 
+function getPathLabels(
+  segments: readonly EnvironmentPathSegment[],
+): readonly EnvironmentPathLabel[] {
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+  if (first === undefined || last === undefined) return [];
+
+  return [
+    {
+      text: 'START',
+      position: {
+        x: clampReleaseWorldLabelX(first.from.x, 28),
+        y: first.from.y - 20,
+      },
+      color: VISUAL_THEME.mycelium,
+    },
+    {
+      text: 'END',
+      position: {
+        x: clampReleaseWorldLabelX(last.to.x, 22),
+        y: last.to.y - 20,
+      },
+      color: VISUAL_THEME.danger,
+    },
+  ];
+}
+
 export function getEnvironmentRenderData(
   pathSource: EnvironmentPathSource,
   kernelPosition: Readonly<Vec2>,
@@ -153,6 +188,7 @@ export function getEnvironmentRenderData(
     roots: getRoots(pathSegments),
     mossPatches: getMossPatches(pathSegments),
     spores: getSpores(timestamp),
+    pathLabels: getPathLabels(pathSegments),
     entrance: {
       position: { ...entrancePosition },
       direction: entranceDirection,

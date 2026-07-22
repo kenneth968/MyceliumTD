@@ -1,4 +1,5 @@
 import { getMapById } from '../systems/mapLevel';
+import { clampReleaseWorldLabelX } from '../systems/releaseHudLayout';
 import { getEnvironmentRenderData } from './environmentRender';
 import { ENVIRONMENT_LAYER_ORDER } from './environmentPainter';
 import { VISUAL_THEME } from './visualTheme';
@@ -62,6 +63,14 @@ test('Given identical frame inputs, when environment data is rebuilt, then decor
   const first = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
   const second = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
   return JSON.stringify(first) === JSON.stringify(second);
+});
+
+test('Given release path endpoints, when environment data is built, then endpoint labels stay inside the playfield', () => {
+  const data = getEnvironmentRenderData(getGardenPath(), { x: 800, y: 300 }, 1000);
+  const start = data.pathLabels.find(label => label.text === 'START');
+  const end = data.pathLabels.find(label => label.text === 'END');
+  return start?.position.x === clampReleaseWorldLabelX(0, 28)
+    && end?.position.x === clampReleaseWorldLabelX(800, 22);
 });
 
 test('Given the release hierarchy, when environment layers are painted, then mycelium stays beneath units', () =>

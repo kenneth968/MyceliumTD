@@ -1,4 +1,7 @@
 import {
+  clampPlayfieldLabelX,
+  clampReleaseWorldLabelX,
+  getPrimaryHotkeyLabel,
   getPauseSettingsControlAtPosition,
   getReleaseHudRegionAtPosition,
   RELEASE_HUD_LAYOUT,
@@ -22,7 +25,26 @@ function isContainedBy(inner: Rect, outer: Rect): boolean {
 }
 
 // Given the contractual fixed release canvas
-const { canvas, topBar, playfield, towerPanel, wavePreview, towerBar, startWaveButton, towerCards } = RELEASE_HUD_LAYOUT;
+const {
+  canvas,
+  topBar,
+  waveProgress,
+  playfield,
+  towerPanel,
+  wavePreview,
+  towerBar,
+  startWaveButton,
+  towerCards,
+} = RELEASE_HUD_LAYOUT;
+
+// Given endpoint labels whose anchors touch the playfield edges
+assert(clampPlayfieldLabelX(playfield.x, 28) === 28, 'START label is clamped fully inside the playfield');
+assert(clampPlayfieldLabelX(playfield.x + playfield.width, 22) === 938, 'END label is clamped fully inside the playfield');
+assert(clampPlayfieldLabelX(480, 28) === 480, 'interior path labels keep their authored anchor');
+assert(Math.abs(clampReleaseWorldLabelX(0, 28) - 28 / 1.2) < 0.001, 'START world anchor respects screen-space label width');
+assert(Math.abs(clampReleaseWorldLabelX(800, 22) - 938 / 1.2) < 0.001, 'END world anchor stays left of fixed HUD panels');
+assert(getPrimaryHotkeyLabel(true) === 'Start Game', 'menu legend describes the current primary action');
+assert(getPrimaryHotkeyLabel(false) === 'Start Wave', 'gameplay legend describes the current primary action');
 
 // When the named HUD regions and interactive siblings are compared
 const interactiveCardsOverlap = towerCards.some(card => rectsOverlap(card, startWaveButton));
@@ -31,6 +53,8 @@ const interactiveCardsOverlap = towerCards.some(card => rectsOverlap(card, start
 assert(canvas.width === 1280 && canvas.height === 720, 'release canvas is 1280x720');
 assert(!rectsOverlap(topBar, towerBar), 'top and tower bars do not overlap');
 assert(!rectsOverlap(towerPanel, wavePreview), 'tower and wave panels do not overlap');
+assert(isContainedBy(waveProgress, topBar), 'wave progress fits entirely inside the top bar');
+assert(!rectsOverlap(waveProgress, towerPanel), 'wave progress does not overlap the selected-tower panel');
 assert(towerCards.length === 6, 'layout contains six tower cards');
 assert(towerCards.every(card => isContainedBy(card, towerBar)), 'tower cards fit the tower bar');
 assert(isContainedBy(startWaveButton, towerBar), 'start-wave button fits the tower bar');
@@ -152,6 +176,10 @@ assert(
   /#hotkeyBar\s*\{[^}]*top:\s*8px;[^}]*left:\s*310px;[^}]*right:\s*232px;/s.test(shellHtml)
     && !/#hotkeyBar\s*\{[^}]*bottom:\s*-40px;/s.test(shellHtml),
   'persistent hotkey legend stays inside the open top-center viewport',
+);
+assert(
+  /<span id="primaryActionLabel">Start Game<\/span>/.test(shellHtml),
+  'browser shell starts with a context-correct primary action label',
 );
 assert(
   /<canvas[^>]*role="application"[^>]*aria-label="Mycelium TD game"[^>]*tabindex="0"/s.test(shellHtml),

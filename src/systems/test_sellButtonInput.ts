@@ -1,9 +1,15 @@
-import { getSellButtonAtPosition, getTowerSellButton, getSellButtonPosition, getSellButtonSize } from './placementPreview';
+import {
+  getSellButtonAtPosition,
+  getTowerSellButton,
+  getSellButtonPosition,
+  getSellButtonSize,
+} from './placementPreview';
 import { TowerWithGrowth, createTowerWithGrowth } from './upgrade';
 import { TowerType } from '../entities/tower';
 import { TargetingMode } from './targeting';
 import { Vec2 } from '../utils/vec2';
 import { PlacementState, createGameRunner } from './gameRunner';
+import { RELEASE_CAMERA, RELEASE_HUD_LAYOUT, RELEASE_WORLD_PLAYFIELD } from './releaseHudLayout';
 
 let testsPassed = 0;
 let testsFailed = 0;
@@ -41,9 +47,12 @@ console.log('--- getSellButtonPosition ---');
   const anchor: Vec2 = { x: 200, y: 200 };
   const towerPos: Vec2 = { x: 100, y: 100 };
   const result = getSellButtonPosition(anchor, towerPos);
-  
-  expectEqual(result.x, 140, 'x is tower x + 40');
-  expectEqual(result.y, 40, 'y is tower y - 60');
+
+  expectEqual(result.x, 155, 'x flips the sell button to the visible side of an edge tower');
+  expectTrue(
+    Math.abs(result.y - RELEASE_WORLD_PLAYFIELD.y) < 0.001,
+    'y clamps the sell button below the top HUD',
+  );
 }
 
 console.log('\n--- getSellButtonSize ---');
@@ -59,9 +68,54 @@ console.log('\n--- getSellButtonAtPosition ---');
   const tower = createMockTower();
   const position: Vec2 = { x: 100, y: 100 };
   const sellButton = getTowerSellButton(tower, position);
-  
-  const result = getSellButtonAtPosition(sellButton, 140, 40);
+
+  const result = getSellButtonAtPosition(
+    sellButton,
+    sellButton.position.x + sellButton.size.width / 2,
+    sellButton.position.y + sellButton.size.height / 2,
+  );
   expectTrue(result, 'click at button center is detected');
+}
+
+{
+  const towerPosition: Vec2 = { x: 0, y: RELEASE_WORLD_PLAYFIELD.y + 3 };
+  const sellButton = getTowerSellButton(createMockTower(), towerPosition);
+  const towerAnchorInsideButton = getSellButtonAtPosition(
+    sellButton,
+    towerPosition.x,
+    towerPosition.y,
+  );
+
+  expectTrue(!towerAnchorInsideButton, 'legal top-left tower anchor stays outside its sell target');
+}
+
+{
+  const tower = createMockTower();
+  const edgePositions: Vec2[] = [
+    { x: 0, y: 0 },
+    { x: 800, y: 0 },
+    { x: 0, y: 500 },
+    { x: 800, y: 500 },
+  ];
+
+  for (const position of edgePositions) {
+    const sellButton = getTowerSellButton(tower, position);
+    const screenLeft = (sellButton.position.x - RELEASE_CAMERA.x) * RELEASE_CAMERA.zoom
+      + RELEASE_HUD_LAYOUT.canvas.width / 2;
+    const screenTop = (sellButton.position.y - RELEASE_CAMERA.y) * RELEASE_CAMERA.zoom
+      + RELEASE_HUD_LAYOUT.canvas.height / 2;
+    const screenRight = screenLeft + sellButton.size.width * RELEASE_CAMERA.zoom;
+    const screenBottom = screenTop + sellButton.size.height * RELEASE_CAMERA.zoom;
+    const { playfield } = RELEASE_HUD_LAYOUT;
+
+    expectTrue(
+      screenLeft >= playfield.x
+        && screenTop >= playfield.y
+        && screenRight <= playfield.x + playfield.width
+        && screenBottom <= playfield.y + playfield.height,
+      `sell button at (${position.x}, ${position.y}) stays inside the visible playfield`,
+    );
+  }
 }
 
 {
@@ -87,10 +141,10 @@ console.log('\n--- getSellButtonAtPosition ---');
   const position: Vec2 = { x: 200, y: 200 };
   const sellButton = getTowerSellButton(tower, position);
   
-  expectTrue(getSellButtonAtPosition(sellButton, 240, 140), 'click in button bounds');
-  expectTrue(getSellButtonAtPosition(sellButton, 320, 140), 'click at right edge is in bounds');
-  expectTrue(!getSellButtonAtPosition(sellButton, 321, 140), 'click beyond right edge');
-  expectTrue(!getSellButtonAtPosition(sellButton, 240, 181), 'click beyond bottom edge');
+  expectTrue(getSellButtonAtPosition(sellButton, 105, 140), 'click in button bounds');
+  expectTrue(getSellButtonAtPosition(sellButton, 145, 140), 'click at right edge is in bounds');
+  expectTrue(!getSellButtonAtPosition(sellButton, 146, 140), 'click beyond right edge');
+  expectTrue(!getSellButtonAtPosition(sellButton, 105, 177), 'click beyond bottom edge');
 }
 
 console.log('\n--- edge cases ---');

@@ -1,5 +1,5 @@
 import { TowerType } from '../entities/tower';
-import type { Vec2 } from '../utils/vec2';
+import { vec2Distance, type Vec2 } from '../utils/vec2';
 import type { GameEvent } from './gameEvents';
 import {
   OnboardingEvent,
@@ -7,10 +7,12 @@ import {
   reduceOnboarding,
   type OnboardingState,
 } from './onboarding';
+import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 
 export type OnboardingIntegrationResult = Readonly<{
   state: OnboardingState;
   completionBloom: Readonly<Vec2> | null;
+  completionCause: 'connection' | null;
 }>;
 
 export type DrainedOnboardingEvents = OnboardingIntegrationResult & Readonly<{
@@ -36,16 +38,22 @@ export function integrateGameEventsWithOnboarding(
   events: readonly GameEvent[],
 ): OnboardingIntegrationResult {
   const event = findRelevantEvent(state, events);
-  if (event === null) return Object.freeze({ state, completionBloom: null });
+  if (event === null) {
+    return Object.freeze({ state, completionBloom: null, completionCause: null });
+  }
 
   const nextState = reduceOnboarding(state, {
     type: event.onboardingType,
     towerId: event.towerId ?? undefined,
+    towerPosition: event.towerPosition ?? undefined,
   });
   const completionBloom = event.position === null
     ? null
     : Object.freeze({ ...event.position });
-  return Object.freeze({ state: nextState, completionBloom });
+  const completionCause = event.onboardingType === OnboardingEvent.UsefulConnectionCreated
+    ? 'connection'
+    : null;
+  return Object.freeze({ state: nextState, completionBloom, completionCause });
 }
 
 export function drainGameEventsForOnboarding(
@@ -91,6 +99,7 @@ type RelevantEvent = Readonly<{
   onboardingType: OnboardingEvent;
   position: Readonly<Vec2> | null;
   towerId?: number;
+  towerPosition?: Readonly<Vec2>;
 }>;
 
 function findRelevantEvent(
@@ -115,6 +124,7 @@ function findRelevantEvent(
             onboardingType: OnboardingEvent.SporecapPlaced,
             position: null,
             towerId: placed.towerId,
+            towerPosition: placed.position,
           };
     }
     case OnboardingStep.StartFirstWave: {
@@ -134,11 +144,24 @@ function findRelevantEvent(
         : null;
     }
     case OnboardingStep.CreateConnection: {
+      const firstTowerPosition = state.firstTowerPosition;
       const connection = events.find((
         event,
       ): event is Extract<GameEvent, { type: 'network_connection_created' }> =>
         event.type === 'network_connection_created'
-          && event.sourceTowerId === state.firstTowerId,
+          && (
+            event.sourceTowerId === state.firstTowerId
+            || (
+              event.sourceTowerId === null
+              && firstTowerPosition !== null
+              && events.some(placed => (
+                placed.type === 'tower_placed'
+                && placed.towerId === event.towerId
+                && vec2Distance(firstTowerPosition, placed.position)
+                  <= MYCELIUM_NETWORK_REACH.tower
+              ))
+            )
+          ),
       );
       return connection === undefined
         ? null

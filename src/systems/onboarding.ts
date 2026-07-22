@@ -1,3 +1,5 @@
+import type { Vec2 } from '../utils/vec2';
+
 export const OnboardingStep = {
   Disabled: 'disabled',
   PlaceSporecap: 'place_sporecap',
@@ -40,9 +42,14 @@ export type OnboardingState = Readonly<{
   enabled: boolean;
   step: OnboardingStep;
   firstTowerId: number | null;
+  firstTowerPosition: Readonly<Vec2> | null;
 }>;
 
-type OnboardingTransition = Readonly<{ type: OnboardingEvent; towerId?: number }>;
+type OnboardingTransition = Readonly<{
+  type: OnboardingEvent;
+  towerId?: number;
+  towerPosition?: Readonly<Vec2>;
+}>;
 
 const PROMPTS: Partial<Record<OnboardingStep, string>> = {
   [OnboardingStep.PlaceSporecap]: 'Grow a Sporecap inside the glowing mycelium.',
@@ -56,6 +63,7 @@ export function createOnboardingState(enabled: boolean): OnboardingState {
     enabled,
     step: enabled ? OnboardingStep.PlaceSporecap : OnboardingStep.Disabled,
     firstTowerId: null,
+    firstTowerPosition: null,
   };
 }
 
@@ -66,7 +74,14 @@ export function reduceOnboarding(
   switch (event.type) {
     case OnboardingEvent.SporecapPlaced:
       return state.step === OnboardingStep.PlaceSporecap
-        ? { ...state, step: OnboardingStep.StartFirstWave, firstTowerId: event.towerId ?? null }
+        ? {
+            ...state,
+            step: OnboardingStep.StartFirstWave,
+            firstTowerId: event.towerId ?? null,
+            firstTowerPosition: event.towerPosition === undefined
+              ? null
+              : Object.freeze({ ...event.towerPosition }),
+          }
         : state;
     case OnboardingEvent.FirstWaveStarted:
       return state.step === OnboardingStep.StartFirstWave
@@ -87,7 +102,12 @@ export function reduceOnboarding(
     case OnboardingEvent.Skip:
       return { ...state, step: OnboardingStep.Complete };
     case OnboardingEvent.Replay:
-      return { enabled: true, step: OnboardingStep.PlaceSporecap, firstTowerId: null };
+      return {
+        enabled: true,
+        step: OnboardingStep.PlaceSporecap,
+        firstTowerId: null,
+        firstTowerPosition: null,
+      };
     default:
       return assertNever(event.type);
   }
