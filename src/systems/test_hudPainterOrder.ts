@@ -23,6 +23,9 @@ const drawWavePreviewSource = mainSource.slice(drawWavePreviewStart, drawWavePre
 const drawOnboardingStart = mainSource.indexOf('private drawOnboarding(', drawHudStart);
 const drawOnboardingEnd = mainSource.indexOf('private drawWavePreview(', drawOnboardingStart);
 const drawOnboardingSource = mainSource.slice(drawOnboardingStart, drawOnboardingEnd);
+const renderStart = mainSource.indexOf('private render(renderData: GameFrameRenderData): void');
+const renderEnd = mainSource.indexOf('private drawPlacementPreview(', renderStart);
+const renderSource = mainSource.slice(renderStart, renderEnd);
 const painterCalls = [
   'this.drawWaveAnnouncement',
   'this.drawWaveProgress',
@@ -54,6 +57,18 @@ assert(
   'wave preview drawing uses the shared release HUD rectangle',
 );
 assert(drawWavePreviewSource.includes('this.ctx.clip()'), 'wave preview drawing clips content to its rectangle');
+assert(
+  drawWavePreviewSource.includes('BUILD PHASE'),
+  'intermission wave preview has an explicit phase cue',
+);
+assert(
+  renderSource.indexOf('paintEnvironmentPathLabels') > renderSource.indexOf('paintCombatEffects'),
+  'path endpoint labels paint after combat effects so they remain readable',
+);
+assert(
+  renderSource.indexOf('paintEnvironmentPathLabels') > renderSource.indexOf('this.drawTowers'),
+  'path endpoint labels paint after towers so valid placements cannot obscure them',
+);
 assert(
   drawOnboardingSource.includes('this.renderer.getCamera().zoom'),
   'world-space onboarding reach scales with the active camera zoom',

@@ -152,7 +152,7 @@ function getPathLabels(
       text: 'START',
       position: {
         x: clampReleaseWorldLabelX(first.from.x, 28),
-        y: first.from.y - 20,
+        y: first.from.y - 34,
       },
       color: VISUAL_THEME.mycelium,
     },
@@ -160,7 +160,7 @@ function getPathLabels(
       text: 'END',
       position: {
         x: clampReleaseWorldLabelX(last.to.x, 22),
-        y: last.to.y - 20,
+        y: last.to.y - 44,
       },
       color: VISUAL_THEME.danger,
     },

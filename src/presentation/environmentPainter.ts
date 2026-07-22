@@ -182,12 +182,19 @@ function paintKernel(ctx: CanvasRenderingContext2D, data: EnvironmentRenderData)
   ctx.restore();
 }
 
-function paintPathLabels(ctx: CanvasRenderingContext2D, data: EnvironmentRenderData): void {
+export function paintEnvironmentPathLabels(
+  ctx: CanvasRenderingContext2D,
+  data: EnvironmentRenderData,
+): void {
   ctx.save();
   ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(4, 8, 12, 0.92)';
   for (const label of data.pathLabels) {
+    ctx.strokeText(label.text, label.position.x, label.position.y);
     ctx.fillStyle = label.color;
     ctx.fillText(label.text, label.position.x, label.position.y);
   }
@@ -223,7 +230,6 @@ export function paintEnvironment(
       case 'landmarks':
         paintEntrance(ctx, data);
         paintKernel(ctx, data);
-        paintPathLabels(ctx, data);
         break;
       default:
         assertNever(layer);

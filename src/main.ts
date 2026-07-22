@@ -44,6 +44,7 @@ import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from '
 import {
     getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
+    getHotkeyBarVisibility,
     getPrimaryHotkeyLabel,
     RELEASE_CAMERA,
     RELEASE_HUD_LAYOUT,
@@ -76,7 +77,7 @@ import {
     projectOnboardingReach,
     type OnboardingRenderData,
 } from './systems/onboardingRender';
-import { paintEnvironment } from './presentation/environmentPainter';
+import { paintEnvironment, paintEnvironmentPathLabels } from './presentation/environmentPainter';
 import { TowerSpriteImageCache } from './presentation/towerSpriteCache';
 import {
     paintTowerIdentity,
@@ -294,6 +295,15 @@ class Game {
     private updatePrimaryHotkeyLabel(): void {
         const label = document.getElementById('primaryActionLabel');
         if (label) label.textContent = getPrimaryHotkeyLabel(this.showingMenu);
+        this.updateHotkeyBarVisibility(this.game.getState());
+    }
+
+    private updateHotkeyBarVisibility(state: GameState): void {
+        const bar = document.getElementById('hotkeyBar');
+        if (!bar) return;
+        const isObscured = getHotkeyBarVisibility(this.showingMenu, state) === 'obscured';
+        bar.classList?.toggle('is-obscured', isObscured);
+        bar.setAttribute?.('aria-hidden', String(isObscured));
     }
 
     private runOnboardingCommand<T>(
@@ -767,6 +777,7 @@ class Game {
     private render(renderData: GameFrameRenderData): void {
         const waveIndex = this.game.getCurrentWaveIndex();
         const state = this.game.getState();
+        this.updateHotkeyBarVisibility(state);
 
         // Update particles
         const now = performance.now() / 1000;
@@ -823,6 +834,7 @@ class Game {
         });
         this.drawTowerSelection(renderData.towerSelection);
         this.drawSellButton(renderData.sellButton);
+        paintEnvironmentPathLabels(this.ctx, renderData.environment);
         
         this.ctx.restore();
 
@@ -1238,9 +1250,13 @@ class Game {
 
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#9EE6C8';
+        this.ctx.font = 'bold 10px sans-serif';
+        this.ctx.fillText('BUILD PHASE', contentX, panel.y + 12, contentWidth);
+
         this.ctx.fillStyle = '#FFD700';
         this.ctx.font = 'bold 13px sans-serif';
-        this.ctx.fillText(`Wave ${preview.waveNumber}: ${preview.name}`, contentX, panel.y + 16, contentWidth);
+        this.ctx.fillText(`Wave ${preview.waveNumber}: ${preview.name}`, contentX, panel.y + 29, contentWidth);
 
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.font = '11px sans-serif';
@@ -1248,7 +1264,7 @@ class Game {
             this.ctx.fillText(
                 `${enemy.count}× ${enemy.displayName}`,
                 contentX,
-                panel.y + 36 + index * 15,
+                panel.y + 48 + index * 15,
                 contentWidth,
             );
         });

@@ -119,6 +119,18 @@ export function getPrimaryHotkeyLabel(isMenuVisible: boolean): 'Start Game' | 'S
   return isMenuVisible ? 'Start Game' : 'Start Wave';
 }
 
+export type HotkeyBarVisibility = 'visible' | 'obscured';
+
+export function getHotkeyBarVisibility(
+  isMenuVisible: boolean,
+  gameState: 'idle' | 'playing' | 'paused' | 'game_over' | 'victory',
+): HotkeyBarVisibility {
+  if (isMenuVisible) return 'visible';
+  return gameState === 'paused' || gameState === 'game_over' || gameState === 'victory'
+    ? 'obscured'
+    : 'visible';
+}
+
 export function getPauseSettingsControlAtPosition(x: number, y: number): PauseSettingsControl | null {
   const point = { x, y };
   const { musicVolumeBar, soundVolumeBar, muteButton, speedButtons } = RELEASE_HUD_LAYOUT.pauseSettings;
