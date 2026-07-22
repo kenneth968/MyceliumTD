@@ -46,6 +46,7 @@ class FakeAudio {
   currentTime = 0;
   playCalls = 0;
   pauseCalls = 0;
+  rejectNextPlay = false;
   private readonly listeners = new Map<string, Array<() => void>>();
 
   constructor(src: string) {
@@ -64,6 +65,10 @@ class FakeAudio {
 
   play(): Promise<void> {
     this.playCalls++;
+    if (this.rejectNextPlay) {
+      this.rejectNextPlay = false;
+      return Promise.reject(new Error('play rejected'));
+    }
     return Promise.resolve();
   }
 
@@ -155,7 +160,7 @@ function getFakeAudio(filename: string): FakeAudio {
   return audio;
 }
 
-function runAudioIntegrationTest(): void {
+async function runAudioIntegrationTest(): Promise<void> {
   const originalAudio = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const originalAudioContext = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
@@ -207,6 +212,23 @@ function runAudioIntegrationTest(): void {
     manager.playNormalTrack();
     assertEqual(chantarelle.playCalls, 2, 'same track resumes after pause');
 
+    // Given a trusted music request whose browser play attempt is rejected once
+    manager.stop();
+    chantarelle.rejectNextPlay = true;
+    const callsBeforeRecovery = chantarelle.playCalls;
+
+    // When the failed promise settles and a later trusted unlock retries the request
+    manager.playNormalTrack();
+    await Promise.resolve();
+    await Promise.resolve();
+    assertEqual(manager.getCurrentTrack(), null, 'rejected play is not cached as the current track');
+    manager.ensureInitialized();
+    await Promise.resolve();
+
+    // Then the second attempt succeeds and becomes current
+    assertEqual(chantarelle.playCalls, callsBeforeRecovery + 2, 'trusted unlock retries rejected music');
+    assertEqual(manager.getCurrentTrack(), MusicTrack.Chantarelle, 'successful retry becomes current');
+
     manager.ensureInitialized();
     assertEqual(FakeAudioContext.instances.length, 0, 'music initialization does not create a legacy sound context');
     manager.setSoundVolume(0.5);
@@ -245,6 +267,4 @@ function runAudioIntegrationTest(): void {
   }
 }
 
-runAudioIntegrationTest();
-
-console.log('audio manager tests passed');
+void runAudioIntegrationTest().then(() => console.log('audio manager tests passed'));

@@ -18,18 +18,33 @@ assertEqual(getMusicTrackForWave(9), MusicTrack.LionsMane2, 'wave 10');
 
 class FakeMusic implements AudioManagerPort {
   readonly calls: string[] = [];
-  play(track: string): void { this.calls.push(`play:${track}`); }
+  acceptsPlay = true;
+  private currentTrack: MusicTrack | null = null;
+  play(track: MusicTrack): void {
+    this.calls.push(`play:${track}`);
+    if (this.acceptsPlay) this.currentTrack = track;
+  }
   pause(): void { this.calls.push('pause'); }
   resume(): void { this.calls.push('resume'); }
-  stop(): void { this.calls.push('stop'); }
+  stop(): void { this.calls.push('stop'); this.currentTrack = null; }
+  getCurrentTrack(): MusicTrack | null { return this.currentTrack; }
 }
 class FakeEffects implements SoundEffectsPort {
   readonly cues: string[] = [];
   pauseCalls = 0;
   resumeCalls = 0;
+  stopCalls = 0;
   play(cue: string): void { this.cues.push(cue); }
   pause(): void { this.pauseCalls += 1; }
   resume(): void { this.resumeCalls += 1; }
+  stop(): void { this.stopCalls += 1; }
+}
+
+function enterMenu(director: GameAudioDirector): void {
+  if (!('enterMenu' in director) || typeof director.enterMenu !== 'function') {
+    throw new Error('FAIL: director exposes a dedicated menu lifecycle route');
+  }
+  director.enterMenu();
 }
 
 const music = new FakeMusic();
@@ -55,10 +70,37 @@ assertEqual(music.calls.at(-1), 'stop', 'victory stops gameplay music');
 director.update([], GameState.Victory, 9);
 assertEqual(music.calls.filter(call => call === 'stop').length, 1, 'terminal state stops once');
 const menuMusic = new FakeMusic();
-const menuDirector = new GameAudioDirector(menuMusic, new FakeEffects());
+const menuEffects = new FakeEffects();
+const menuDirector = new GameAudioDirector(menuMusic, menuEffects);
 menuDirector.update([], GameState.Playing, 0);
-menuDirector.update([], GameState.Idle, -1);
+enterMenu(menuDirector);
 assertEqual(menuMusic.calls.at(-1), 'stop', 'menu transition stops gameplay music');
+assertEqual(menuEffects.stopCalls, 1, 'playing-to-menu retires every active effect');
+
+const pausedMenuMusic = new FakeMusic();
+const pausedMenuEffects = new FakeEffects();
+const pausedMenuDirector = new GameAudioDirector(pausedMenuMusic, pausedMenuEffects);
+pausedMenuDirector.update([], GameState.Playing, 0);
+pausedMenuDirector.update([], GameState.Paused, 0);
+enterMenu(pausedMenuDirector);
+assertEqual(pausedMenuMusic.calls.at(-1), 'stop', 'paused-to-menu stops music without resuming it');
+assertEqual(pausedMenuMusic.calls.includes('resume'), false, 'paused-to-menu never resumes music');
+assertEqual(pausedMenuEffects.resumeCalls, 0, 'paused-to-menu never resumes active effects');
+assertEqual(pausedMenuEffects.stopCalls, 1, 'paused-to-menu retires every active effect');
+
+// Given a music port that rejects the desired track once
+const recoveryMusic = new FakeMusic();
+recoveryMusic.acceptsPlay = false;
+const recoveryDirector = new GameAudioDirector(recoveryMusic, new FakeEffects());
+recoveryDirector.update([], GameState.Playing, 0);
+
+// When the next normal update reaches an available music port
+recoveryMusic.acceptsPlay = true;
+recoveryDirector.update([], GameState.Playing, 0);
+
+// Then the desired track is requested again and becomes current
+assertEqual(recoveryMusic.calls.join(','), 'play:chantarelle,play:chantarelle', 'normal update retries rejected music');
+assertEqual(recoveryMusic.getCurrentTrack(), MusicTrack.Chantarelle, 'successful normal-update retry becomes current');
 
 let drainCount = 0;
 let combatBatch: readonly GameEvent[] | null = null;

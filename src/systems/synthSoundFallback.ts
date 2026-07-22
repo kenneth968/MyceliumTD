@@ -31,6 +31,7 @@ export interface SoundFallback {
   unlock(): void;
   pause(): void;
   resume(): void;
+  stop(): void;
   play(cue: SoundCueValue): void;
 }
 
@@ -42,13 +43,15 @@ export interface AudioContextLifecycle {
 }
 
 export interface ScheduledTone {
-  schedule(tone: ToneProfile, volume: number, now: number): void;
+  schedule(tone: ToneProfile, volume: number, now: number, onEnded: () => void): void;
   cleanup(): void;
 }
 
 type ScheduledToneFactory = () => ScheduledTone;
 
 export class SynthAudioRuntime {
+  private readonly active = new Set<ScheduledTone>();
+
   constructor(
     private readonly lifecycle: AudioContextLifecycle,
     private readonly createTone: ScheduledToneFactory,
@@ -61,18 +64,33 @@ export class SynthAudioRuntime {
 
   playTone(tone: ToneProfile, volume: number, now: number): void {
     const scheduled = this.createTone();
+    let active = true;
+    const retire = (): void => {
+      if (!active) return;
+      active = false;
+      this.active.delete(scheduled);
+      scheduled.cleanup();
+    };
+    this.active.add(scheduled);
     try {
-      scheduled.schedule(tone, volume, now);
+      scheduled.schedule(tone, volume, now, retire);
     } catch (error) {
-      try { scheduled.cleanup(); } catch {}
+      try { retire(); } catch {}
       throw error;
+    }
+  }
+
+  stopAll(): void {
+    for (const scheduled of [...this.active]) {
+      this.active.delete(scheduled);
+      scheduled.cleanup();
     }
   }
 }
 
 type SoundRuntime = Pick<
   SynthAudioRuntime,
-  'state' | 'currentTime' | 'resume' | 'suspend' | 'playTone'
+  'state' | 'currentTime' | 'resume' | 'suspend' | 'playTone' | 'stopAll'
 >;
 type AudioRuntimeFactory = () => SoundRuntime | null;
 
@@ -85,7 +103,7 @@ class BrowserScheduledTone implements ScheduledTone {
     private readonly destination: AudioDestinationNode,
   ) {}
 
-  schedule(tone: ToneProfile, volume: number, now: number): void {
+  schedule(tone: ToneProfile, volume: number, now: number, onEnded: () => void): void {
     const start = now + tone.delayMs / 1000;
     const end = start + tone.durationMs / 1000;
     this.oscillator.type = tone.oscillator;
@@ -96,7 +114,7 @@ class BrowserScheduledTone implements ScheduledTone {
     this.gain.gain.exponentialRampToValueAtTime(0.0001, end);
     this.oscillator.connect(this.gain);
     this.gain.connect(this.destination);
-    this.oscillator.addEventListener('ended', () => this.cleanup(), { once: true });
+    this.oscillator.addEventListener('ended', onEnded, { once: true });
     this.oscillator.start(start);
     this.oscillator.stop(end);
   }
@@ -104,6 +122,7 @@ class BrowserScheduledTone implements ScheduledTone {
   cleanup(): void {
     if (this.cleaned) return;
     this.cleaned = true;
+    try { this.oscillator.stop(); } catch {}
     try { this.oscillator.disconnect(); } catch {}
     try { this.gain.disconnect(); } catch {}
   }
@@ -164,6 +183,14 @@ export class SynthSoundFallback implements SoundFallback {
       if (this.runtime?.state === 'suspended') {
         void this.runtime.resume().catch(error => this.warnOnce(error));
       }
+    } catch (error) {
+      this.warnOnce(error);
+    }
+  }
+
+  stop(): void {
+    try {
+      this.runtime?.stopAll();
     } catch (error) {
       this.warnOnce(error);
     }

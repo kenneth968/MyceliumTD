@@ -68,6 +68,20 @@ export class SoundEffects {
       this.startVoice(voice, ownership);
     }
   }
+  stop(): void {
+    this.paused = false;
+    this.fallback.stop();
+    for (const [voice, ownership] of [...this.active]) {
+      try {
+        voice.pause();
+        voice.reset();
+      } catch (error) {
+        this.retireFailedVoice(ownership, error, false);
+      } finally {
+        ownership.retire();
+      }
+    }
+  }
 
   /** Starts an independent voice for the cue or its matching synthesis profile. */
   play(cue: SoundCueValue): void {

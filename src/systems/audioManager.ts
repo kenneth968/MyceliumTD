@@ -50,6 +50,7 @@ export class AudioManager {
   private crossfadeInterval: number | null = null;
   private initialized = false;
   private muted = false;
+  private playbackPaused = false;
   private pendingTrack: MusicTrack | null = null;
   private musicVolume: number;
   private soundVolume: number;
@@ -82,12 +83,10 @@ export class AudioManager {
   }
 
   ensureInitialized(): void {
-    if (!this.initialized) {
-      this.init();
-      const pending = this.pendingTrack;
-      this.pendingTrack = null;
-      if (pending !== null) this.play(pending);
-    }
+    if (!this.initialized) this.init();
+    const pending = this.pendingTrack;
+    this.pendingTrack = null;
+    if (pending !== null) this.play(pending);
   }
 
   play(track: MusicTrack): void {
@@ -97,7 +96,7 @@ export class AudioManager {
     }
     if (this.currentTrack === track && this.fadingTrack === null) {
       const current = this.audioElements.get(track);
-      if (current !== undefined) void current.play().catch(error => this.warnPlayFailure(track, error));
+      if (current !== undefined && this.playbackPaused) this.startPlayback(track, current);
       return;
     }
     const incoming = this.audioElements.get(track);
@@ -107,9 +106,11 @@ export class AudioManager {
     const outgoing = this.getTrackAudio(this.currentTrack);
     this.fadingTrack = this.currentTrack;
     this.currentTrack = track;
+    this.pendingTrack = null;
+    this.playbackPaused = false;
     incoming.currentTime = 0;
     incoming.volume = 0;
-    void incoming.play().catch(error => this.warnPlayFailure(track, error));
+    this.startPlayback(track, incoming);
     this.beginCrossfade(incoming, outgoing);
   }
 
@@ -122,12 +123,18 @@ export class AudioManager {
     this.currentTrack = null;
     this.fadingTrack = null;
     this.pendingTrack = null;
+    this.playbackPaused = false;
   }
 
-  pause(): void { for (const audio of this.getActiveAudios()) audio.pause(); }
+  pause(): void {
+    this.playbackPaused = true;
+    for (const audio of this.getActiveAudios()) audio.pause();
+  }
   resume(): void {
+    this.playbackPaused = false;
     for (const audio of this.getActiveAudios()) {
-      void audio.play().catch(error => this.warnPlayFailure(this.currentTrack, error));
+      const track = this.getTrackForAudio(audio);
+      if (track !== null) this.startPlayback(track, audio);
     }
   }
 
@@ -218,6 +225,25 @@ export class AudioManager {
     const stale = this.getTrackAudio(this.fadingTrack);
     if (stale !== null) this.stopAudio(stale);
     this.fadingTrack = null;
+  }
+  private startPlayback(track: MusicTrack, audio: HTMLAudioElement): void {
+    void audio.play().catch(error => this.handlePlayFailure(track, audio, error));
+  }
+  private handlePlayFailure(track: MusicTrack, audio: HTMLAudioElement, error: unknown): void {
+    this.warnPlayFailure(track, error);
+    if (this.getTrackAudio(this.currentTrack) !== audio) return;
+    this.clearCrossfade();
+    this.stopAudio(audio);
+    this.currentTrack = null;
+    this.fadingTrack = null;
+    this.pendingTrack = track;
+    this.playbackPaused = false;
+  }
+  private getTrackForAudio(audio: HTMLAudioElement): MusicTrack | null {
+    for (const [track, candidate] of this.audioElements) {
+      if (candidate === audio) return track;
+    }
+    return null;
   }
   private warnPlayFailure(track: MusicTrack | null, error: unknown): void {
     if (track !== null && this.failures.record(track)) console.warn(`Music unavailable: ${track}`, error);

@@ -74,10 +74,12 @@ class FakeFallback implements SoundFallback {
   unlockCalls = 0;
   pauseCalls = 0;
   resumeCalls = 0;
+  stopCalls = 0;
   setVolume(value: number): void { this.volume = value; }
   unlock(): void { this.unlockCalls += 1; }
   pause(): void { this.pauseCalls += 1; }
   resume(): void { this.resumeCalls += 1; }
+  stop(): void { this.stopCalls += 1; }
   play(cue: string): void { this.cues.push(cue); }
 }
 
@@ -117,6 +119,9 @@ async function runPlaybackTests(): Promise<void> {
     await Promise.resolve();
     assertEqual(firstPlaceClone?.playCalls, 2, 'resume restarts active asset voices');
     assertEqual(fallback.resumeCalls, 1, 'resume reaches synthesis context');
+    effects.stop();
+    assertEqual(firstPlaceClone?.pauseCalls, 2, 'stop pauses active asset voices');
+    assertEqual(fallback.stopCalls, 1, 'stop retires synthesized fallback voices');
     firstPlaceClone?.finish();
     secondPlaceClone?.finish();
     effects.pause();
@@ -211,10 +216,14 @@ async function runSynthLifecycleTests(): Promise<void> {
     await Promise.resolve();
     assertEqual(lifecycle.resumeCalls, 2, 'resume restarts the same synthesis context');
 
+    fallback.play(SoundCue.Place);
+    fallback.stop();
+    assertEqual(tone.cleanupCalls, 1, 'stop cleans every active synthesized voice');
+
     tone.throwOnSchedule = true;
     fallback.play(SoundCue.Place);
     fallback.play(SoundCue.Place);
-    assertEqual(tone.cleanupCalls, 2, 'every partial node scheduling failure is cleaned up');
+    assertEqual(tone.cleanupCalls, 3, 'every partial node scheduling failure is cleaned up');
     assertEqual(warnings.length, 2, 'node failures warn once at fallback scope without escaping');
 
     for (const node of ['oscillator', 'gain']) {

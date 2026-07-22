@@ -9,12 +9,14 @@ export interface AudioManagerPort {
   pause(): void;
   resume(): void;
   stop(): void;
+  getCurrentTrack(): MusicTrackValue | null;
 }
 
 export interface SoundEffectsPort {
   play(cue: SoundCueValue): void;
   pause(): void;
   resume(): void;
+  stop(): void;
 }
 
 /** Resolves a zero-based wave index to the exact presentation-plan music band. */
@@ -26,7 +28,6 @@ export function getMusicTrackForWave(waveIndex: number): MusicTrackValue | null 
 }
 
 export class GameAudioDirector {
-  private currentTrack: MusicTrackValue | null = null;
   private previousState: GameState = GameState.Idle;
   private terminalStopped = false;
 
@@ -55,17 +56,20 @@ export class GameAudioDirector {
     if (gameState === GameState.Victory || gameState === GameState.GameOver || gameState === GameState.Idle) {
       if (!this.terminalStopped) this.music.stop();
       this.terminalStopped = true;
-      this.currentTrack = null;
       this.previousState = gameState;
       return;
     }
     this.terminalStopped = false;
     const nextTrack = getMusicTrackForWave(waveIndex);
-    if (nextTrack !== null && nextTrack !== this.currentTrack) {
-      this.music.play(nextTrack);
-      this.currentTrack = nextTrack;
-    }
+    if (nextTrack !== null && nextTrack !== this.music.getCurrentTrack()) this.music.play(nextTrack);
     this.previousState = gameState;
+  }
+
+  enterMenu(): void {
+    this.music.stop();
+    this.effects.stop();
+    this.terminalStopped = true;
+    this.previousState = GameState.Idle;
   }
 }
 
@@ -86,7 +90,7 @@ export class BrowserGameAudio {
   getSoundVolume(): number { return this.effects.getVolume(); }
   toggleMute(): boolean { return this.music.toggleMute(); }
   isMuted(): boolean { return this.music.isMuted(); }
-  enterMenu(): void { this.director.update([], GameState.Idle, -1); }
+  enterMenu(): void { this.director.enterMenu(); }
 }
 
 export function createGameAudioDirector(): BrowserGameAudio {
