@@ -1,6 +1,10 @@
 import { getMapById } from '../systems/mapLevel';
 import { clampReleaseWorldLabelX } from '../systems/releaseHudLayout';
-import { getEnvironmentRenderData } from './environmentRender';
+import {
+  getEnvironmentRenderData,
+  getEnvironmentSporeX,
+  getEnvironmentSporeY,
+} from './environmentRender';
 import { ENVIRONMENT_LAYER_ORDER } from './environmentPainter';
 import { VISUAL_THEME } from './visualTheme';
 
@@ -63,6 +67,46 @@ test('Given identical frame inputs, when environment data is rebuilt, then decor
   const first = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
   const second = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
   return JSON.stringify(first) === JSON.stringify(second);
+});
+
+test('Given the same path identity, when consecutive frames are built, then static geometry is reused', () => {
+  const gardenPath = getGardenPath();
+  const first = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
+  const second = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1400);
+  return first.pathSegments === second.pathSegments
+    && first.roots === second.roots
+    && first.mossPatches === second.mossPatches
+    && first.spores === second.spores
+    && first.pathLabels === second.pathLabels
+    && first.entrance === second.entrance;
+});
+
+test('Given reused ambient spores, when time advances, then spore drift and Kernel pulse still animate', () => {
+  const gardenPath = getGardenPath();
+  const first = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
+  const second = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1800);
+  const spore = first.spores[0];
+  if (spore === undefined) return false;
+  return first.kernel.pulse !== second.kernel.pulse
+    && getEnvironmentSporeX(spore, first.animationTimestamp)
+      !== getEnvironmentSporeX(spore, second.animationTimestamp)
+    && getEnvironmentSporeY(spore, first.animationTimestamp)
+      !== getEnvironmentSporeY(spore, second.animationTimestamp);
+});
+
+test('Given a different path identity, when the next frame is built, then cached geometry is invalidated', () => {
+  const gardenPath = getGardenPath();
+  const forestPath = getMapById('forest_loop');
+  if (forestPath === undefined) {
+    throw new Error('Forest Loop test fixture is unavailable');
+  }
+  const garden = getEnvironmentRenderData(gardenPath, { x: 800, y: 300 }, 1000);
+  const forest = getEnvironmentRenderData(forestPath, { x: 800, y: 250 }, 1000);
+  return garden.pathSegments !== forest.pathSegments
+    && garden.roots !== forest.roots
+    && garden.mossPatches !== forest.mossPatches
+    && garden.pathLabels !== forest.pathLabels
+    && garden.entrance !== forest.entrance;
 });
 
 test('Given release path endpoints, when environment data is built, then endpoint labels stay inside the playfield', () => {

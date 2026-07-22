@@ -1,4 +1,8 @@
-import type { EnvironmentRenderData } from './environmentRender';
+import {
+  getEnvironmentSporeX,
+  getEnvironmentSporeY,
+  type EnvironmentRenderData,
+} from './environmentRender';
 import { VISUAL_THEME } from './visualTheme';
 
 export const ENVIRONMENT_LAYER_ORDER = Object.freeze([
@@ -79,7 +83,13 @@ function paintRootsAndMoss(ctx: CanvasRenderingContext2D, data: EnvironmentRende
     ctx.globalAlpha = spore.opacity;
     ctx.fillStyle = VISUAL_THEME.mycelium;
     ctx.beginPath();
-    ctx.arc(spore.position.x, spore.position.y, spore.radius, 0, Math.PI * 2);
+    ctx.arc(
+      getEnvironmentSporeX(spore, data.animationTimestamp),
+      getEnvironmentSporeY(spore, data.animationTimestamp),
+      spore.radius,
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
     ctx.restore();
   }

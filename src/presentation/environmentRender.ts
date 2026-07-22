@@ -25,6 +25,13 @@ export interface EnvironmentPatch {
   readonly opacity: number;
 }
 
+export interface EnvironmentSpore {
+  readonly origin: Readonly<Vec2>;
+  readonly phase: number;
+  readonly radius: number;
+  readonly opacity: number;
+}
+
 export interface EnvironmentKernel {
   readonly position: Readonly<Vec2>;
   readonly radius: number;
@@ -47,11 +54,26 @@ export interface EnvironmentRenderData {
   readonly pathSegments: readonly EnvironmentPathSegment[];
   readonly roots: readonly EnvironmentRoot[];
   readonly mossPatches: readonly EnvironmentPatch[];
-  readonly spores: readonly EnvironmentPatch[];
+  readonly spores: readonly EnvironmentSpore[];
+  readonly animationTimestamp: number;
   readonly pathLabels: readonly EnvironmentPathLabel[];
   readonly entrance: EnvironmentEntrance;
   readonly kernel: EnvironmentKernel;
 }
+
+interface StaticEnvironmentRenderData {
+  readonly pathSegments: readonly EnvironmentPathSegment[];
+  readonly roots: readonly EnvironmentRoot[];
+  readonly mossPatches: readonly EnvironmentPatch[];
+  readonly pathLabels: readonly EnvironmentPathLabel[];
+  readonly entrance: EnvironmentEntrance | undefined;
+}
+
+interface EnvironmentGeometryCache {
+  readonly pathSource: EnvironmentPathSource;
+  readonly data: StaticEnvironmentRenderData;
+}
+let geometryCache: EnvironmentGeometryCache | undefined;
 
 function seededUnit(seed: number): number {
   const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
@@ -122,22 +144,29 @@ function getMossPatches(segments: readonly EnvironmentPathSegment[]): Environmen
     });
 }
 
-function getSpores(timestamp: number): EnvironmentPatch[] {
+function getSpores(): readonly EnvironmentSpore[] {
   const count = Math.min(30, VISUAL_THEME.maxAmbientSpores);
-  const seconds = timestamp / 1000;
-  return Array.from({ length: count }, (_, index) => {
-    const xSeed = seededUnit(index * 41 + 3);
-    const ySeed = seededUnit(index * 41 + 11);
+  return Object.freeze(Array.from({ length: count }, (_, index) => {
     const phase = seededUnit(index * 41 + 29) * Math.PI * 2;
-    return {
-      position: {
-        x: 24 + xSeed * 912 + Math.sin(seconds * 0.35 + phase) * 5,
-        y: 70 + ySeed * 500 + Math.cos(seconds * 0.25 + phase) * 4,
-      },
+    return Object.freeze({
+      origin: Object.freeze({
+        x: 24 + seededUnit(index * 41 + 3) * 912,
+        y: 70 + seededUnit(index * 41 + 11) * 500,
+      }),
+      phase,
       radius: 0.8 + seededUnit(index * 41 + 17) * 1.8,
       opacity: 0.12 + seededUnit(index * 41 + 23) * 0.22,
-    };
-  });
+    });
+  }));
+}
+const AMBIENT_SPORES = getSpores();
+
+export function getEnvironmentSporeX(spore: EnvironmentSpore, timestamp: number): number {
+  return spore.origin.x + Math.sin(timestamp / 1000 * 0.35 + spore.phase) * 5;
+}
+
+export function getEnvironmentSporeY(spore: EnvironmentSpore, timestamp: number): number {
+  return spore.origin.y + Math.cos(timestamp / 1000 * 0.25 + spore.phase) * 4;
 }
 
 function getPathLabels(
@@ -167,31 +196,50 @@ function getPathLabels(
   ];
 }
 
+function getStaticEnvironmentRenderData(
+  pathSource: EnvironmentPathSource,
+): StaticEnvironmentRenderData {
+  if (geometryCache?.pathSource === pathSource) return geometryCache.data;
+
+  const pathSegments = getPathSegments(pathSource.getPoints());
+  const firstSegment = pathSegments[0];
+  const data: StaticEnvironmentRenderData = {
+    pathSegments,
+    roots: getRoots(pathSegments),
+    mossPatches: getMossPatches(pathSegments),
+    pathLabels: getPathLabels(pathSegments),
+    entrance: firstSegment === undefined
+      ? undefined
+      : {
+          position: firstSegment.from,
+          direction: {
+            x: firstSegment.to.x - firstSegment.from.x,
+            y: firstSegment.to.y - firstSegment.from.y,
+          },
+        },
+  };
+  geometryCache = { pathSource, data };
+  return data;
+}
+
 export function getEnvironmentRenderData(
   pathSource: EnvironmentPathSource,
   kernelPosition: Readonly<Vec2>,
   timestamp: number,
 ): EnvironmentRenderData {
-  const pathSegments = getPathSegments(pathSource.getPoints());
-  const firstSegment = pathSegments[0];
-  const entrancePosition = firstSegment?.from ?? kernelPosition;
-  const entranceDirection = firstSegment === undefined
-    ? { x: 1, y: 0 }
-    : {
-        x: firstSegment.to.x - firstSegment.from.x,
-        y: firstSegment.to.y - firstSegment.from.y,
-      };
+  const staticData = getStaticEnvironmentRenderData(pathSource);
 
   return {
     background: VISUAL_THEME.background,
-    pathSegments,
-    roots: getRoots(pathSegments),
-    mossPatches: getMossPatches(pathSegments),
-    spores: getSpores(timestamp),
-    pathLabels: getPathLabels(pathSegments),
-    entrance: {
-      position: { ...entrancePosition },
-      direction: entranceDirection,
+    pathSegments: staticData.pathSegments,
+    roots: staticData.roots,
+    mossPatches: staticData.mossPatches,
+    spores: AMBIENT_SPORES,
+    animationTimestamp: timestamp,
+    pathLabels: staticData.pathLabels,
+    entrance: staticData.entrance ?? {
+      position: { ...kernelPosition },
+      direction: { x: 1, y: 0 },
     },
     kernel: {
       position: { ...kernelPosition },
