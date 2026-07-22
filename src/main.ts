@@ -2,7 +2,7 @@ import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed } from '.
 import { RoundState } from './systems/roundManager';
 import { createWaveControls, getStartWaveButtonRect, getStartWaveLabel, WaveControls } from './systems/waveControls';
 import { GameRenderer, GameFrameRenderData, createGameRenderer } from './systems/gameRenderer';
-import { GameLoop, createGameLoop } from './systems/gameLoop';
+import { GameEventType, GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
@@ -44,6 +44,13 @@ import {
     PlaytestMetricsLifecycle,
     exposePlaytestSummaryInDevelopment,
 } from './systems/playtestMetrics';
+import {
+    PerformanceBudgetMonitor,
+    createPerformanceOverlayData,
+    exposePerformanceBudgetInDevelopment,
+    isPerformanceBudgetDevelopmentEnabled,
+    shouldTogglePerformanceOverlay,
+} from './systems/performanceBudget';
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 import {
@@ -97,6 +104,7 @@ import { paintCombatEffects } from './presentation/combatEffectPainter';
 import { paintNetworkConnections } from './presentation/networkPainter';
 import { paintProjectiles } from './presentation/projectilePainter';
 import { paintWorldEffects } from './presentation/worldEffectPainter';
+import { paintPerformanceBudgetOverlay } from './presentation/performanceBudgetOverlayPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
@@ -120,6 +128,9 @@ class Game {
     private playtestMetrics: PlaytestMetricsCoordinator;
     private playtestRunNumber: number = 0;
     private combatEffects: CombatEffectPool;
+    private performanceBudget: PerformanceBudgetMonitor;
+    private performanceBudgetDevelopmentEnabled: boolean;
+    private performanceOverlayVisible: boolean = false;
     private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
     private lastRenderTime: number = 0;
@@ -151,8 +162,16 @@ class Game {
             },
         );
         this.combatEffects = new CombatEffectPool();
+        this.performanceBudget = new PerformanceBudgetMonitor();
+        this.performanceBudgetDevelopmentEnabled = isPerformanceBudgetDevelopmentEnabled(window.location);
+        this.loop.setEventCallback(event => {
+            if (event.type === GameEventType.Tick) {
+                this.recordPerformanceFrame(event.timestamp, event.data === true);
+            }
+        });
         this.towerSpriteCache = new TowerSpriteImageCache();
         exposePlaytestSummaryInDevelopment(window, () => this.playtestMetrics.toJson());
+        exposePerformanceBudgetInDevelopment(window, () => this.performanceBudget.getReport());
 
         this.setupEventListeners();
         this.renderer.setCamera(RELEASE_CAMERA);
@@ -371,6 +390,21 @@ class Game {
         this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         window.addEventListener('keydown', this.onKeyDown.bind(this));
+        document.addEventListener('visibilitychange', () => {
+            const paused = this.loop.isPausedState() || this.game.getState() === GameState.Paused;
+            this.recordPerformanceFrame(performance.now(), paused);
+        });
+    }
+
+    private recordPerformanceFrame(timestampMilliseconds: number, paused: boolean): void {
+        const effects = this.combatEffects.getBudgetData();
+        this.performanceBudget.recordFrame({
+            timestampMilliseconds,
+            paused,
+            hidden: document.hidden,
+            activeParticles: effects.activeParticles,
+            activeTransientEffects: effects.activeTransientEffects,
+        });
     }
 
     private screenToWorld(screenX: number, screenY: number): Vec2 {
@@ -640,6 +674,11 @@ class Game {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
+        if (shouldTogglePerformanceOverlay(e, this.performanceBudgetDevelopmentEnabled)) {
+            e.preventDefault();
+            this.performanceOverlayVisible = !this.performanceOverlayVisible;
+            return;
+        }
         this.audio.unlock();
         const layer = getActiveUiLayer(this.getUiGateState());
 
@@ -867,6 +906,12 @@ class Game {
 
         paintBossHealthBars(this.ctx, renderData.healthBars);
         this.drawHUD(renderData);
+        if (this.performanceBudgetDevelopmentEnabled && this.performanceOverlayVisible) {
+            paintPerformanceBudgetOverlay(
+                this.ctx,
+                createPerformanceOverlayData(this.performanceBudget.getReport()),
+            );
+        }
     }
 
     private drawPlacementPreview(

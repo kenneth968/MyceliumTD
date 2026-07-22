@@ -1,4 +1,5 @@
 import type { GameEvent } from '../systems/gameEvents';
+import { EffectPriority } from '../systems/performanceBudget';
 import type { Vec2 } from '../utils/vec2';
 import { VISUAL_THEME } from './visualTheme';
 import {
@@ -25,6 +26,7 @@ import {
   type MutableTransientSlot,
   type NetworkPulseTrigger,
 } from './combatEffectPoolView';
+import { EffectAdmissionCursor, getEffectPriority } from './effectAdmission';
 
 const RELEASED_EVENT_TOWER_POSITIONS: readonly CombatEffectTowerPosition[] = Object.freeze([]);
 
@@ -84,8 +86,8 @@ export class CombatEffectPool implements RuntimeImpactWriter {
   private readonly transients = Array.from({ length: VISUAL_THEME.maxTransientEffects }, createTransientSlot);
   private readonly eventCommand = createCombatEffectCommandBuffer();
   private readonly eventContext = createCombatEffectContextBuffer();
-  private particleCursor = 0;
-  private transientAdmissionSequence = 0;
+  private readonly particleAdmissions = new EffectAdmissionCursor();
+  private readonly transientAdmissions = new EffectAdmissionCursor();
 
   /** Writes one semantic impact directly into reusable slots. */
   addImpact(input: ImpactEffectInput): void {
@@ -99,6 +101,7 @@ export class CombatEffectPool implements RuntimeImpactWriter {
 
   /** Queues an onboarding completion bloom at the borrowed position. */
   addCelebration(position: Readonly<Vec2>): void {
+    this.eventCommand.kind = 'tower_evolved';
     this.eventCommand.x = position.x;
     this.eventCommand.y = position.y;
     emitCelebration(this.eventCommand, this);
@@ -157,8 +160,8 @@ export class CombatEffectPool implements RuntimeImpactWriter {
   clear(): void {
     for (const slot of this.particles) slot.active = false;
     for (const slot of this.transients) slot.active = false;
-    this.particleCursor = 0;
-    this.transientAdmissionSequence = 0;
+    this.particleAdmissions.reset();
+    this.transientAdmissions.reset();
   }
 
   /** Returns the pool-owned particle view, stable for the pool lifetime. */
@@ -188,6 +191,7 @@ export class CombatEffectPool implements RuntimeImpactWriter {
   /** Internal writer hook that fills fixed particle slots without temporary effect graphs. */
   emitParticles(command: CombatEffectCommandBuffer, spec: RuntimeParticleSpec): void {
     const count = Math.min(VISUAL_THEME.maxImpactParticles, spec.maxCount, Math.max(0, Math.round(command.intensity)));
+    const priority = getEffectPriority(command.kind);
     let randomState = (Math.trunc(command.seed) >>> 0) || 1;
     for (let index = 0; index < count; index++) {
       randomState = (Math.imul(randomState, 1_664_525) + 1_013_904_223) >>> 0;
@@ -196,8 +200,8 @@ export class CombatEffectPool implements RuntimeImpactWriter {
       const speedJitter = randomState / 4_294_967_296;
       const angle = Math.PI * 2 * index / Math.max(1, count) + (angleJitter - 0.5) * 0.35;
       const speed = spec.speed * (0.7 + speedJitter * 0.5);
-      const slot = this.particles[this.particleCursor];
-      this.particleCursor = (this.particleCursor + 1) % this.particles.length;
+      const slot = this.particleAdmissions.admit(this.particles, priority);
+      if (slot === null) break;
       const sizeState = (Math.imul(randomState, 1_664_525) + 1_013_904_223) >>> 0;
       const durationState = (Math.imul(sizeState, 1_664_525) + 1_013_904_223) >>> 0;
       slot.active = true;
@@ -217,7 +221,8 @@ export class CombatEffectPool implements RuntimeImpactWriter {
 
   /** Internal writer hook that fills one fixed transient slot. */
   emitOverlay(command: CombatEffectCommandBuffer, spec: RuntimeOverlaySpec): void {
-    const slot = this.nextTransientSlot();
+    const slot = this.transientAdmissions.admit(this.transients, getEffectPriority(command.kind));
+    if (slot === null) return;
     slot.active = true;
     slot.kind = spec.kind;
     slot.x = command.x;
@@ -234,7 +239,8 @@ export class CombatEffectPool implements RuntimeImpactWriter {
 
   private writeNetworkPulse(fromId: number | null, toId: number): void {
     const existing = this.findNetworkPulse(fromId, toId);
-    const slot = existing ?? this.nextTransientSlot();
+    const slot = existing ?? this.transientAdmissions.admit(this.transients, EffectPriority.Standard);
+    if (slot === null) return;
     slot.active = true;
     slot.kind = 'network_pulse';
     slot.remainingMs = 420;
@@ -242,7 +248,7 @@ export class CombatEffectPool implements RuntimeImpactWriter {
     slot.fromId = fromId;
     slot.toId = toId;
     slot.ageMs = 0;
-    if (existing !== undefined) this.markTransientNewest(slot);
+    if (existing !== undefined) this.transientAdmissions.refresh(slot);
   }
 
   private findNetworkPulse(fromId: number | null, toId: number): MutableTransientSlot | undefined {
@@ -252,19 +258,4 @@ export class CombatEffectPool implements RuntimeImpactWriter {
     return undefined;
   }
 
-  private nextTransientSlot(): MutableTransientSlot {
-    let slot = this.transients[0];
-    for (let index = 1; index < this.transients.length; index++) {
-      const candidate = this.transients[index];
-      if (!candidate.active || candidate.admissionSequence < slot.admissionSequence) slot = candidate;
-      if (!slot.active) break;
-    }
-    this.markTransientNewest(slot);
-    return slot;
-  }
-
-  private markTransientNewest(slot: MutableTransientSlot): void {
-    this.transientAdmissionSequence++;
-    slot.admissionSequence = this.transientAdmissionSequence;
-  }
 }

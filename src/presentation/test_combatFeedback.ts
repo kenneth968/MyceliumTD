@@ -95,8 +95,11 @@ assert(pool.getParticleSlots() === particleStorage, 'particle storage is reused'
 assert(pool.getTransientSlots() === transientStorage, 'transient storage is reused');
 assert(particleStorage.every((slot, index) => slot === particleSlotIdentities[index]), 'particle slot identities survive a Wave-10-like burst');
 assert(transientStorage.every((slot, index) => slot === transientSlotIdentities[index]), 'transient slot identities survive a Wave-10-like burst');
-assert(pool.getActiveNetworkPulseCount() === 1, 'duplicate participating links refresh one pulse');
-const pulseSlot = transientStorage.find(slot => slot.active && slot.kind === 'network_pulse');
+const duplicatePulsePool = new CombatEffectPool();
+duplicatePulsePool.addNetworkPulse({ fromId: 1, toId: 2 });
+duplicatePulsePool.addNetworkPulse({ fromId: 1, toId: 2 });
+assert(duplicatePulsePool.getActiveNetworkPulseCount() === 1, 'duplicate participating links refresh one pulse');
+const pulseSlot = duplicatePulsePool.getTransientSlots().find(slot => slot.active && slot.kind === 'network_pulse');
 if (pulseSlot === undefined) throw new Error('Assertion failed: active network pulse slot exists');
 assert(isNetworkPulseForLink(pulseSlot, 1, 2), 'pulse belongs to its participating link');
 assert(!isNetworkPulseForLink(pulseSlot, null, 2), 'pulse excludes a different source link');
@@ -120,6 +123,52 @@ const refreshedPulse = wrappedPool.getTransientSlots().find(slot => isNetworkPul
 assert(refreshedPulse !== undefined, 'refresh protects the newest logical effect from wrap eviction');
 wrappedPool.update(0.421);
 assert(wrappedPool.getActiveNetworkPulseCount() === 0, 'refreshed pulse still expires once its duration elapses');
+
+// Given a transient pool filled with combat-critical Evolution blooms
+const criticalTransientPool = new CombatEffectPool();
+for (let index = 0; index < VISUAL_THEME.maxTransientEffects; index++) {
+  criticalTransientPool.addImpact({
+    type: 'tower_evolved',
+    position,
+    intensity: 0,
+    seed: index,
+  });
+}
+
+// When a lower-priority network pulse requests admission
+criticalTransientPool.addNetworkPulse({ fromId: 20, toId: 30 });
+
+// Then the critical pool remains intact and the network pulse is skipped
+assert(criticalTransientPool.getActiveNetworkPulseCount() === 0, 'network pulse does not evict critical transients');
+assert(
+  criticalTransientPool.getTransientSlots().every(slot => slot.active && slot.kind === 'growth_bloom'),
+  'critical Evolution blooms remain protected at the transient cap',
+);
+
+// Given a particle pool filled with combat-critical layer-break fragments
+const criticalParticlePool = new CombatEffectPool();
+for (let index = 0; index < Math.ceil(VISUAL_THEME.maxParticles / VISUAL_THEME.maxImpactParticles); index++) {
+  criticalParticlePool.addImpact({
+    type: 'layer_broken',
+    position,
+    intensity: VISUAL_THEME.maxImpactParticles,
+    seed: index,
+  });
+}
+
+// When lower-priority strike sparks request admission
+criticalParticlePool.addImpact({
+  type: 'enemy_struck',
+  position,
+  intensity: VISUAL_THEME.maxImpactParticles,
+  seed: 999,
+});
+
+// Then every admitted particle remains a combat-critical layer fragment
+assert(
+  criticalParticlePool.getParticleSlots().every(slot => slot.active && slot.kind === 'shell_fragment'),
+  'standard strike particles do not evict critical layer-break fragments',
+);
 
 const admissionPool = new CombatEffectPool();
 admissionPool.addNetworkPulse({ fromId: 5, toId: 9 });

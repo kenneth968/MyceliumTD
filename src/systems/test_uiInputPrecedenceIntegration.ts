@@ -19,6 +19,7 @@ const windowListeners = new Map<string, EventListenerOrEventListenerObject>();
 const canvasListeners = new Map<string, EventListenerOrEventListenerObject>();
 
 const fakeWindow = {
+  location: { hostname: 'example.com', search: '' },
   addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
     windowListeners.set(type, listener);
   },
@@ -67,9 +68,12 @@ function invoke(listener: EventListenerOrEventListenerObject | undefined, event:
   else listener.handleEvent(event);
 }
 
-function pressKey(key: string): void {
+function pressKey(key: string, shiftKey: boolean = false): void {
   const event = new Event('keydown');
-  Object.defineProperty(event, 'key', { value: key });
+  Object.defineProperties(event, {
+    key: { value: key },
+    shiftKey: { value: shiftKey },
+  });
   invoke(windowListeners.get('keydown'), event);
 }
 
@@ -133,7 +137,11 @@ let forcedTowerInfoPanel: ReturnType<GameRunner['getTowerInfoPanelRenderData']> 
 Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
 Object.defineProperty(globalThis, 'document', {
   configurable: true,
-  value: { getElementById: (): object => fakeCanvas },
+  value: {
+    hidden: false,
+    getElementById: (): object => fakeCanvas,
+    addEventListener(): void {},
+  },
 });
 Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: (): number => 1 });
 Object.defineProperty(globalThis, 'Audio', { configurable: true, value: FakeAudio });
@@ -250,6 +258,18 @@ try {
   pressKey('s');
   pressKey('F2');
   assertEqual(speedCalls, 1, 'speed hotkey becomes available after Skip');
+  pressKey('F3', true);
+  assertEqual(speedCalls, 2, 'Shift+F3 preserves shipped speed routing outside the opted-in development gate');
+
+  fakeWindow.location.hostname = 'localhost';
+  fakeWindow.location.search = '?performanceBudget=1';
+  createRunningGame();
+  pressKey('s');
+  speedCalls = 0;
+  pressKey('F3', true);
+  assertEqual(speedCalls, 0, 'opted-in Shift+F3 toggles diagnostics without changing game speed');
+  fakeWindow.location.hostname = 'example.com';
+  fakeWindow.location.search = '';
 
   createRunningGame();
   showMapCalls = 0;
