@@ -164,11 +164,13 @@ class Game {
         this.combatEffects = new CombatEffectPool();
         this.performanceBudget = new PerformanceBudgetMonitor();
         this.performanceBudgetDevelopmentEnabled = isPerformanceBudgetDevelopmentEnabled(window.location);
-        this.loop.setEventCallback(event => {
-            if (event.type === GameEventType.Tick) {
-                this.recordPerformanceFrame(event.timestamp, event.data === true);
-            }
-        });
+        if (this.performanceBudgetDevelopmentEnabled) {
+            this.loop.setEventCallback(event => {
+                if (event.type === GameEventType.Tick) {
+                    this.recordPerformanceFrame(event.timestamp, event.data === true);
+                }
+            });
+        }
         this.towerSpriteCache = new TowerSpriteImageCache();
         exposePlaytestSummaryInDevelopment(window, () => this.playtestMetrics.toJson());
         exposePerformanceBudgetInDevelopment(window, () => this.performanceBudget.getReport());
@@ -272,6 +274,7 @@ class Game {
     private startReleaseRun(): void {
         this.clearOnboardingCompletionNotice();
         this.playtestMetrics.startRun();
+        if (this.performanceBudgetDevelopmentEnabled) this.performanceBudget.reset();
         this.game.reset();
         if (!this.game.setMap(RELEASE_MAP_ID)) {
             throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
@@ -390,10 +393,12 @@ class Game {
         this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         window.addEventListener('keydown', this.onKeyDown.bind(this));
-        document.addEventListener('visibilitychange', () => {
-            const paused = this.loop.isPausedState() || this.game.getState() === GameState.Paused;
-            this.recordPerformanceFrame(performance.now(), paused);
-        });
+        if (this.performanceBudgetDevelopmentEnabled) {
+            document.addEventListener('visibilitychange', () => {
+                const paused = this.loop.isPausedState() || this.game.getState() === GameState.Paused;
+                this.recordPerformanceFrame(performance.now(), paused);
+            });
+        }
     }
 
     private recordPerformanceFrame(timestampMilliseconds: number, paused: boolean): void {
@@ -676,7 +681,9 @@ class Game {
     private onKeyDown(e: KeyboardEvent): void {
         if (shouldTogglePerformanceOverlay(e, this.performanceBudgetDevelopmentEnabled)) {
             e.preventDefault();
-            this.performanceOverlayVisible = !this.performanceOverlayVisible;
+            const willShowOverlay = !this.performanceOverlayVisible;
+            if (willShowOverlay) this.performanceBudget.reset();
+            this.performanceOverlayVisible = willShowOverlay;
             return;
         }
         this.audio.unlock();
@@ -819,6 +826,7 @@ class Game {
         }
         this.audio.enterMenu();
         this.playtestMetrics.restartRun(restartingTerminalRun);
+        if (this.performanceBudgetDevelopmentEnabled) this.performanceBudget.reset();
         this.game.reset();
         this.game.start();
         this.combatEffects.clear();
@@ -833,6 +841,7 @@ class Game {
         this.onboardingEntranceStartedAt = null;
         this.updatePrimaryHotkeyLabel();
         this.loop.stop();
+        if (this.performanceBudgetDevelopmentEnabled) this.performanceBudget.reset();
         this.game.reset();
         this.audio.enterMenu();
         this.combatEffects.clear();

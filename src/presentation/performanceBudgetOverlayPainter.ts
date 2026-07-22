@@ -15,7 +15,7 @@ export function createPerformanceOverlayRows(data: PerformanceOverlayData): read
     `10s average  ${data.averageFps.toFixed(1)}`,
     `Particles    ${data.activeParticles} / ${data.peakParticles} peak`,
     `Effects      ${data.activeTransientEffects} / ${data.peakTransientEffects} peak`,
-    `Budget       ${data.passes ? 'PASS' : 'FAIL'}`,
+    `Budget       ${data.passes ? 'PASS' : data.isFullWindowReady ? 'FAIL' : 'FAIL (warming)'}`,
   ];
 }
 

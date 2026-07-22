@@ -13,6 +13,7 @@ export type PerformanceBudgetReport = Readonly<{
   currentFps: number;
   averageFps: number;
   hasSustainedDrop: boolean;
+  isFullWindowReady: boolean;
   sampleCount: number;
   sampleDurationMilliseconds: number;
   activeParticles: number;
@@ -93,9 +94,15 @@ function getTrailingWindow(frameDurations: readonly number[]): readonly number[]
 export function evaluatePerformanceBudget(
   frameDurations: readonly number[],
   effectCounts: PerformanceEffectCounts = EMPTY_EFFECT_COUNTS,
+  eligibleSampleDurationMilliseconds: number = frameDurations.reduce(
+    (sum, duration) => duration > 0 ? sum + duration : sum,
+    0,
+  ),
 ): PerformanceBudgetReport {
   const window = getTrailingWindow(frameDurations);
   const totalDuration = window.reduce((sum, duration) => sum + duration, 0);
+  const isFullWindowReady = eligibleSampleDurationMilliseconds
+    >= RELEASE_PERFORMANCE_BUDGET.sampleWindowMilliseconds;
   const averageFps = totalDuration > 0 ? window.length * 1_000 / totalDuration : 0;
   const currentFrameDuration = window.at(-1) ?? 0;
   const currentFps = currentFrameDuration > 0 ? 1_000 / currentFrameDuration : 0;
@@ -117,13 +124,15 @@ export function evaluatePerformanceBudget(
     currentFps,
     averageFps,
     hasSustainedDrop,
+    isFullWindowReady,
     sampleCount: window.length,
     sampleDurationMilliseconds: totalDuration,
     activeParticles: effectCounts.activeParticles,
     activeTransientEffects: effectCounts.activeTransientEffects,
     peakParticles: effectCounts.peakParticles,
     peakTransientEffects: effectCounts.peakTransientEffects,
-    passes: averageFps >= RELEASE_PERFORMANCE_BUDGET.minimumAverageFps
+    passes: isFullWindowReady
+      && averageFps >= RELEASE_PERFORMANCE_BUDGET.minimumAverageFps
       && !hasSustainedDrop
       && effectsWithinBudget,
   };
@@ -133,6 +142,7 @@ export class PerformanceBudgetMonitor {
   private readonly frameDurations: number[] = [];
   private previousTimestampMilliseconds: number | null = null;
   private sampleDurationMilliseconds = 0;
+  private eligibleSampleDurationMilliseconds = 0;
   private activeParticles = 0;
   private activeTransientEffects = 0;
   private peakParticles = 0;
@@ -156,6 +166,7 @@ export class PerformanceBudgetMonitor {
     if (frameDuration <= 0) return;
     this.frameDurations.push(frameDuration);
     this.sampleDurationMilliseconds += frameDuration;
+    this.eligibleSampleDurationMilliseconds += frameDuration;
     while (this.sampleDurationMilliseconds > RELEASE_PERFORMANCE_BUDGET.sampleWindowMilliseconds) {
       const expiredDuration = this.frameDurations.shift();
       if (expiredDuration === undefined) break;
@@ -169,7 +180,18 @@ export class PerformanceBudgetMonitor {
       activeTransientEffects: this.activeTransientEffects,
       peakParticles: this.peakParticles,
       peakTransientEffects: this.peakTransientEffects,
-    });
+    }, this.eligibleSampleDurationMilliseconds);
+  }
+
+  reset(): void {
+    this.frameDurations.length = 0;
+    this.previousTimestampMilliseconds = null;
+    this.sampleDurationMilliseconds = 0;
+    this.eligibleSampleDurationMilliseconds = 0;
+    this.activeParticles = 0;
+    this.activeTransientEffects = 0;
+    this.peakParticles = 0;
+    this.peakTransientEffects = 0;
   }
 }
 

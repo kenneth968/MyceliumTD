@@ -18,6 +18,16 @@ import {
   type PerformanceBudgetHost,
 } from './performanceBudget';
 
+// Given one frame less than ten seconds of frames near 60 FPS
+const almostReadyFrameDurations = Array.from({ length: 599 }, () => 16.67);
+
+// When the release performance budget evaluates the incomplete window
+const almostReadyReport = evaluatePerformanceBudget(almostReadyFrameDurations);
+
+// Then warmup remains explicitly unready and cannot pass
+assert.equal(almostReadyReport.isFullWindowReady, false);
+assert.equal(almostReadyReport.passes, false);
+
 // Given ten seconds of frames near 60 FPS
 const healthyFrameDurations = Array.from({ length: 600 }, () => 16.67);
 
@@ -25,8 +35,10 @@ const healthyFrameDurations = Array.from({ length: 600 }, () => 16.67);
 const healthyReport = evaluatePerformanceBudget(healthyFrameDurations);
 
 // Then the average clears the release threshold
+assert.equal(healthyReport.isFullWindowReady, true);
 assert.equal(healthyReport.passes, true);
 assert(healthyReport.averageFps >= RELEASE_PERFORMANCE_BUDGET.minimumAverageFps);
+assert(healthyReport.sampleDurationMilliseconds < RELEASE_PERFORMANCE_BUDGET.sampleWindowMilliseconds);
 
 // Given a frame window with more than two seconds continuously below 45 FPS
 const sustainedDropFrameDurations = [
@@ -96,6 +108,31 @@ assert.equal(monitoredReport.activeParticles, 14);
 assert.equal(monitoredReport.activeTransientEffects, 7);
 assert.equal(monitoredReport.peakParticles, 14);
 assert.equal(monitoredReport.peakTransientEffects, 7);
+
+// Given a monitor containing prior timing and peak evidence
+monitor.reset();
+
+// When a reset starts a new measurement session
+const resetReport = monitor.getReport();
+
+// Then samples, active counts, peaks, and readiness return to their initial state
+assert.equal(resetReport.sampleCount, 0);
+assert.equal(resetReport.activeParticles, 0);
+assert.equal(resetReport.activeTransientEffects, 0);
+assert.equal(resetReport.peakParticles, 0);
+assert.equal(resetReport.peakTransientEffects, 0);
+assert.equal(resetReport.isFullWindowReady, false);
+
+// Given the reset monitor receives its first new timestamp
+monitor.recordFrame({ timestampMilliseconds: 20_000, paused: false, hidden: false, activeParticles: 2, activeTransientEffects: 1 });
+
+// When the new session report is read before a second timestamp
+const firstResetSessionReport = monitor.getReport();
+
+// Then the old timestamp does not leak a frame duration into the new session
+assert.equal(firstResetSessionReport.sampleCount, 0);
+assert.equal(firstResetSessionReport.peakParticles, 2);
+assert.equal(firstResetSessionReport.peakTransientEffects, 1);
 
 // Given the performance overlay key chord
 const overlayChord = { key: 'F3', shiftKey: true };
@@ -189,5 +226,15 @@ assert.equal(overlayLayout.x, RELEASE_HUD_LAYOUT.towerPanel.x);
 assert.equal(overlayLayout.y, RELEASE_HUD_LAYOUT.towerPanel.y);
 assert(overlayLayout.width <= RELEASE_HUD_LAYOUT.towerPanel.width);
 assert(overlayLayout.height <= RELEASE_HUD_LAYOUT.towerPanel.height);
+
+// Given overlay data from an incomplete measurement window
+const warmingRows = createPerformanceOverlayRows(createPerformanceOverlayData(almostReadyReport));
+
+// When the budget status row is rendered during warmup
+const warmingStatus = warmingRows.at(-1) ?? '';
+
+// Then the required FAIL result remains visible with warming context
+assert(warmingStatus.includes('FAIL'));
+assert(warmingStatus.includes('warming'));
 
 console.log('Performance budget tests passed');

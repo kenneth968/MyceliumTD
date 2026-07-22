@@ -213,8 +213,10 @@ export class GameLoop {
 
     this.animationFrameId = requestAnimationFrame(this.loop.bind(this));
 
-    const paused = this.isPaused || this.game.getState() === GameState.Paused;
-    this.emitEvent({ type: GameEventType.Tick, timestamp: currentTime, data: paused });
+    if (this.onEvent !== null) {
+      const paused = this.isPaused || this.game.getState() === GameState.Paused;
+      this.emitEvent({ type: GameEventType.Tick, timestamp: currentTime, data: paused });
+    }
 
     if (this.isPaused) {
       this.lastFrameTime = currentTime;
