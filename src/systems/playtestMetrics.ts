@@ -186,6 +186,38 @@ export class PlaytestMetricsLifecycle {
   }
 }
 
+export class PlaytestMetricsCoordinator {
+  constructor(
+    private readonly lifecycle: PlaytestMetricsLifecycle,
+    private readonly createSessionId: () => string,
+  ) {}
+
+  startRun(): void {
+    this.lifecycle.startRun(this.createSessionId());
+  }
+
+  restartRun(restartingTerminalRun: boolean): void {
+    const sessionId = this.createSessionId();
+    if (restartingTerminalRun) {
+      this.lifecycle.restartRun(sessionId);
+    } else {
+      this.lifecycle.startRun(sessionId);
+    }
+  }
+
+  acceptBatch(events: readonly GameEvent[]): void {
+    for (const event of events) this.lifecycle.accept(event);
+  }
+
+  exportSnapshot(): PlaytestMetricsExport {
+    return this.lifecycle.exportSnapshot();
+  }
+
+  toJson(): string {
+    return this.lifecycle.toJson();
+  }
+}
+
 export function isPlaytestSummaryDevelopmentEnabled(location: DevelopmentLocation): boolean {
   const isLocalHost = location.hostname === 'localhost'
     || location.hostname === '127.0.0.1'

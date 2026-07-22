@@ -4,6 +4,7 @@ import { TowerType } from '../entities/tower';
 import type { GameEvent } from './gameEvents';
 import {
   PlaytestMetrics,
+  PlaytestMetricsCoordinator,
   PlaytestMetricsLifecycle,
   exposePlaytestSummaryInDevelopment,
   isPlaytestSummaryDevelopmentEnabled,
@@ -141,6 +142,93 @@ assert.deepEqual(lifecycle.exportSnapshot(), {
   },
 });
 assert.deepEqual(JSON.parse(lifecycle.toJson()), lifecycle.exportSnapshot());
+
+// Given a headless shell coordinator with deterministic run IDs
+const runIds = ['initial-run', 'nonterminal-restart', 'terminal-restart'];
+let nextRunIdIndex = 0;
+const coordinator = new PlaytestMetricsCoordinator(
+  new PlaytestMetricsLifecycle('pre-run'),
+  () => runIds[nextRunIdIndex++] ?? 'unexpected-run',
+);
+
+// When the shell starts its initial release run
+coordinator.startRun();
+
+// Then the exported lifecycle contains one fresh current run
+assert.equal(coordinator.exportSnapshot().currentRun.sessionId, 'initial-run');
+assert.equal(coordinator.exportSnapshot().lastCompletedRun, null);
+
+// Given an in-progress run with one accepted event
+coordinator.acceptBatch([{ type: 'wave_started', waveNumber: 1, timestamp: 1000 }]);
+
+// When a nonterminal restart resets that run
+coordinator.restartRun(false);
+
+// Then the new run is fresh and no incomplete run is exported as completed
+assert.equal(coordinator.exportSnapshot().currentRun.sessionId, 'nonterminal-restart');
+assert.equal(coordinator.exportSnapshot().currentRun.waveReached, 0);
+assert.equal(coordinator.exportSnapshot().lastCompletedRun, null);
+
+// Given the restarted run reaches a terminal outcome
+coordinator.acceptBatch([
+  { type: 'wave_started', waveNumber: 1, timestamp: 2000 },
+  { type: 'victory', waveNumber: 10, timestamp: 102000 },
+]);
+
+// When terminal Restart starts the next run
+coordinator.restartRun(true);
+
+// Then the labeled JSON keeps the marked terminal run beside a fresh accumulator
+assert.equal(coordinator.exportSnapshot().currentRun.sessionId, 'terminal-restart');
+assert.equal(coordinator.exportSnapshot().currentRun.outcome, 'in_progress');
+assert.equal(coordinator.exportSnapshot().lastCompletedRun?.sessionId, 'nonterminal-restart');
+assert.equal(coordinator.exportSnapshot().lastCompletedRun?.restartRequested, true);
+assert.deepEqual(JSON.parse(coordinator.toJson()), coordinator.exportSnapshot());
+
+// Given one exact semantic batch for a fresh run
+class RecordingPlaytestMetricsLifecycle extends PlaytestMetricsLifecycle {
+  readonly acceptedEvents: GameEvent[] = [];
+
+  override accept(event: GameEvent): void {
+    this.acceptedEvents.push(event);
+    super.accept(event);
+  }
+}
+
+const recordingLifecycle = new RecordingPlaytestMetricsLifecycle('batch-run');
+const batchCoordinator = new PlaytestMetricsCoordinator(
+  recordingLifecycle,
+  () => 'unused-run',
+);
+const exactSemanticBatch: readonly GameEvent[] = [
+  {
+    type: 'tower_placed',
+    towerId: 10,
+    towerType: TowerType.Sporecap,
+    position: { x: 100, y: 100 },
+    timestamp: 1000,
+  },
+  {
+    type: 'network_connection_created',
+    towerId: 10,
+    sourceTowerId: null,
+    position: { x: 100, y: 100 },
+    timestamp: 2000,
+  },
+  { type: 'wave_started', waveNumber: 1, timestamp: 3000 },
+];
+
+// When the production batch-consumption seam accepts it once
+batchCoordinator.acceptBatch(exactSemanticBatch);
+
+// Then each semantic event contributes exactly once to the exported state
+assert.equal(batchCoordinator.exportSnapshot().currentRun.towerPlacements, 1);
+assert.equal(batchCoordinator.exportSnapshot().currentRun.connectionsCreated, 1);
+assert.equal(batchCoordinator.exportSnapshot().currentRun.waveReached, 1);
+assert.equal(recordingLifecycle.acceptedEvents.length, exactSemanticBatch.length);
+for (let index = 0; index < exactSemanticBatch.length; index += 1) {
+  assert.equal(recordingLifecycle.acceptedEvents[index], exactSemanticBatch[index]);
+}
 
 // Given local and production browser locations
 const explicitLocalGate = { hostname: 'localhost', search: '?playtestSummary=1' };

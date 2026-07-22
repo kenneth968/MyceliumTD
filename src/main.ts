@@ -40,6 +40,7 @@ import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
 import { BrowserGameAudio, createGameAudioDirector } from './systems/gameAudioDirector';
 import {
+    PlaytestMetricsCoordinator,
     PlaytestMetricsLifecycle,
     exposePlaytestSummaryInDevelopment,
 } from './systems/playtestMetrics';
@@ -116,7 +117,7 @@ class Game {
     private loop: GameLoop;
     private mouse: MouseState;
     private audio: BrowserGameAudio;
-    private playtestMetrics: PlaytestMetricsLifecycle = new PlaytestMetricsLifecycle('local-run-0');
+    private playtestMetrics: PlaytestMetricsCoordinator;
     private playtestRunNumber: number = 0;
     private combatEffects: CombatEffectPool;
     private towerSpriteCache: TowerSpriteImageCache;
@@ -142,6 +143,13 @@ class Game {
 
         this.mouse = { x: 0, y: 0, down: false };
         this.audio = createGameAudioDirector();
+        this.playtestMetrics = new PlaytestMetricsCoordinator(
+            new PlaytestMetricsLifecycle('local-run-0'),
+            () => {
+                this.playtestRunNumber += 1;
+                return `local-run-${this.playtestRunNumber}`;
+            },
+        );
         this.combatEffects = new CombatEffectPool();
         this.towerSpriteCache = new TowerSpriteImageCache();
         exposePlaytestSummaryInDevelopment(window, () => this.playtestMetrics.toJson());
@@ -244,7 +252,7 @@ class Game {
 
     private startReleaseRun(): void {
         this.clearOnboardingCompletionNotice();
-        this.resetPlaytestMetrics();
+        this.playtestMetrics.startRun();
         this.game.reset();
         if (!this.game.setMap(RELEASE_MAP_ID)) {
             throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
@@ -253,16 +261,6 @@ class Game {
         this.showingMenu = false;
         this.onboardingEntranceStartedAt = performance.now();
         this.updatePrimaryHotkeyLabel();
-    }
-
-    private resetPlaytestMetrics(restartingTerminalRun: boolean = false): void {
-        this.playtestRunNumber += 1;
-        const sessionId = `local-run-${this.playtestRunNumber}`;
-        if (restartingTerminalRun) {
-            this.playtestMetrics.restartRun(sessionId);
-        } else {
-            this.playtestMetrics.startRun(sessionId);
-        }
     }
 
     private startNextWave(): boolean {
@@ -781,7 +779,7 @@ class Game {
             this.onboarding = createOnboardingState(true);
         }
         this.audio.enterMenu();
-        this.resetPlaytestMetrics(restartingTerminalRun);
+        this.playtestMetrics.restartRun(restartingTerminalRun);
         this.game.reset();
         this.game.start();
         this.combatEffects.clear();
@@ -825,9 +823,7 @@ class Game {
                     }
                 },
                 audio: events => this.audio.director.update(events, state, waveIndex),
-                metrics: events => {
-                    for (const event of events) this.playtestMetrics.accept(event);
-                },
+                metrics: events => this.playtestMetrics.acceptBatch(events),
             },
         );
         this.transitionOnboarding(

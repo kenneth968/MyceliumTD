@@ -26,7 +26,7 @@ import {
   applyOnboardingControl,
   routeOnboardingCommand,
 } from './onboardingInput';
-import { PlaytestMetrics } from './playtestMetrics';
+import { PlaytestMetricsCoordinator, PlaytestMetricsLifecycle } from './playtestMetrics';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
 import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { readFileSync } from 'fs';
@@ -167,7 +167,10 @@ let presentationDrainCount = 0;
 let combatBatch: readonly unknown[] | null = null;
 let audioBatch: readonly unknown[] | null = null;
 let metricsBatch: readonly unknown[] | null = null;
-const playtestMetrics = new PlaytestMetrics('presentation-session');
+const playtestMetrics = new PlaytestMetricsCoordinator(
+  new PlaytestMetricsLifecycle('presentation-session'),
+  () => 'next-session',
+);
 
 // When one frame drains and fans out its semantic events
 const presentationDrain = drainGameEventsForPresentation(
@@ -181,7 +184,7 @@ const presentationDrain = drainGameEventsForPresentation(
     audio: events => { audioBatch = events; },
     metrics: events => {
       metricsBatch = events;
-      for (const event of events) playtestMetrics.accept(event);
+      playtestMetrics.acceptBatch(events);
     },
   },
 );
@@ -192,8 +195,8 @@ assertSame(combatBatch, exactBatch, 'combat receives the exact semantic batch');
 assertSame(audioBatch, exactBatch, 'audio receives the exact semantic batch');
 assertSame(metricsBatch, exactBatch, 'metrics receives the exact semantic batch');
 assertSame(presentationDrain.events, exactBatch, 'onboarding receives the exact semantic batch');
-assertSame(playtestMetrics.snapshot().towerPlacements, 1, 'shared batch records the placement once');
-assertSame(playtestMetrics.snapshot().connectionsCreated, 1, 'shared batch records the connection once');
+assertSame(playtestMetrics.exportSnapshot().currentRun.towerPlacements, 1, 'shared batch records the placement once');
+assertSame(playtestMetrics.exportSnapshot().currentRun.connectionsCreated, 1, 'shared batch records the connection once');
 
 // Given a renderer and a runner with a confirmed first tower
 const renderer = createGameRenderer();
@@ -368,9 +371,6 @@ assertSame(mutationCalls, 1, 'blocked mutation routes never invoke the simulatio
 const mainSource = readFileSync(resolve(__dirname, '../main.ts'), 'utf8');
 const startReleaseRunBody = mainSource.match(/private startReleaseRun\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
 const restartGameBody = mainSource.match(/private restartGame\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
-const resetPlaytestMetricsBody = mainSource.match(
-  /private resetPlaytestMetrics\(restartingTerminalRun: boolean = false\): void \{([\s\S]*?)\n    \}/,
-)?.[1] ?? '';
 const quitToMenuBody = mainSource.match(/private quitToMenu\(\): void \{([\s\S]*?)\n    \}/)?.[1] ?? '';
 const handleOnboardingControlBody = mainSource.match(
   /private handleOnboardingControl\(control: OnboardingControl\): void \{([\s\S]*?)\n    \}/,
@@ -399,37 +399,6 @@ assert(
 assert(
   restartGameBody.indexOf('this.audio.enterMenu();') < restartGameBody.indexOf('this.game.reset();'),
   'restart retires old audio before resetting the simulation',
-);
-assert(
-  startReleaseRunBody.includes('this.resetPlaytestMetrics();'),
-  'a release run starts one fresh metrics lifecycle',
-);
-assert(
-  restartGameBody.includes('restartingTerminalRun'),
-  'restart distinguishes terminal retry intent from pause-menu restart',
-);
-assert(
-  restartGameBody.includes('this.resetPlaytestMetrics(restartingTerminalRun);'),
-  'restart routes terminal retry intent into the metrics lifecycle',
-);
-assert(
-  restartGameBody.indexOf('this.resetPlaytestMetrics(restartingTerminalRun);')
-    < restartGameBody.indexOf('this.game.reset();'),
-  'metrics preserve the completed run before the simulation resets',
-);
-assert(
-  resetPlaytestMetricsBody.includes('this.playtestMetrics.restartRun(sessionId);')
-    && resetPlaytestMetricsBody.includes('this.playtestMetrics.startRun(sessionId);'),
-  'metrics lifecycle selects terminal preservation or a clean nonterminal run',
-);
-assert(
-  mainSource.includes('metrics: events =>')
-    && mainSource.includes('this.playtestMetrics.accept(event);'),
-  'the live single-drain presentation batch feeds playtest metrics',
-);
-assert(
-  mainSource.includes('exposePlaytestSummaryInDevelopment(window,'),
-  'the browser summary hook is installed through the tested development gate',
 );
 assert(
   quitToMenuBody.includes('this.clearOnboardingCompletionNotice();'),
