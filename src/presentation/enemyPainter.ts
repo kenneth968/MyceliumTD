@@ -21,8 +21,8 @@ export function paintEnemies(
   paintEnemySwarmLinks(ctx, getActiveSwarmLinks(collection.enemies));
   for (const enemy of collection.enemies) {
     if (!enemy.isAlive) continue;
-    const isRevealed = enemy.isCamo && options.isRevealed(enemy.position.x, enemy.position.y);
-    const camo = getCamoPresentation(enemy, isRevealed);
+    const isRevealedByOracle = enemy.isCamo && options.isRevealed(enemy.position.x, enemy.position.y);
+    const camo = getCamoPresentation(enemy, isRevealedByOracle);
     ctx.save();
     ctx.globalAlpha = camo.bodyOpacity;
     paintEnemyBody(ctx, enemy);

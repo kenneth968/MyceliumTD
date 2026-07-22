@@ -1,4 +1,4 @@
-import { createEnemy } from '../entities/enemy';
+import { applyStatusEffect, createEnemy, StatusEffectType } from '../entities/enemy';
 import { EnemyType } from '../systems/wave';
 import { createDefaultPath } from '../systems/path';
 import { getEnemiesRenderData } from '../systems/enemyRender';
@@ -43,5 +43,16 @@ for (const enemyId of [1, 2, 3]) {
 const camoEnemy = getEnemiesRenderData([createEnemy(5, EnemyType.VeilWasp, path)]).enemies[0];
 assert(getCamoPresentation(camoEnemy, false).bodyOpacity < 0.5, 'hidden camo is partially opaque');
 assert(getCamoPresentation(camoEnemy, true).showEye, 'revealed camo shows an Eye glyph');
+
+// Given a Camo enemy whose gameplay reveal status remains active outside Oracle range.
+const revealedEnemy = createEnemy(6, EnemyType.VeilWasp, path);
+applyStatusEffect(revealedEnemy, StatusEffectType.Revealed, 2000, 1);
+const revealedCamo = getEnemiesRenderData([revealedEnemy]).enemies[0];
+// When presentation receives no supplemental Oracle-geometry reveal.
+const outsideOraclePresentation = getCamoPresentation(revealedCamo, false);
+// Then authoritative reveal keeps the enemy at live-reveal opacity with its Eye cue.
+assert(revealedCamo.isRevealed, 'render data preserves authoritative Camo reveal state');
+assert(outsideOraclePresentation.bodyOpacity === 0.82, 'status-revealed Camo stays fully presented outside Oracle range');
+assert(outsideOraclePresentation.showEye, 'status-revealed Camo keeps its Eye cue outside Oracle range');
 
 console.log('enemyPresentation tests passed');

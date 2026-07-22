@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/vec2';
-import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait } from '../entities/enemy';
+import { Enemy, EnemyTrait, StatusEffectType, getEnemyTraitsForType, hasActiveShield, hasEnemyTrait, hasStatusEffect } from '../entities/enemy';
 import { EnemyType, ENEMY_STATS } from './wave';
 import { ENEMY_DEFINITIONS, EnemyFamily, EnemyVariant } from '../content/enemyDefinitions';
 
@@ -26,6 +26,7 @@ export interface EnemyRenderData {
   isBoss: boolean;
   showHealthBar: boolean;
   isCamo: boolean;
+  readonly isRevealed: boolean;
   isMetal: boolean;
   isShielded: boolean;
   shieldActive: boolean;
@@ -363,6 +364,7 @@ export function getEnemyRenderData(
   const isSwarmLinked = hasEnemyTrait(traitCarrier, EnemyTrait.SwarmLinked);
   const swarmLinkedActive = isSwarmLinked && enemy.swarmLinkedActive === true;
   const isCamo = hasEnemyTrait(traitCarrier, EnemyTrait.Camo);
+  const isRevealed = isCamo && hasStatusEffect(enemy, StatusEffectType.Revealed);
   const isBoss = enemy.variant === EnemyVariant.Boss;
   const family = ENEMY_DEFINITIONS[enemy.enemyType].family;
 
@@ -391,6 +393,7 @@ export function getEnemyRenderData(
     isBoss,
     showHealthBar: isBoss,
     isCamo,
+    isRevealed,
     isMetal,
     isShielded,
     shieldActive,

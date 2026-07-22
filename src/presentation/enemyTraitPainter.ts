@@ -18,8 +18,9 @@ export interface CamoPresentation {
 }
 
 /** Converts Camo state into opacity and a non-color reveal glyph cue. */
-export function getCamoPresentation(enemy: EnemyRenderData, isRevealed: boolean): CamoPresentation {
+export function getCamoPresentation(enemy: EnemyRenderData, isRevealedByOracle: boolean): CamoPresentation {
   if (!enemy.isCamo) return { bodyOpacity: 1, showEye: false };
+  const isRevealed = enemy.isRevealed || isRevealedByOracle;
   return { bodyOpacity: isRevealed ? 0.82 : 0.22, showEye: isRevealed };
 }
 
