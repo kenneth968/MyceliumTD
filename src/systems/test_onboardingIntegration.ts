@@ -355,6 +355,14 @@ assert(
   'restart clears stale completion notice',
 );
 assert(
+  restartGameBody.includes('this.audio.enterMenu();'),
+  'restart retires audio owned by the previous run',
+);
+assert(
+  restartGameBody.indexOf('this.audio.enterMenu();') < restartGameBody.indexOf('this.game.reset();'),
+  'restart retires old audio before resetting the simulation',
+);
+assert(
   quitToMenuBody.includes('this.clearOnboardingCompletionNotice();'),
   'quit clears stale completion notice',
 );

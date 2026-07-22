@@ -760,6 +760,7 @@ class Game {
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
+        this.audio.enterMenu();
         this.game.reset();
         this.game.start();
         this.combatEffects.clear();
