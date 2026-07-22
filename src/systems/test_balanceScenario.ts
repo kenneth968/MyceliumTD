@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { ENEMY_DEFINITIONS, EnemyTrait } from '../content/enemyDefinitions';
 import { TowerType } from '../entities/tower';
+import { DEFAULT_ECONOMY_CONFIG } from './economy';
 import { RELEASE_BALANCE_SCENARIOS, runBalanceScenario } from './balanceScenario';
+
+// One quarter of the cheapest tower cost is the minimum useful correction buffer.
+const MINIMUM_AFFORDABILITY_RESERVE = 25;
 
 // Given the four fixed release command schedules
 const precision = runBalanceScenario(RELEASE_BALANCE_SCENARIOS.precisionNetwork);
@@ -22,7 +26,15 @@ for (const winningRun of [precision, control]) {
   assert(winningRun.kernelIntegrity > 0);
   assert(winningRun.towerCount >= 6 && winningRun.towerCount <= 9);
   assert(winningRun.evolvedTowerCount >= 3 && winningRun.evolvedTowerCount <= 5);
-  assert(winningRun.minimumNutrientsAfterCommand >= 0);
+  assert.equal(
+    winningRun.nutrientsRemaining,
+    DEFAULT_ECONOMY_CONFIG.startingMoney + winningRun.nutrientsEarned - winningRun.nutrientsSpent,
+    'earned nutrients must exclude the starting grant',
+  );
+  assert(
+    winningRun.minimumNutrientsAfterCommand > MINIMUM_AFFORDABILITY_RESERVE,
+    `winning schedules must retain more than ${MINIMUM_AFFORDABILITY_RESERVE} nutrients after every command`,
+  );
   assert(winningRun.estimatedRunMilliseconds >= 20 * 60 * 1000);
   assert(winningRun.estimatedRunMilliseconds <= 30 * 60 * 1000);
 }
@@ -43,7 +55,15 @@ assert(new Set(precision.towerTypes).size < Object.values(TowerType).length);
 const controlDefeatedTraits = new Set(
   control.defeatedEnemyTypes.flatMap(enemyType => ENEMY_DEFINITIONS[enemyType].traits),
 );
-assert(control.separatedSwarmEnemyCount > 0);
+const nonControlSwarmSeparationMaximum = Math.max(
+  precision.separatedSwarmEnemyCount,
+  noBuild.separatedSwarmEnemyCount,
+  singleTower.separatedSwarmEnemyCount,
+);
+assert(
+  control.separatedSwarmEnemyCount > nonControlSwarmSeparationMaximum,
+  'control-applied Swarm separation must exceed every non-control baseline',
+);
 assert(control.revealedEnemyCount > 0 || controlDefeatedTraits.has(EnemyTrait.Camo));
 
 assert(

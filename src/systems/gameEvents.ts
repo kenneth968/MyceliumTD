@@ -5,7 +5,7 @@ import type { Vec2 } from '../utils/vec2';
 import type { EnemyType } from './wave';
 
 type ImpactEvent = Readonly<{
-  type: 'hit' | 'death' | 'area_hit';
+  type: 'hit' | 'area_hit';
   timestamp: number;
   position: Vec2;
   towerType?: TowerType;
@@ -14,6 +14,13 @@ type ImpactEvent = Readonly<{
   radius?: number;
   effectType?: string;
   blockedByShield?: boolean;
+}> | Readonly<{
+  type: 'death';
+  timestamp: number;
+  position: Vec2;
+  enemyId: number;
+  enemyType?: EnemyType;
+  enemyColor?: string;
 }>;
 
 export type GameEvent =

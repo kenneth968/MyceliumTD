@@ -923,6 +923,7 @@ export class GameRunner {
         this.eventQueue.push({
           type: 'death',
           position: { ...enemy.position },
+          enemyId: enemy.id,
           enemyType: enemy.enemyType,
           timestamp: this.currentTime,
         });

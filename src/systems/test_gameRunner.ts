@@ -673,6 +673,10 @@ assertEqual(
   moneyBeforeExecute + executeTarget.reward,
   'Executed enemy should grant its normal death reward on cleanup'
 );
+const executeDeathEvent = executeMarkedGame.drainEvents().find(event => event.type === 'death');
+assert(executeDeathEvent !== undefined, 'Executed enemy should emit a death event');
+assert('enemyId' in executeDeathEvent, 'Death event should identify the defeated enemy');
+assertEqual(executeDeathEvent.enemyId, executeTarget.id, 'Death event should carry the defeated enemy ID');
 
 const shieldedExecuteGame = createGameRunner({ startingMoney: 5000 });
 shieldedExecuteGame.start();

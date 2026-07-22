@@ -32,6 +32,7 @@ export interface BalanceResult {
   readonly defeatedEnemyTypes: readonly EnemyType[];
   readonly leakedEnemyCount: number;
   readonly purchasedTowerAfterLeak: boolean;
+  /** Swarm enemies with SwarmLinked suppressed or observed linked, controlled, then unlinked. */
   readonly separatedSwarmEnemyCount: number;
   readonly revealedEnemyCount: number;
   readonly bossTraits: readonly EnemyTrait[];
@@ -62,19 +63,20 @@ export const RELEASE_BALANCE_SCENARIOS = Object.freeze({
       { beforeWave: 8, kind: 'place', towerType: TowerType.ThornSniper, position: { x: 640, y: 190 } },
       { beforeWave: 9, kind: 'evolve', towerIndex: 2, path: EvolutionPath.Symbiote },
       { beforeWave: 9, kind: 'place', towerType: TowerType.LumenOracle, position: { x: 500, y: 205 } },
+      { beforeWave: 10, kind: 'mature', towerIndex: 4 },
     ],
   },
   controlNetwork: {
     id: 'control-network',
     decisionMillisecondsPerWave: 75_000,
     commands: [
-      { beforeWave: 1, kind: 'place', towerType: TowerType.Slimefungus, position: { x: 680, y: 385 } },
+      { beforeWave: 1, kind: 'place', towerType: TowerType.Slimefungus, position: { x: 510, y: 350 } },
       { beforeWave: 2, kind: 'place', towerType: TowerType.Puffball, position: { x: 555, y: 390 } },
       { beforeWave: 3, kind: 'place', towerType: TowerType.BulbShooter, position: { x: 440, y: 385 } },
       { beforeWave: 4, kind: 'mature', towerIndex: 0 },
       { beforeWave: 5, kind: 'mature', towerIndex: 1 },
       { beforeWave: 6, kind: 'evolve', towerIndex: 1, path: EvolutionPath.Specialist },
-      { beforeWave: 6, kind: 'place', towerType: TowerType.Slimefungus, position: { x: 300, y: 380 } },
+      { beforeWave: 6, kind: 'place', towerType: TowerType.Slimefungus, position: { x: 680, y: 385 } },
       { beforeWave: 7, kind: 'place', towerType: TowerType.LumenOracle, position: { x: 520, y: 460 } },
       { beforeWave: 7, kind: 'mature', towerIndex: 2 },
       { beforeWave: 8, kind: 'evolve', towerIndex: 0, path: EvolutionPath.Symbiote },
@@ -193,9 +195,11 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
   let reachedIntermissions = 0;
   let waveNumber = 1;
   const defeatedEnemyTypes = new Set<EnemyType>();
+  const swarmEnemyIds = new Set<number>();
   const linkedSwarmEnemyIds = new Set<number>();
+  const controlledSwarmEnemyIds = new Set<number>();
   const separatedSwarmEnemyIds = new Set<number>();
-  const leakedEnemyIds = new Set<number>();
+  const defeatedEnemyIds = new Set<number>();
   let leakedEnemyCount = 0;
   let purchasedTowerAfterLeak = false;
   let revealedEnemyCount = 0;
@@ -221,8 +225,14 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
       simulatedMilliseconds += FIXED_STEP_MS;
       for (const enemy of game.getActiveEnemies()) {
         if (enemy.enemyType === EnemyType.SwarmWasp) {
+          swarmEnemyIds.add(enemy.id);
           if (enemy.swarmLinkedActive) linkedSwarmEnemyIds.add(enemy.id);
-          else if (linkedSwarmEnemyIds.has(enemy.id)) separatedSwarmEnemyIds.add(enemy.id);
+          else if (
+            linkedSwarmEnemyIds.has(enemy.id) &&
+            controlledSwarmEnemyIds.has(enemy.id)
+          ) {
+            separatedSwarmEnemyIds.add(enemy.id);
+          }
         }
         if (enemy.isBoss) {
           bossId = enemy.id;
@@ -231,11 +241,26 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
         }
       }
       for (const event of game.drainEvents()) {
-        if (event.type === 'death' && event.enemyType !== undefined) defeatedEnemyTypes.add(event.enemyType);
+        if (event.type === 'death') {
+          defeatedEnemyIds.add(event.enemyId);
+          if (event.enemyType !== undefined) defeatedEnemyTypes.add(event.enemyType);
+        }
+        if (
+          event.type === 'enemy_slowed' &&
+          swarmEnemyIds.has(event.enemyId)
+        ) {
+          controlledSwarmEnemyIds.add(event.enemyId);
+        }
+        if (
+          event.type === 'trait_suppressed' &&
+          event.trait === EnemyTrait.SwarmLinked
+        ) {
+          controlledSwarmEnemyIds.add(event.enemyId);
+          separatedSwarmEnemyIds.add(event.enemyId);
+        }
         if (event.type === 'enemy_revealed') revealedEnemyCount += 1;
         if (event.type === 'enemy_leaked') {
           leakedEnemyCount += 1;
-          leakedEnemyIds.add(event.enemyId);
         }
       }
       if (game.isIntermission()) {
@@ -266,7 +291,7 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
     kernelIntegrity: economy.getLives(),
     nutrientsRemaining: economy.getMoney(),
     nutrientsSpent: economy.getTotalSpent(),
-    nutrientsEarned: economy.getMoney() + economy.getTotalSpent(),
+    nutrientsEarned: economy.getTotalEarned(),
     minimumNutrientsAfterCommand: Number.isFinite(minimumNutrientsAfterCommand)
       ? minimumNutrientsAfterCommand
       : economy.getMoney(),
@@ -281,7 +306,7 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
     revealedEnemyCount,
     bossTraits,
     bossMaximumPathDistance,
-    bossDefeated: bossId !== null && !leakedEnemyIds.has(bossId),
+    bossDefeated: bossId !== null && defeatedEnemyIds.has(bossId),
     simulatedCombatMilliseconds: simulatedMilliseconds,
     estimatedRunMilliseconds: simulatedMilliseconds
       + reachedIntermissions * scenario.decisionMillisecondsPerWave,
