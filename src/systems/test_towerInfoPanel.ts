@@ -1,5 +1,6 @@
 import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TowerType } from '../entities/tower';
+import { getTowerSpriteFrame } from '../presentation/towerSpriteAtlas';
 import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
 import { TargetingMode } from './targeting';
 import {
@@ -209,6 +210,11 @@ console.log('\n=== native tower growth panel tests ===\n');
   equal(panel.evolutionCards.length, 3, 'Evolved tower keeps all three paths readable');
   check(panel.evolutionCards.find(card => card.path === EvolutionPath.Specialist)?.isSelected === true, 'Selected Evolution is marked');
   check(panel.evolutionCards.every(card => !card.isEnabled), 'Evolved tower exposes no further purchases');
+  equal(
+    getTowerSpriteFrame(panel.towerType, panel.growth.stage, panel.growth.evolution, 0).cellIndex,
+    9,
+    'Selected tower panel uses the active Specialist atlas form',
+  );
 }
 
 {

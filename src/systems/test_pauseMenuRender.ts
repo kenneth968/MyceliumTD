@@ -15,6 +15,7 @@ import {
   isPauseMenuFullyVisible,
   resetPauseMenuAnimator,
   getPauseMenuUIState,
+  getPauseAudioSettings,
 } from './pauseMenuRender';
 import { GameState } from './gameRunner';
 
@@ -168,7 +169,7 @@ assert(data.state === PauseMenuState.Exiting, 'State should be Exiting');
 console.log('  fade out animation tests passed');
 
 const btnPos = { x: 400, y: 300 };
-let button = getPauseMenuButtonRenderData('test', 'Test Button', btnPos, true, true, 1);
+let button = getPauseMenuButtonRenderData({ id: 'test', label: 'Test Button', position: btnPos, isEnabled: true, isVisible: true, opacity: 1 });
 assertEqual(button.id, 'test', 'Button id should match');
 assertEqual(button.label, 'Test Button', 'Button label should match');
 assertEqual(button.position, btnPos, 'Button position should match');
@@ -178,7 +179,7 @@ assert(button.isEnabled === true, 'Button should be enabled');
 assert(button.isVisible === true, 'Button should be visible');
 assertEqual(button.opacity, 1, 'Button opacity should be 1');
 
-button = getPauseMenuButtonRenderData('test', 'Test', btnPos, false, true, 0.5);
+button = getPauseMenuButtonRenderData({ id: 'test', label: 'Test', position: btnPos, isEnabled: false, isVisible: true, opacity: 0.5 });
 assert(button.isEnabled === false, 'Disabled button should not be enabled');
 assertEqual(button.opacity, 0.5, 'Button opacity should be 0.5');
 console.log('  getPauseMenuButtonRenderData tests passed');
@@ -238,6 +239,10 @@ assert(getPauseMenuUIState(GameState.Paused).canQuit === true, 'Paused should al
 assert(getPauseMenuUIState(GameState.GameOver).canQuit === true, 'Game over should allow quit');
 
 assert(state.gameState === GameState.Victory, 'State should include gameState');
+const audioSettings = getPauseAudioSettings(1.2, -0.2, true);
+assertEqual(audioSettings.musicVolume, 1, 'pause music volume clamps for display');
+assertEqual(audioSettings.soundVolume, 0, 'pause sound volume clamps for display');
+assert(audioSettings.musicMuted, 'pause preserves independent music mute display');
 console.log('  getPauseMenuUIState tests passed');
 
 console.log('All pauseMenuRender tests passed!');

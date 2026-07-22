@@ -330,6 +330,7 @@ assert(
   disruptingUpgrade.success === true,
   'Connected Orchid should be able to buy Special trait disruption upgrade'
 );
+traitDisruptionGame.drainEvents();
 const disruptedMetalTarget = createEnemy(912, EnemyType.BulwarkBeetle, traitDisruptionGame.getPath());
 disruptedMetalTarget.pathDistance = 1420;
 disruptedMetalTarget.pathProgress = 1420;
@@ -339,6 +340,7 @@ disruptedMetalTarget.baseSpeed = 0;
 traitDisruptionGame.getActiveEnemies().push(disruptedMetalTarget);
 traitDisruptionGame.update(1000);
 traitDisruptionGame.update(2200);
+const traitFeedbackEvents = traitDisruptionGame.drainEvents();
 assert(
   disruptedMetalTarget.statusEffects.some(
     effect => effect.type === StatusEffectType.TraitDisrupted && effect.disruptedTrait === EnemyTrait.Metal
@@ -348,6 +350,14 @@ assert(
 assert(
   disruptedMetalTarget.hp < disruptedMetalTarget.maxHp,
   'Connected Special Orchid hit should damage Metal enemies after disrupting their trait'
+);
+assert(
+  traitFeedbackEvents.some(event => event.type === 'trait_suppressed' && event.enemyId === disruptedMetalTarget.id),
+  'Connected Special Orchid should emit trait_suppressed feedback',
+);
+assert(
+  traitFeedbackEvents.some(event => event.type === 'network_triggered' && event.targetTowerId === disruptingTower.id),
+  'Connected Special Orchid should identify its participating network link',
 );
 
 const plainOrchidGame = createGameRunner({ startingMoney: 5000 });
@@ -597,6 +607,7 @@ assert(markingTower !== null, 'Should place Sporecap marking tower');
 assert(markApplicationGame.matureTower(markingTower.id).success, 'Sporecap should mature');
 const markingUpgrade = markApplicationGame.evolveTower(markingTower.id, EvolutionPath.Symbiote);
 assert(markingUpgrade.success === true, 'Connected Sporecap should buy Special mark upgrade');
+markApplicationGame.drainEvents();
 const markTarget = createEnemy(914, EnemyType.CrawlerCaterpillar, markApplicationGame.getPath());
 markTarget.pathDistance = 1420;
 markTarget.pathProgress = 1420;
@@ -606,6 +617,7 @@ markTarget.baseSpeed = 0;
 markApplicationGame.getActiveEnemies().push(markTarget);
 markApplicationGame.update(1000);
 markApplicationGame.update(1400);
+const markFeedbackEvents = markApplicationGame.drainEvents();
 assert(
   markTarget.statusEffects.some(effect => effect.type === StatusEffectType.Marked),
   'Connected Special Sporecap should mark its direct target'
@@ -613,6 +625,14 @@ assert(
 assert(
   markTarget.hp === markTarget.maxHp - markingTower!.damage,
   'The direct hit should resolve before its newly applied Mark can affect later hits'
+);
+assert(
+  markFeedbackEvents.some(event => event.type === 'enemy_marked' && event.enemyId === markTarget.id),
+  'Connected Special Sporecap should emit enemy_marked feedback',
+);
+assert(
+  markFeedbackEvents.some(event => event.type === 'network_triggered' && event.targetTowerId === markingTower.id),
+  'Connected Special Sporecap should identify its participating network link',
 );
 
 const executeMarkedGame = createGameRunner({ startingMoney: 5000 });

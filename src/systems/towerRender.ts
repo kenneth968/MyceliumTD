@@ -1,6 +1,8 @@
 import { Vec2 } from '../utils/vec2';
 import { Tower, TowerType, TOWER_STATS } from '../entities/tower';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TargetingMode } from './targeting';
+import type { TowerWithGrowth } from './upgrade';
 
 export enum TowerGrowthStage {
   Sprout = 'sprout',
@@ -31,6 +33,8 @@ export interface TowerRenderData {
   totalUpgradeValue: number;
   growthStage: TowerGrowthStage;
   growthProgress: number;
+  stage: TowerStage;
+  evolution: EvolutionPath | null;
 }
 
 export interface TowerSpriteFrame {
@@ -150,7 +154,7 @@ export function getTowerBodyShape(towerType: TowerType): 'circle' | 'hexagon' | 
 }
 
 export function getTowerRenderData(
-  tower: Tower,
+  tower: Tower | TowerWithGrowth,
   options?: {
     showRange?: boolean;
     isSelected?: boolean;
@@ -164,6 +168,7 @@ export function getTowerRenderData(
   const totalUpgradeValue = options?.totalUpgradeValue ?? 0;
   const { stage, progress } = getTowerGrowthStage(totalUpgradeValue);
   const stageConfig = getTowerVisualConfigForStage(tower.towerType, stage);
+  const spriteGrowth = getTowerSpriteGrowth(tower, stage);
 
   return {
     id: tower.id,
@@ -187,6 +192,23 @@ export function getTowerRenderData(
     totalUpgradeValue,
     growthStage: stage,
     growthProgress: progress,
+    stage: spriteGrowth.stage,
+    evolution: spriteGrowth.evolution,
+  };
+}
+
+function getTowerSpriteGrowth(
+  tower: Tower | TowerWithGrowth,
+  visualStage: TowerGrowthStage,
+): { readonly stage: TowerStage; readonly evolution: EvolutionPath | null } {
+  if ('growth' in tower) {
+    return tower.growth;
+  }
+  return {
+    stage: visualStage === TowerGrowthStage.Sprout || visualStage === TowerGrowthStage.Growing
+      ? TowerStage.Seedling
+      : TowerStage.Mature,
+    evolution: null,
   };
 }
 
@@ -274,7 +296,7 @@ export function adjustColorBrightness(hexColor: string, factor: number): string 
 }
 
 export function getTowersRenderData(
-  towers: Tower[],
+  towers: readonly (Tower | TowerWithGrowth)[],
   options?: {
     showRangeForSelected?: boolean;
     selectedTowerId?: number | null;
@@ -383,7 +405,7 @@ export function getTowerAnimationState(
 }
 
 export function getAnimatedTowerRenderData(
-  tower: Tower,
+  tower: Tower | TowerWithGrowth,
   time: number,
   options?: {
     showRange?: boolean;

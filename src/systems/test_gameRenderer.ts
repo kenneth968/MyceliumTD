@@ -86,6 +86,11 @@ test('placement state is None initially', () => renderData.placementState === Pl
 test('path render data is defined', () => renderData.path !== undefined);
 test('path has points', () => renderData.path.points.length > 0);
 test('path has segments', () => renderData.path.segments.length > 0);
+test('frame includes the Garden Path environment before gameplay layers', () =>
+  renderData.environment.background === '#07130F'
+  && renderData.environment.pathSegments.length === renderData.path.segments.length
+  && renderData.environment.kernel.radius >= 28
+);
 test('tower render data is defined', () => renderData.towers !== undefined);
 test('tower towers array is defined', () => Array.isArray(renderData.towers.towers));
 test('enemy render data is defined', () => renderData.enemies !== undefined);
@@ -292,6 +297,29 @@ test('screenToWorld handles zoom correctly', () => Math.abs(worldZoom.x) < 0.001
 console.log('\nTrail tracker tests:');
 const trailTracker = renderer.getTrailTracker();
 test('trail tracker is defined', () => trailTracker !== undefined);
+const trackedProjectile = {
+  id: 909,
+  position: { x: 50, y: 60 },
+  targetId: 1,
+  speed: 100,
+  damage: 1,
+  towerType: TowerType.Puffball,
+  alive: true,
+};
+renderer.updateTrails([trackedProjectile], 16, 1_000);
+test('renderer tracks an active projectile position', () => renderer.getTrackedProjectilePositionCount() === 1);
+const trackedPositionIdentity = renderer.getTrackedProjectilePosition(909);
+trackedProjectile.position.x = 75;
+trackedProjectile.position.y = 85;
+renderer.updateTrails([trackedProjectile], 16, 1_016);
+test('renderer reuses the tracked projectile Vec2 object', () =>
+  trackedPositionIdentity !== undefined
+  && renderer.getTrackedProjectilePosition(909) === trackedPositionIdentity
+  && trackedPositionIdentity.x === 75
+  && trackedPositionIdentity.y === 85
+);
+renderer.updateTrails([], 16, 1_016);
+test('renderer prunes dead projectile positions', () => renderer.getTrackedProjectilePositionCount() === 0);
 
 // Path render data structure
 console.log('\nPath render data structure tests:');

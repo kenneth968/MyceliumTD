@@ -8,7 +8,7 @@ import {
   getTrailColor,
   updateTrailPointOpacity,
   shouldKeepTrailPoint,
-  getProjectilesRenderData,
+  createProjectileRenderBuffer,
   getTrailSegments,
   getProjectileVelocity,
   getAnimationState,
@@ -169,32 +169,68 @@ assertEqual(tracker2.getTrail(2).length, 0, 'clearDeadProjectiles removes dead')
 const copyTracker = createProjectileTrailTracker();
 copyTracker.addPoint(1, createVec2(50, 50), 1000);
 const allTrails = copyTracker.getAllTrails();
-allTrails.delete(1);
-assertEqual(copyTracker.getTrail(1).length, 1, 'getAllTrails returns copy');
+assert(allTrails.get(1) === copyTracker.getTrail(1), 'getAllTrails returns the stable borrowed trail view');
+
+const identityTracker = createProjectileTrailTracker(3);
+identityTracker.addPoint(5, createVec2(0, 0), 1000);
+identityTracker.addPoint(5, createVec2(10, 10), 1010);
+identityTracker.addPoint(5, createVec2(20, 20), 1020);
+const stableTrailView = identityTracker.getTrail(5);
+const stableTrailPoints = [...stableTrailView];
+const stableTrailPositions = stableTrailPoints.map(point => point.position);
+identityTracker.addPoint(5, createVec2(30, 40), 1030);
+assert(stableTrailView[0] === stableTrailPoints[1], 'ring wrap advances the oldest fixed slot without copying point objects');
+assert(stableTrailView[2] === stableTrailPoints[0], 'ring wrap reuses the evicted fixed slot as the newest point');
+for (let frame = 1; frame < 120; frame++) {
+  identityTracker.addPoint(5, createVec2(30 + frame, 40 + frame), 1030 + frame * 16);
+  identityTracker.updateTrails(1);
+}
+assert(identityTracker.getTrail(5) === stableTrailView, 'repeated frames reuse the trail view array');
+assert(stableTrailView.every(point => stableTrailPoints.includes(point)), 'repeated frames reuse every trail point slot');
+assert(stableTrailView.every(point => {
+  const slotIndex = stableTrailPoints.indexOf(point);
+  return slotIndex >= 0 && point.position === stableTrailPositions[slotIndex];
+}), 'repeated frames reuse every nested trail position');
 console.log('  ProjectileTrailTracker tests passed');
 
-console.log('  getProjectilesRenderData tests...');
+console.log('  ProjectileRenderBuffer tests...');
 const projectiles = [createTestProjectile({ id: 1 })];
 const renderTracker = createProjectileTrailTracker();
 const prevPositions = new Map<number, Vec2>();
-let renderData = getProjectilesRenderData(projectiles, prevPositions, renderTracker);
+const renderBuffer = createProjectileRenderBuffer();
+let renderData = renderBuffer.update(projectiles, prevPositions, renderTracker);
 assertEqual(renderData.length, 1, 'returns render data for alive projectiles');
 assertEqual(renderData[0].id, 1, 'render data id correct');
+const stableRenderArray = renderData;
+const stableRenderSlot = renderData[0];
+const stableRenderPosition = stableRenderSlot.position;
+const stablePreviousPosition = stableRenderSlot.previousPosition;
+for (let frame = 0; frame < 120; frame++) {
+  projectiles[0].position.x = 100 + frame;
+  projectiles[0].position.y = 120 + frame;
+  renderData = renderBuffer.update(projectiles, prevPositions, renderTracker);
+}
+assert(renderData === stableRenderArray, 'repeated frames reuse the projectile render array');
+assert(renderData[0] === stableRenderSlot, 'repeated frames reuse the projectile render slot');
+assert(renderData[0].position === stableRenderPosition, 'repeated frames reuse the nested projectile position');
+assert(renderData[0].previousPosition === stablePreviousPosition, 'repeated frames reuse the nested previous position');
 
 const deadProjectiles = [
   createTestProjectile({ id: 1, alive: true }),
   createTestProjectile({ id: 2, alive: false }),
 ];
-renderData = getProjectilesRenderData(deadProjectiles, prevPositions, renderTracker);
+renderData = renderBuffer.update(deadProjectiles, prevPositions, renderTracker);
 assertEqual(renderData.length, 1, 'filters dead projectiles');
 assertEqual(renderData[0].id, 1, 'only alive projectile returned');
 
 renderTracker.addPoint(1, createVec2(100, 100), 1000);
 renderTracker.addPoint(1, createVec2(105, 105), 1010);
-renderData = getProjectilesRenderData([createTestProjectile({ id: 1 })], prevPositions, renderTracker);
+renderData = renderBuffer.update([createTestProjectile({ id: 1 })], prevPositions, renderTracker);
 assertEqual(renderData[0].hasTrail, true, 'hasTrail true when trail exists');
 assertEqual(renderData[0].trailPoints.length, 2, 'trailPoints included');
-console.log('  getProjectilesRenderData tests passed');
+renderBuffer.update([], prevPositions, renderTracker);
+assertEqual(renderBuffer.getTrackedProjectileCount(), 0, 'dead projectile render slots are pruned');
+console.log('  ProjectileRenderBuffer tests passed');
 
 console.log('  getTrailSegments tests...');
 const trail: TrailPoint[] = [

@@ -474,6 +474,8 @@ runTest('native evolved tower renders the fully matured silhouette', () => {
 
   assert(renderData.growthStage === TowerGrowthStage.FullyMatured, 'Evolved tower should render as fully matured');
   assert(renderData.bodyRadius > 14, 'Evolved silhouette should be larger than the base body');
+  assert(renderData.stage === TowerStage.Evolved, 'Evolved tower should select an Evolution atlas form');
+  assert(renderData.evolution === EvolutionPath.Symbiote, 'Evolved tower should preserve its Symbiote atlas identity');
 });
 
 console.log(`\nTests passed: ${testsPassed}/${testsPassed + testsFailed}`);

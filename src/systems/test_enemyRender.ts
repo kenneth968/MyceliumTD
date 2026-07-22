@@ -1,4 +1,4 @@
-import { createEnemy, applyEnemyVariant, applyStatusEffect, StatusEffectType, Enemy } from '../entities/enemy';
+import { createEnemy, applyEnemyVariant, applyStatusEffect, resolveDamage, StatusEffectType, Enemy } from '../entities/enemy';
 import { Path, createDefaultPath } from './path';
 import { EnemyType, ENEMY_STATS } from './wave';
 import { EnemyFamily, EnemyTrait, EnemyVariant } from '../content/enemyDefinitions';
@@ -183,6 +183,42 @@ runTest('getEnemyRenderData exposes canonical layers, family, traits, and boss h
   assertEqual(bossRender.isBoss, true, 'Boss variant is marked as boss');
   assertEqual(bossRender.showHealthBar, true, 'boss has health bar');
   assert(bossRender.traits.includes(EnemyTrait.Shielded), 'boss retains canonical traits');
+});
+
+runTest('enemy families expose four unmistakably distinct body shapes', () => {
+  const shapes = [
+    EnemyType.ScoutBeetle,
+    EnemyType.DartWasp,
+    EnemyType.CrawlerCaterpillar,
+    EnemyType.WardMoth,
+  ].map((enemyType, index) => getEnemyRenderData(createEnemy(7100 + index, enemyType, path)).bodyShape);
+
+  assertEqual(new Set(shapes).size, 4, 'four families have distinct semantic shapes');
+  assertEqual(shapes, ['beetle-shell', 'wasp-wings', 'caterpillar-segments', 'moth-wings'], 'family shape contract');
+});
+
+runTest('actual layer break advances stage and removes one outer element', () => {
+  const shell = createEnemy(7200, EnemyType.ShellBeetle, path);
+  const before = getEnemyRenderData(shell);
+  const resolution = resolveDamage(shell, shell.layers[0].maxHp);
+  const after = getEnemyRenderData(shell);
+
+  assertEqual(resolution.layersBroken, 1, 'damage resolves a real layer break');
+  assertEqual(after.layerStage, before.layerStage + 1, 'layer stage advances');
+  assertEqual(after.outerLayerElements, before.outerLayerElements - 1, 'one outer element is removed');
+});
+
+runTest('trait overlays use shape and visibility semantics', () => {
+  const metal = getEnemyRenderData(createEnemy(7300, EnemyType.IronCaterpillar, path));
+  const shielded = getEnemyRenderData(createEnemy(7301, EnemyType.WardMoth, path));
+  const swarm = getEnemyRenderData(createEnemy(7302, EnemyType.SwarmWasp, path));
+  const camo = getEnemyRenderData(createEnemy(7303, EnemyType.VeilWasp, path));
+
+  assert(metal.traitOverlays.some(overlay => overlay.shape === 'hexagon'), 'Metal has a hex shell');
+  assert(shielded.traitOverlays.some(overlay => overlay.shape === 'ring'), 'Shielded has a ring');
+  assert(swarm.traitOverlays.some(overlay => overlay.shape === 'short-links'), 'Swarm-linked has neighbour links');
+  assert(camo.traitOverlays.some(overlay => overlay.shape === 'partial-opacity'), 'Camo uses partial opacity');
+  assert(camo.traitOverlays.some(overlay => overlay.shape === 'eye' && overlay.visibility === 'when-revealed'), 'Camo reveal uses an Eye glyph');
 });
 
 runTest('getEnemyRenderData exposes Metal armor trait for Bulwark Beetle and Iron Caterpillar', () => {

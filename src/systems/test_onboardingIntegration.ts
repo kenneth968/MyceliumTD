@@ -15,6 +15,7 @@ import {
 } from './onboarding';
 import {
   ONBOARDING_LAYOUT,
+  getOnboardingEntranceProgress,
   getOnboardingRenderData,
   projectOnboardingReach,
 } from './onboardingRender';
@@ -186,6 +187,16 @@ const renderContext = {
   promptPulsing: false,
 } as const;
 
+// Given the first tutorial frame starts a bounded entrance transition
+assertSame(getOnboardingEntranceProgress(null, 1000), 1, 'inactive entrance stays settled');
+assertSame(getOnboardingEntranceProgress(1000, 1000), 0, 'entrance begins fully at rest');
+const onboardingEntranceMidpoint = getOnboardingEntranceProgress(1000, 1150);
+assert(
+  onboardingEntranceMidpoint > 0 && onboardingEntranceMidpoint < 1,
+  'entrance exposes an in-flight midpoint',
+);
+assertSame(getOnboardingEntranceProgress(1000, 1300), 1, 'entrance settles after 300 ms');
+
 // Given each active onboarding step and stable world anchors
 const placeRender = getOnboardingRenderData({ state: initial, ...renderContext });
 const startRender = getOnboardingRenderData({ state: afterPlacement, ...renderContext });
@@ -205,6 +216,7 @@ const reviewRect = reviewRender.highlights[0]?.rect;
 
 // Then every lesson exposes the exact shared geometry and accessible highlight semantics
 assertSame(placeRender.isVisible, true, 'placement tutorial chrome is visible');
+assertSame(placeRender.entryProgress, 1, 'render data defaults to a settled tutorial surface');
 assertSame(placeRender.skipButton?.rect, ONBOARDING_LAYOUT.skipButton, 'Skip uses shared geometry');
 assertSame(placeRect, RELEASE_HUD_LAYOUT.towerCards[5], 'only the Sporecap card is highlighted first');
 assertSame(placeRender.highlights.length, 1, 'placement step highlights one card');
@@ -341,6 +353,14 @@ assert(
 assert(
   restartGameBody.includes('this.clearOnboardingCompletionNotice();'),
   'restart clears stale completion notice',
+);
+assert(
+  restartGameBody.includes('this.audio.enterMenu();'),
+  'restart retires audio owned by the previous run',
+);
+assert(
+  restartGameBody.indexOf('this.audio.enterMenu();') < restartGameBody.indexOf('this.game.reset();'),
+  'restart retires old audio before resetting the simulation',
 );
 assert(
   quitToMenuBody.includes('this.clearOnboardingCompletionNotice();'),

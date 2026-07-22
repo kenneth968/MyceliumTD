@@ -1,6 +1,7 @@
 import {
   clampPlayfieldLabelX,
   clampReleaseWorldLabelX,
+  getHotkeyBarVisibility,
   getPrimaryHotkeyLabel,
   getPauseSettingsControlAtPosition,
   getReleaseHudRegionAtPosition,
@@ -45,6 +46,11 @@ assert(Math.abs(clampReleaseWorldLabelX(0, 28) - 28 / 1.2) < 0.001, 'START world
 assert(Math.abs(clampReleaseWorldLabelX(800, 22) - 938 / 1.2) < 0.001, 'END world anchor stays left of fixed HUD panels');
 assert(getPrimaryHotkeyLabel(true) === 'Start Game', 'menu legend describes the current primary action');
 assert(getPrimaryHotkeyLabel(false) === 'Start Wave', 'gameplay legend describes the current primary action');
+assert(getHotkeyBarVisibility(false, 'playing') === 'visible', 'gameplay keeps the shortcut legend visible');
+assert(getHotkeyBarVisibility(false, 'paused') === 'obscured', 'pause subordinates the shortcut legend');
+assert(getHotkeyBarVisibility(false, 'game_over') === 'obscured', 'defeat subordinates the shortcut legend');
+assert(getHotkeyBarVisibility(false, 'victory') === 'obscured', 'victory subordinates the shortcut legend');
+assert(getHotkeyBarVisibility(true, 'victory') === 'visible', 'menu restores the shortcut legend');
 
 // When the named HUD regions and interactive siblings are compared
 const interactiveCardsOverlap = towerCards.some(card => rectsOverlap(card, startWaveButton));
@@ -176,6 +182,10 @@ assert(
   /#hotkeyBar\s*\{[^}]*top:\s*8px;[^}]*left:\s*310px;[^}]*right:\s*232px;/s.test(shellHtml)
     && !/#hotkeyBar\s*\{[^}]*bottom:\s*-40px;/s.test(shellHtml),
   'persistent hotkey legend stays inside the open top-center viewport',
+);
+assert(
+  /#hotkeyBar\.is-obscured\s*\{[^}]*opacity:\s*0\.12;/s.test(shellHtml),
+  'modal and terminal states can visually subordinate the shortcut legend',
 );
 assert(
   /<span id="primaryActionLabel">Start Game<\/span>/.test(shellHtml),

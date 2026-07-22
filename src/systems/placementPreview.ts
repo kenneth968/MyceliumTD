@@ -1,4 +1,5 @@
 import { Vec2 } from '../utils/vec2';
+import { TowerStage, type EvolutionPath } from '../content/evolutionDefinitions';
 import { TowerType, TOWER_STATS } from '../entities/tower';
 import { RangePreview, PathPreview, PathSegmentPreview, PlacementMode } from './input';
 import { TowerWithGrowth, getGrowthVisualTier, getTotalSellValue } from './upgrade';
@@ -30,6 +31,8 @@ export interface PlacementGhostRenderData {
   color: string;
   glowColor: string;
   size: number;
+  stage: TowerStage;
+  evolution: EvolutionPath | null;
 }
 
 export interface RangeCircleRenderData {
@@ -158,6 +161,8 @@ export function getPlacementGhostRenderData(
     color: colors.primary,
     glowColor: colors.glow,
     size: baseSize,
+    stage: TowerStage.Seedling,
+    evolution: null,
   };
 }
 

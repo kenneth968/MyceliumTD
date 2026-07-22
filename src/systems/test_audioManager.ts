@@ -4,6 +4,8 @@ import {
   MusicTrack,
   resolveMusicTrackUrl,
 } from './audioManager';
+import { BrowserGameAudio } from './gameAudioDirector';
+import { GameState } from './gameRunner';
 
 function assertEqual<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) throw new Error(`FAIL: ${message}`);
@@ -44,6 +46,8 @@ class FakeAudio {
   currentTime = 0;
   playCalls = 0;
   pauseCalls = 0;
+  rejectNextPlay = false;
+  private readonly deferredPlays: Promise<void>[] = [];
   private readonly listeners = new Map<string, Array<() => void>>();
 
   constructor(src: string) {
@@ -62,7 +66,19 @@ class FakeAudio {
 
   play(): Promise<void> {
     this.playCalls++;
+    const deferred = this.deferredPlays.shift();
+    if (deferred !== undefined) return deferred;
+    if (this.rejectNextPlay) {
+      this.rejectNextPlay = false;
+      return Promise.reject(new Error('play rejected'));
+    }
     return Promise.resolve();
+  }
+
+  deferNextPlay(): Readonly<{ reject: (error: Error) => void }> {
+    let rejectPlay = (_error: Error): void => {};
+    this.deferredPlays.push(new Promise<void>((_resolve, reject) => { rejectPlay = reject; }));
+    return Object.freeze({ reject: rejectPlay });
   }
 
   pause(): void {
@@ -114,6 +130,7 @@ class FakeAudioContext {
   destination = {};
   state: AudioContextState = 'suspended';
   resumeCalls = 0;
+  suspendCalls = 0;
   oscillator = new FakeOscillator();
   gain = new FakeGain();
 
@@ -126,6 +143,11 @@ class FakeAudioContext {
   resume(): Promise<void> {
     this.resumeCalls++;
     this.state = 'running';
+    return Promise.resolve();
+  }
+  suspend(): Promise<void> {
+    this.suspendCalls++;
+    this.state = 'suspended';
     return Promise.resolve();
   }
 }
@@ -147,7 +169,7 @@ function getFakeAudio(filename: string): FakeAudio {
   return audio;
 }
 
-function runAudioIntegrationTest(): void {
+async function runAudioIntegrationTest(): Promise<void> {
   const originalAudio = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const originalAudioContext = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
@@ -156,6 +178,7 @@ function runAudioIntegrationTest(): void {
 
   try {
     FakeAudio.instances.length = 0;
+    FakeAudioContext.instances.length = 0;
     Object.defineProperty(globalThis, 'Audio', {
       configurable: true,
       value: FakeAudio,
@@ -198,9 +221,53 @@ function runAudioIntegrationTest(): void {
     manager.playNormalTrack();
     assertEqual(chantarelle.playCalls, 2, 'same track resumes after pause');
 
+    // Given a trusted music request whose browser play attempt is rejected once
+    manager.stop();
+    chantarelle.rejectNextPlay = true;
+    const callsBeforeRecovery = chantarelle.playCalls;
+
+    // When the failed promise settles and a later trusted unlock retries the request
+    manager.playNormalTrack();
+    await Promise.resolve();
+    await Promise.resolve();
+    assertEqual(manager.getCurrentTrack(), null, 'rejected play is not cached as the current track');
     manager.ensureInitialized();
-    const soundContext = FakeAudioContext.instances[0];
-    assertEqual(soundContext?.resumeCalls, 1, 'user initialization resumes the sound context');
+    await Promise.resolve();
+
+    // Then the second attempt succeeds and becomes current
+    assertEqual(chantarelle.playCalls, callsBeforeRecovery + 2, 'trusted unlock retries rejected music');
+    assertEqual(manager.getCurrentTrack(), MusicTrack.Chantarelle, 'successful retry becomes current');
+
+    // Given an older deferred attempt and a newer successful attempt on the same element
+    const staleAttempt = chantarelle.deferNextPlay();
+    manager.stop();
+    manager.playNormalTrack();
+    manager.pause();
+    manager.resume();
+    await Promise.resolve();
+
+    // When the older attempt rejects after the newer attempt succeeds
+    staleAttempt.reject(new Error('stale rejection'));
+    await Promise.resolve();
+
+    // Then the newer successful attempt remains current
+    assertEqual(manager.getCurrentTrack(), MusicTrack.Chantarelle, 'stale rejection cannot clear a newer successful attempt');
+
+    // Given an active outgoing track and a deferred incoming crossfade attempt
+    const rejectedCrossfade = lionsMane1.deferNextPlay();
+    const outgoingPausesBeforeMenu = chantarelle.pauseCalls;
+    manager.play(MusicTrack.LionsMane1);
+
+    // When the incoming attempt rejects and the dedicated menu route runs
+    rejectedCrossfade.reject(new Error('crossfade rejected'));
+    await Promise.resolve();
+    new BrowserGameAudio(manager).enterMenu();
+
+    // Then menu teardown still reaches and stops the outgoing track
+    assertEqual(chantarelle.pauseCalls, outgoingPausesBeforeMenu + 1, 'menu stops outgoing music after rejected crossfade');
+
+    manager.ensureInitialized();
+    assertEqual(FakeAudioContext.instances.length, 0, 'music initialization does not create a legacy sound context');
     manager.setSoundVolume(0.5);
     const playedCue = manager.processGameEvents([{
       type: 'network_connection_created',
@@ -209,12 +276,26 @@ function runAudioIntegrationTest(): void {
       towerId: 2,
       sourceTowerId: 1,
     }]);
+    const soundContext = FakeAudioContext.instances[0];
+    assertEqual(soundContext?.resumeCalls, 1, 'legacy cue lazily resumes its compatibility context');
     assertEqual(playedCue, true, 'network event plays a sound-channel cue');
     assertEqual(soundContext?.oscillator.startCalls, 1, 'sound cue starts an oscillator');
     assertEqual(soundContext?.oscillator.stopCalls, 1, 'sound cue schedules oscillator stop');
     assertEqual(soundContext?.gain.gain.values[0], 0.04, 'sound cue gain follows sound volume');
     manager.setSoundVolume(0);
     assertEqual(manager.processGameEvents([{ type: 'wave_started', timestamp: 2, waveNumber: 1 }]), false, 'zero sound volume suppresses cues');
+
+    const contextsBeforeFacade = FakeAudioContext.instances.length;
+    const browserAudio = new BrowserGameAudio(new AudioManager());
+    browserAudio.unlock();
+    browserAudio.unlock();
+    assertEqual(FakeAudioContext.instances.length, contextsBeforeFacade + 1, 'browser facade owns one semantic sound context');
+    const semanticContext = FakeAudioContext.instances.at(-1);
+    assertEqual(semanticContext?.resumeCalls, 1, 'repeated unlock reuses the semantic sound context');
+    browserAudio.director.update([], GameState.Paused, -1);
+    assertEqual(semanticContext?.suspendCalls, 1, 'pause suspends the semantic sound context');
+    browserAudio.director.update([], GameState.Playing, 0);
+    assertEqual(semanticContext?.resumeCalls, 2, 'resume restarts the semantic sound context');
   } finally {
     console.warn = originalWarn;
     restoreGlobal('Audio', originalAudio);
@@ -223,6 +304,4 @@ function runAudioIntegrationTest(): void {
   }
 }
 
-runAudioIntegrationTest();
-
-console.log('audio manager tests passed');
+void runAudioIntegrationTest().then(() => console.log('audio manager tests passed'));

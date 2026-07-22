@@ -20,6 +20,24 @@ Preserve these qualities:
 
 Use the existing palette semantically. New interface code should import or define named tokens close to the focused renderer instead of adding anonymous color literals throughout `main.ts`.
 
+The Garden Path release environment uses the following canonical world tokens. These values supersede the older representative Canvas/path colors when rendering the battlefield, while existing UI tokens remain valid for untouched surfaces.
+
+| Garden Path role | Value | Use |
+| --- | --- | --- |
+| Living dark | `#07130F` | Primary battlefield ground |
+| Lifted dark | `#0D2119` | Subtle terrain depth and moss bed |
+| Path body | `#3A322C` | Organic route fill |
+| Path edge | `#74604E` | Wider route rim and entrance landmark |
+| Moss | `#2F6B45` | Restrained terrain patches |
+| Active mycelium | `#6FFFC1` | Network roots, direction, and connected state |
+| Dormant mycelium | `#315E4B` | Background root structure |
+| Kernel core | `#D8FFF1` | Brightest battlefield focal point |
+| Kernel machine | `#6B7C89` | Structural Kernel shell |
+| Warning | `#FFB84D` | Escalating but non-terminal threat |
+| Danger | `#FF6B6B` | Leaks, invalid state, and terminal threat |
+| Garden text | `#F1FFF8` | Essential world labels |
+| Garden muted text | `#A6C7B5` | Supporting world labels |
+
 | Role | Representative value | Use |
 | --- | --- | --- |
 | Canvas | `#0f0f1a` | Battlefield background |
@@ -73,7 +91,7 @@ Containment overlap is permitted: cards and the start-wave action live inside th
 
 ## 5. Components
 
-The existing typed `*Render.ts` modules are the repository's reusable component layer: they define semantic presentation data, geometry, style, visibility, and animation state. Concrete Canvas drawing remains centralized in `main.ts`; new work must preserve this boundary and progressively remove duplicated geometry from drawing and input code.
+The existing typed `*Render.ts` and render-data modules are the repository's reusable semantic component layer: they define presentation data, geometry, style, visibility, and animation state. Focused `*Painter.ts` modules are the approved extraction path for concrete Canvas drawing of a bounded visual responsibility; `main.ts` coordinates those painters in the required layer order while retaining lifecycle and input orchestration. New work must keep geometry and state in the semantic layer, avoid duplicating them in painters or input code, and progressively extract concrete drawing from `main.ts`.
 
 Current component map:
 
@@ -121,6 +139,8 @@ Motion conventions:
 - do not animate input geometry;
 - honor reduced-motion preferences when a browser preference bridge is introduced.
 
+Ambient and transient effects are intentionally capped: no more than 48 ambient spores, 24 particles for one impact, 160 total particles, or 64 simultaneous transient effects. Active network lines use a 3px base stroke and the Garden Path uses a 34px path body. Effects may clarify state or impact, but may not compete with unit silhouettes.
+
 Interaction conventions:
 
 - render and hit-test geometry share one typed layout source;
@@ -134,11 +154,13 @@ Inherited debt: several modeled scale/rotation values are not applied, menu moti
 
 Use painter order deliberately: battlefield layers first, then HUD, then blocking overlays. Depth comes from translucent surfaces, bright rims, wider glow under-strokes, concentric rings, and restrained `shadowBlur`.
 
+The Garden Path environment order is `background → roots/moss → path edge → path fill → mycelium → fields → towers/enemies → projectiles/effects → HUD`. The Kernel is the world focal point and receives the brightest value. Root structure and mycelium remain beneath gameplay units. Visual priority is always `silhouette readability → gameplay-state communication → impact → atmosphere`.
+
 The world-to-overlay order is path, fields, payloads, network, placement, towers, enemies, projectiles, particles, health, selection, HUD, then blocking modals. Terminal and pause surfaces render after the base HUD so later layers cannot cover them.
 
 Panels use near-black translucent fills with a tonal border; selection and priority actions receive a brighter rim or glow. Avoid large opaque cards that detach the UI from the battlefield. Shadows and glows must not reduce label contrast or expand hit regions.
 
-Inherited debt: the current terminal layer is drawn before later HUD elements, and the battlefield relies on the page/canvas fill rather than a dedicated environment renderer.
+Inherited debt: the current terminal layer is drawn before later HUD elements, and concrete Canvas drawing remains partially concentrated in the oversized `main.ts`.
 
 ## 8. Accessibility Constraints & Accepted Debt
 

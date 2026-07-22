@@ -17,12 +17,18 @@ const mainSource = readFileSync(join(__dirname, '..', 'main.ts'), 'utf8');
 const drawHudStart = mainSource.indexOf('private drawHUD(renderData: GameFrameRenderData): void');
 const drawHudEnd = mainSource.indexOf('private isWaveButtonVisible()', drawHudStart);
 const drawHudSource = mainSource.slice(drawHudStart, drawHudEnd);
+const drawEnemyCountStart = mainSource.indexOf('private drawEnemyCount(', drawHudStart);
+const drawEnemyCountEnd = mainSource.indexOf('private drawTowerPurchase(', drawEnemyCountStart);
+const drawEnemyCountSource = mainSource.slice(drawEnemyCountStart, drawEnemyCountEnd);
 const drawWavePreviewStart = mainSource.indexOf('private drawWavePreview(', drawHudStart);
 const drawWavePreviewEnd = mainSource.indexOf('private drawTraitShape(', drawWavePreviewStart);
 const drawWavePreviewSource = mainSource.slice(drawWavePreviewStart, drawWavePreviewEnd);
 const drawOnboardingStart = mainSource.indexOf('private drawOnboarding(', drawHudStart);
 const drawOnboardingEnd = mainSource.indexOf('private drawWavePreview(', drawOnboardingStart);
 const drawOnboardingSource = mainSource.slice(drawOnboardingStart, drawOnboardingEnd);
+const renderStart = mainSource.indexOf('private render(renderData: GameFrameRenderData): void');
+const renderEnd = mainSource.indexOf('private drawPlacementPreview(', renderStart);
+const renderSource = mainSource.slice(renderStart, renderEnd);
 const painterCalls = [
   'this.drawWaveAnnouncement',
   'this.drawWaveProgress',
@@ -54,6 +60,21 @@ assert(
   'wave preview drawing uses the shared release HUD rectangle',
 );
 assert(drawWavePreviewSource.includes('this.ctx.clip()'), 'wave preview drawing clips content to its rectangle');
+assert(drawEnemyCountSource.includes('ec.position'), 'enemy counter painter consumes the render-model position');
+assert(drawEnemyCountSource.includes('ec.size'), 'enemy counter painter consumes the render-model size');
+assert(drawEnemyCountSource.includes('ec.enemyCount.opacity'), 'enemy counter painter consumes the render-model opacity');
+assert(
+  drawWavePreviewSource.includes('BUILD PHASE'),
+  'intermission wave preview has an explicit phase cue',
+);
+assert(
+  renderSource.indexOf('paintEnvironmentPathLabels') > renderSource.indexOf('paintCombatEffects'),
+  'path endpoint labels paint after combat effects so they remain readable',
+);
+assert(
+  renderSource.indexOf('paintEnvironmentPathLabels') > renderSource.indexOf('this.drawTowers'),
+  'path endpoint labels paint after towers so valid placements cannot obscure them',
+);
 assert(
   drawOnboardingSource.includes('this.renderer.getCamera().zoom'),
   'world-space onboarding reach scales with the active camera zoom',

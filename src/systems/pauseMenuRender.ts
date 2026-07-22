@@ -1,13 +1,35 @@
 import { Vec2 } from '../utils/vec2';
 import { GameState } from './gameRunner';
 import { RELEASE_HUD_LAYOUT } from './releaseHudLayout';
+import {
+  PAUSE_MENU_ANIMATION_TIMES,
+  easeInCubic,
+  easeOutCubic,
+  isPauseMenuVisible,
+  type PauseMenuAnimator,
+} from './pauseMenuAnimation';
+export {
+  createPauseMenuAnimator,
+  hidePauseMenu,
+  isPauseMenuEntering,
+  isPauseMenuExiting,
+  isPauseMenuFullyVisible,
+  isPauseMenuVisible,
+  resetPauseMenuAnimator,
+  showPauseMenu,
+  updatePauseMenu,
+  type PauseMenuAnimator,
+} from './pauseMenuAnimation';
+export { getPauseMenuButtonAtPosition } from './pauseMenuHitTest';
 
-export enum PauseMenuState {
-  Hidden = 'hidden',
-  Entering = 'entering',
-  Visible = 'visible',
-  Exiting = 'exiting',
-}
+export const PauseMenuState = Object.freeze({
+  Hidden: 'hidden',
+  Entering: 'entering',
+  Visible: 'visible',
+  Exiting: 'exiting',
+} as const);
+
+export type PauseMenuState = typeof PauseMenuState[keyof typeof PauseMenuState];
 
 export interface PauseMenuButton {
   id: string;
@@ -49,13 +71,23 @@ export interface PauseMenuUIState {
   totalWaves: number;
   gameState: GameState;
 }
+export type PauseAudioSettings = Readonly<{
+  musicVolume: number;
+  soundVolume: number;
+  musicMuted: boolean;
+}>;
 
-const PAUSE_MENU_ANIMATION_TIMES = {
-  fadeInDuration: 200,
-  holdDuration: 0,
-  fadeOutDuration: 200,
-  totalDuration: 400,
-};
+export function getPauseAudioSettings(
+  musicVolume: number,
+  soundVolume: number,
+  musicMuted: boolean,
+): PauseAudioSettings {
+  return Object.freeze({
+    musicVolume: Math.max(0, Math.min(1, musicVolume)),
+    soundVolume: Math.max(0, Math.min(1, soundVolume)),
+    musicMuted,
+  });
+}
 
 const PAUSE_MENU_STYLES = {
   background: 'rgba(0, 0, 0, 0.9)',
@@ -93,41 +125,6 @@ export function getPauseMenuSize(): { width: number; height: number } {
   };
 }
 
-export function createPauseMenuAnimator(): PauseMenuAnimator {
-  return {
-    state: 'hidden',
-    startTime: 0,
-    elapsed: 0,
-    progress: 0,
-  };
-}
-
-export interface PauseMenuAnimator {
-  state: 'hidden' | 'entering' | 'visible' | 'exiting';
-  startTime: number;
-  elapsed: number;
-  progress: number;
-}
-
-export function showPauseMenu(animator: PauseMenuAnimator, currentTime: number): void {
-  animator.state = 'entering';
-  animator.startTime = currentTime;
-  animator.elapsed = 0;
-  animator.progress = 0;
-}
-
-export function hidePauseMenu(animator: PauseMenuAnimator, currentTime: number): void {
-  if (animator.state === 'hidden') return;
-  animator.state = 'exiting';
-  animator.startTime = currentTime;
-  animator.elapsed = 0;
-  animator.progress = 0;
-}
-
-export function isPauseMenuVisible(animator: PauseMenuAnimator): boolean {
-  return animator.state === 'entering' || animator.state === 'visible' || animator.state === 'exiting';
-}
-
 export function getPauseMenuUIState(gameState: GameState): PauseMenuUIState {
   const isVisible = gameState === GameState.Paused;
   
@@ -142,56 +139,17 @@ export function getPauseMenuUIState(gameState: GameState): PauseMenuUIState {
   };
 }
 
-export function updatePauseMenu(
-  animator: PauseMenuAnimator,
-  deltaTime: number,
-  currentTime: number
-): void {
-  if (animator.state === 'hidden') {
-    return;
-  }
+type PauseMenuButtonOptions = Readonly<Omit<PauseMenuButton, 'size'>>;
 
-  animator.elapsed += deltaTime;
-  animator.progress = Math.min(1, animator.elapsed / PAUSE_MENU_ANIMATION_TIMES.totalDuration);
-
-  if (animator.state === 'entering') {
-    if (animator.elapsed >= PAUSE_MENU_ANIMATION_TIMES.fadeInDuration) {
-      animator.state = 'visible';
-    }
-  }
-
-  if (animator.state === 'exiting') {
-    if (animator.elapsed >= PAUSE_MENU_ANIMATION_TIMES.fadeOutDuration) {
-      animator.state = 'hidden';
-    }
-  }
-}
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-function easeInCubic(t: number): number {
-  return t * t * t;
-}
-
-export function getPauseMenuButtonRenderData(
-  id: string,
-  label: string,
-  position: Vec2,
-  isEnabled: boolean,
-  isVisible: boolean,
-  opacity: number,
-  isHovered: boolean = false
-): PauseMenuButton {
+export function getPauseMenuButtonRenderData(options: PauseMenuButtonOptions): PauseMenuButton {
   return {
-    id,
-    label,
-    position,
+    id: options.id,
+    label: options.label,
+    position: options.position,
     size: { width: BUTTON_WIDTH, height: BUTTON_HEIGHT },
-    isEnabled,
-    isVisible,
-    opacity,
+    isEnabled: options.isEnabled,
+    isVisible: options.isVisible,
+    opacity: options.opacity,
   };
 }
 
@@ -269,14 +227,14 @@ export function getPauseMenuRenderData(
     const y = position.y + BUTTON_START_Y + i * BUTTON_SPACING;
     const btnPos: Vec2 = { x: position.x, y };
     
-    buttons.push(getPauseMenuButtonRenderData(
-      buttonIds[i],
-      buttonLabels[i],
-      btnPos,
-      true,
-      true,
-      buttonOpacity
-    ));
+    buttons.push(getPauseMenuButtonRenderData({
+      id: buttonIds[i],
+      label: buttonLabels[i],
+      position: btnPos,
+      isEnabled: true,
+      isVisible: true,
+      opacity: buttonOpacity,
+    }));
   }
 
   return {
@@ -302,49 +260,4 @@ export function getPauseMenuRenderData(
     progress: animator.progress,
     timeRemaining: Math.max(0, PAUSE_MENU_ANIMATION_TIMES.totalDuration - animator.elapsed),
   };
-}
-
-export function isPauseMenuEntering(animator: PauseMenuAnimator): boolean {
-  return animator.state === 'entering';
-}
-
-export function isPauseMenuExiting(animator: PauseMenuAnimator): boolean {
-  return animator.state === 'exiting';
-}
-
-export function isPauseMenuFullyVisible(animator: PauseMenuAnimator): boolean {
-  return animator.state === 'visible';
-}
-
-export function resetPauseMenuAnimator(animator: PauseMenuAnimator): void {
-  animator.state = 'hidden';
-  animator.startTime = 0;
-  animator.elapsed = 0;
-  animator.progress = 0;
-}
-
-export function getPauseMenuButtonAtPosition(
-  x: number,
-  y: number,
-  renderData: PauseMenuRenderData
-): string | null {
-  if (!renderData.isVisible || renderData.buttons.length === 0) {
-    return null;
-  }
-
-  for (const button of renderData.buttons) {
-    if (!button.isVisible || !button.isEnabled) {
-      continue;
-    }
-    const left = button.position.x - button.size.width / 2;
-    const right = button.position.x + button.size.width / 2;
-    const top = button.position.y - button.size.height / 2;
-    const bottom = button.position.y + button.size.height / 2;
-
-    if (x >= left && x <= right && y >= top && y <= bottom) {
-      return button.id;
-    }
-  }
-
-  return null;
 }

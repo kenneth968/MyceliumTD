@@ -10,6 +10,7 @@ import {
 } from './placementPreview';
 import { RangePreview, PathPreview, PlacementMode } from './input';
 import { TowerType } from '../entities/tower';
+import { TowerStage } from '../content/evolutionDefinitions';
 import { Vec2 } from '../utils/vec2';
 
 let testsPassed = 0;
@@ -102,6 +103,8 @@ console.log('--- getPlacementGhostRenderData ---');
   expect(result.color, '#4CAF50', 'uses valid color');
   expect(result.glowColor, '#81C784', 'uses valid glow color');
   expect(result.size, 20, 'returns correct size for Puffball');
+  expect(result.stage, TowerStage.Seedling, 'placement ghost selects the Seedling atlas form');
+  expect(result.evolution, null, 'placement ghost has no Evolution atlas path');
 }
 
 {

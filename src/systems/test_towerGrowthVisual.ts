@@ -5,7 +5,7 @@ import {
   TowerGrowthStage 
 } from './towerRender';
 import { TowerType } from '../entities/tower';
-import { EvolutionPath } from '../content/evolutionDefinitions';
+import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { createGameRenderer } from './gameRenderer';
 import { createGameRunner } from './gameRunner';
 import { TargetingMode } from './targeting';
@@ -277,6 +277,8 @@ describe('live native growth rendering', () => {
       bodyRadius: renderData.bodyRadius,
       growthStage: renderData.growthStage,
       growthProgress: renderData.growthProgress,
+      stage: renderData.stage,
+      evolution: renderData.evolution,
     });
 
     // Then every adjacent semantic stage has a distinct visible identity
@@ -285,6 +287,10 @@ describe('live native growth rendering', () => {
     assert(seedling.growthStage === TowerGrowthStage.Sprout, 'Seedling should render as Sprout');
     assert(mature.growthStage === TowerGrowthStage.Mature, 'Mature should render as Mature');
     assert(evolved.growthStage === TowerGrowthStage.FullyMatured, 'Evolved should render as FullyMatured');
+    assert(seedling.stage === TowerStage.Seedling, 'Seedling render data selects Seedling atlas forms');
+    assert(mature.stage === TowerStage.Mature, 'Mature render data selects Mature atlas forms');
+    assert(evolved.stage === TowerStage.Evolved, 'Evolved render data selects Evolution atlas forms');
+    assert(evolved.evolution === EvolutionPath.Predator, 'Evolved render data preserves its atlas path');
     assert(signature(seedling) !== signature(mature), 'Seedling and Mature visuals should differ');
     assert(signature(mature) !== signature(evolved), 'Mature and Evolved visuals should differ');
     assert(tower.growth.evolution === EvolutionPath.Predator, 'Evolution-specific tower state should remain Predator');

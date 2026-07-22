@@ -1,22 +1,20 @@
 import { GameRunner, GameState, PlacementState, PlacedTower, GameSpeed } from './systems/gameRunner';
-import type { GameEvent } from './systems/gameEvents';
 import { RoundState } from './systems/roundManager';
 import { createWaveControls, getStartWaveButtonRect, getStartWaveLabel, WaveControls } from './systems/waveControls';
-import { GameRenderer, GameFrameRenderData, createGameRenderer, PathRenderData, PathSegmentRenderData, NetworkConnectionRenderData, LingeringFieldRenderData, SeededPayloadRenderData } from './systems/gameRenderer';
+import { GameRenderer, GameFrameRenderData, createGameRenderer } from './systems/gameRenderer';
 import { GameLoop, createGameLoop } from './systems/gameLoop';
 import { processHotkey, findHotkeyAction, HotkeyAction } from './systems/hotkeys';
 import { TowerType, TOWER_STATS } from './entities/tower';
 import { TargetingMode } from './systems/targeting';
 import { Vec2 } from './utils/vec2';
-import { TowerGrowthStage, getTowerBodyShape } from './systems/towerRender';
+import { TowerGrowthStage } from './systems/towerRender';
 import {
     getSellButtonAtPosition,
     PlacementPreviewWithTargetingRenderData,
     TowerSelectionPreviewRenderData,
 } from './systems/placementPreview';
-import { HealthBarRenderData } from './systems/healthBarRender';
 import { WaveUIAnnouncementRenderData } from './systems/waveAnnouncementRender';
-import { getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
+import { getPauseAudioSettings, getPauseMenuButtonAtPosition, PauseMenuRenderData } from './systems/pauseMenuRender';
 import { WaveProgressRenderData } from './systems/waveProgressRender';
 import {
     getGameOverVictoryButtonAtPosition,
@@ -40,13 +38,13 @@ import {
 } from './systems/towerPurchaseRender';
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
-import { AudioManager, createAudioManager, isBossWave } from './systems/audioManager';
+import { BrowserGameAudio, createGameAudioDirector } from './systems/gameAudioDirector';
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 import {
     getReleaseHudRegionAtPosition,
     getPauseSettingsControlAtPosition,
-    clampReleaseWorldLabelX,
+    getHotkeyBarVisibility,
     getPrimaryHotkeyLabel,
     RELEASE_CAMERA,
     RELEASE_HUD_LAYOUT,
@@ -61,7 +59,7 @@ import {
     type OnboardingState,
 } from './systems/onboarding';
 import {
-    drainGameEventsForOnboarding,
+    drainGameEventsForPresentation,
     isNewOnboardingCompletion,
 } from './systems/onboardingIntegration';
 import {
@@ -75,420 +73,29 @@ import {
 } from './systems/onboardingInput';
 import {
     getOnboardingCompletionNotice,
+    getOnboardingEntranceProgress,
     paintOnboardingReach,
     projectOnboardingReach,
     type OnboardingRenderData,
 } from './systems/onboardingRender';
+import { paintEnvironment, paintEnvironmentPathLabels } from './presentation/environmentPainter';
+import { TowerSpriteImageCache } from './presentation/towerSpriteCache';
+import {
+    paintTowerIdentity,
+    paintTowerIconIdentity,
+} from './presentation/towerSpritePainter';
+import { paintTowerSelectionOutline } from './presentation/towerOverlayPainter';
+import { paintEnemies } from './presentation/enemyPainter';
+import { paintBossHealthBars } from './presentation/bossHealthBarPainter';
+import { CombatEffectPool } from './presentation/combatEffects';
+import { paintCombatEffects } from './presentation/combatEffectPainter';
+import { paintNetworkConnections } from './presentation/networkPainter';
+import { paintProjectiles } from './presentation/projectilePainter';
+import { paintWorldEffects } from './presentation/worldEffectPainter';
 
 const CANVAS_WIDTH = RELEASE_HUD_LAYOUT.canvas.width;
 const CANVAS_HEIGHT = RELEASE_HUD_LAYOUT.canvas.height;
 
-// --- Particle System ---
-
-interface Particle {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    size: number;
-    sizeEnd: number;
-    color: string;
-    alpha: number;
-    alphaEnd: number;
-    shape: 'circle' | 'ring' | 'spark' | 'splat' | 'cloud';
-    rotation: number;
-    rotationSpeed: number;
-    gravity: number;
-}
-
-// Enemy type -> color for death splats
-const ENEMY_COLORS: Record<string, string> = {
-    scout_beetle: '#E74C3C',
-    dart_wasp: '#3498DB',
-    shell_beetle: '#27AE60',
-    crawler_caterpillar: '#F1C40F',
-    swarm_wasp: '#E91E90',
-    iron_caterpillar: '#2C3E50',
-    veil_wasp: '#ECF0F1',
-    bulwark_beetle: '#7F8C8D',
-    ward_moth: '#9B59B6',
-    pale_moth: '#E67E22',
-};
-
-class ParticleSystem {
-    private particles: Particle[] = [];
-    private pendingInstakillBursts: Array<{ x: number; y: number; delay: number }> = [];
-    private maxParticles = 500;
-
-    private spawn(p: Partial<Particle> & { x: number; y: number }): void {
-        if (this.particles.length >= this.maxParticles) return;
-        this.particles.push({
-            vx: 0, vy: 0, life: 1, maxLife: 1, size: 4, sizeEnd: 0,
-            color: '#fff', alpha: 1, alphaEnd: 0, shape: 'circle',
-            rotation: 0, rotationSpeed: 0, gravity: 0,
-            ...p,
-        });
-    }
-
-    /** Bug squash splat - radial splatter particles */
-    spawnDeathEffect(x: number, y: number, enemyType: string): void {
-        const color = ENEMY_COLORS[enemyType] || '#E74C3C';
-        const count = 8 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
-            const speed = 40 + Math.random() * 80;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.4 + Math.random() * 0.3,
-                maxLife: 0.4 + Math.random() * 0.3,
-                size: 3 + Math.random() * 4,
-                sizeEnd: 1,
-                color,
-                alpha: 0.9,
-                alphaEnd: 0,
-                shape: 'splat',
-                gravity: 60,
-            });
-        }
-        // Central flash
-        this.spawn({
-            x, y,
-            size: 12, sizeEnd: 20,
-            life: 0.15, maxLife: 0.15,
-            color: '#fff', alpha: 0.8, alphaEnd: 0,
-            shape: 'circle',
-        });
-    }
-
-    /** Puffball area explosion - expanding ring + scattered spores */
-    spawnAreaExplosion(x: number, y: number, radius: number): void {
-        // Expanding ring
-        this.spawn({
-            x, y,
-            size: 5, sizeEnd: radius,
-            life: 0.35, maxLife: 0.35,
-            color: '#9B59B6', alpha: 0.5, alphaEnd: 0,
-            shape: 'ring',
-        });
-        // Spore cloud particles
-        const count = 10 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * radius * 0.8;
-            const speed = 10 + Math.random() * 30;
-            this.spawn({
-                x: x + Math.cos(angle) * dist * 0.3,
-                y: y + Math.sin(angle) * dist * 0.3,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 15,
-                life: 0.5 + Math.random() * 0.4,
-                maxLife: 0.5 + Math.random() * 0.4,
-                size: 2 + Math.random() * 3,
-                sizeEnd: 5 + Math.random() * 3,
-                color: '#D7BDE2',
-                alpha: 0.6,
-                alphaEnd: 0,
-                shape: 'cloud',
-                gravity: -10,
-            });
-        }
-    }
-
-    /** Slimefungus slow hit - ice crystal shards */
-    spawnSlowHit(x: number, y: number): void {
-        const count = 6;
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
-            const speed = 30 + Math.random() * 40;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.3 + Math.random() * 0.2,
-                maxLife: 0.3 + Math.random() * 0.2,
-                size: 3 + Math.random() * 2,
-                sizeEnd: 0,
-                color: '#85C1E9',
-                alpha: 0.9,
-                alphaEnd: 0.2,
-                shape: 'spark',
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 10,
-            });
-        }
-        // Blue flash
-        this.spawn({
-            x, y,
-            size: 8, sizeEnd: 15,
-            life: 0.2, maxLife: 0.2,
-            color: '#3498DB', alpha: 0.5, alphaEnd: 0,
-            shape: 'circle',
-        });
-    }
-
-    /** Bulb Shooter poison hit - lingering toxic wisps */
-    spawnPoisonHit(x: number, y: number): void {
-        const count = 5;
-        for (let i = 0; i < count; i++) {
-            this.spawn({
-                x: x + (Math.random() - 0.5) * 15,
-                y: y + (Math.random() - 0.5) * 15,
-                vx: (Math.random() - 0.5) * 20,
-                vy: -15 - Math.random() * 25,
-                life: 0.6 + Math.random() * 0.5,
-                maxLife: 0.6 + Math.random() * 0.5,
-                size: 4 + Math.random() * 3,
-                sizeEnd: 8 + Math.random() * 4,
-                color: '#27AE60',
-                alpha: 0.6,
-                alphaEnd: 0,
-                shape: 'cloud',
-                gravity: -20,
-            });
-        }
-    }
-
-    /** Thorn Sniper instakill - red snap/chomp flash */
-    spawnInstakillHit(x: number, y: number): void {
-        // Bright chomp flash
-        this.spawn({
-            x, y,
-            size: 15, sizeEnd: 25,
-            life: 0.12, maxLife: 0.12,
-            color: '#E74C3C', alpha: 0.8, alphaEnd: 0,
-            shape: 'circle',
-        });
-        // Red teeth-like sparks converging inward then outward
-        for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8;
-            this.spawn({
-                x: x + Math.cos(angle) * 18,
-                y: y + Math.sin(angle) * 18,
-                vx: -Math.cos(angle) * 60,
-                vy: -Math.sin(angle) * 60,
-                life: 0.15, maxLife: 0.15,
-                size: 4, sizeEnd: 1,
-                color: '#FF6B6B', alpha: 1, alphaEnd: 0.3,
-                shape: 'spark',
-                rotation: angle,
-            });
-        }
-        this.pendingInstakillBursts.push({ x, y, delay: 0.1 });
-    }
-
-    private emitInstakillBurst(x: number, y: number): void {
-        for (let i = 0; i < 6; i++) {
-            const angle = (Math.PI * 2 * i) / 6 + 0.3;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 80,
-                vy: Math.sin(angle) * 80,
-                life: 0.2, maxLife: 0.2,
-                size: 3, sizeEnd: 0,
-                color: '#FFD700', alpha: 0.9, alphaEnd: 0,
-                shape: 'spark',
-            });
-        }
-    }
-
-    /** Lumen Oracle reveal - cyan expanding pulse */
-    spawnRevealHit(x: number, y: number): void {
-        this.spawn({
-            x, y,
-            size: 5, sizeEnd: 50,
-            life: 0.4, maxLife: 0.4,
-            color: '#1ABC9C', alpha: 0.4, alphaEnd: 0,
-            shape: 'ring',
-        });
-        for (let i = 0; i < 5; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 20,
-                vy: Math.sin(angle) * 20,
-                life: 0.5 + Math.random() * 0.3,
-                maxLife: 0.5 + Math.random() * 0.3,
-                size: 2, sizeEnd: 4,
-                color: '#76D7C4',
-                alpha: 0.7, alphaEnd: 0,
-                shape: 'circle',
-                gravity: -5,
-            });
-        }
-    }
-
-    /** Generic damage hit - small white sparks */
-    spawnDamageHit(x: number, y: number): void {
-        for (let i = 0; i < 3; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 20 + Math.random() * 30;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 0.15 + Math.random() * 0.1,
-                maxLife: 0.15 + Math.random() * 0.1,
-                size: 2, sizeEnd: 0,
-                color: '#fff', alpha: 0.8, alphaEnd: 0,
-                shape: 'spark',
-            });
-        }
-    }
-
-    /** Process game events into particles */
-    processEvents(events: readonly GameEvent[]): void {
-        for (const event of events) {
-            if (event.type === 'death') {
-                this.spawnDeathEffect(event.position.x, event.position.y, event.enemyType || '');
-            } else if (event.type === 'area_hit') {
-                this.spawnAreaExplosion(event.position.x, event.position.y, event.radius || 40);
-            } else if (event.type === 'hit') {
-                switch (event.effectType) {
-                    case 'slow':
-                        this.spawnSlowHit(event.position.x, event.position.y);
-                        break;
-                    case 'poison':
-                        this.spawnPoisonHit(event.position.x, event.position.y);
-                        break;
-                    case 'instakill':
-                        this.spawnInstakillHit(event.position.x, event.position.y);
-                        break;
-                    case 'reveal_camo':
-                        this.spawnRevealHit(event.position.x, event.position.y);
-                        break;
-                    case 'area_damage':
-                        // Handled by the separate area_hit event
-                        this.spawnDamageHit(event.position.x, event.position.y);
-                        break;
-                    default:
-                        this.spawnDamageHit(event.position.x, event.position.y);
-                        break;
-                }
-            }
-        }
-    }
-
-    update(deltaTime: number): void {
-        for (let i = this.pendingInstakillBursts.length - 1; i >= 0; i--) {
-            const burst = this.pendingInstakillBursts[i];
-            burst.delay -= deltaTime;
-            if (burst.delay <= 0) {
-                this.emitInstakillBurst(burst.x, burst.y);
-                this.pendingInstakillBursts.splice(i, 1);
-            }
-        }
-
-        for (let i = this.particles.length - 1; i >= 0; i--) {
-            const p = this.particles[i];
-            p.life -= deltaTime;
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-                continue;
-            }
-            p.x += p.vx * deltaTime;
-            p.y += p.vy * deltaTime;
-            p.vy += p.gravity * deltaTime;
-            p.rotation += p.rotationSpeed * deltaTime;
-            // Friction
-            p.vx *= 0.98;
-            p.vy *= 0.98;
-        }
-    }
-
-    render(ctx: CanvasRenderingContext2D): void {
-        for (const p of this.particles) {
-            const t = 1 - p.life / p.maxLife; // 0 -> 1 as particle ages
-            const alpha = p.alpha + (p.alphaEnd - p.alpha) * t;
-            const size = p.size + (p.sizeEnd - p.size) * t;
-
-            if (alpha <= 0.01 || size <= 0.1) continue;
-
-            ctx.globalAlpha = alpha;
-
-            switch (p.shape) {
-                case 'circle':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.fill();
-                    break;
-
-                case 'ring':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.strokeStyle = p.color;
-                    ctx.lineWidth = 2 + (1 - t) * 2;
-                    ctx.stroke();
-                    break;
-
-                case 'spark':
-                    ctx.save();
-                    ctx.translate(p.x, p.y);
-                    ctx.rotate(p.rotation);
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(-size, -size * 0.3, size * 2, size * 0.6);
-                    ctx.restore();
-                    break;
-
-                case 'splat':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.fill();
-                    // Darker outline for gooey look
-                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                    break;
-
-                case 'cloud':
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-                    ctx.fillStyle = p.color;
-                    ctx.shadowColor = p.color;
-                    ctx.shadowBlur = size;
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    break;
-            }
-        }
-        ctx.globalAlpha = 1;
-    }
-
-    clear(): void {
-        this.particles = [];
-        this.pendingInstakillBursts = [];
-    }
-
-    spawnNetworkBloom(x: number, y: number): void {
-        this.spawn({
-            x, y,
-            size: 12, sizeEnd: 160,
-            life: 0.8, maxLife: 0.8,
-            color: '#4ADE80', alpha: 0.9, alphaEnd: 0,
-            shape: 'ring',
-        });
-        for (let index = 0; index < 12; index++) {
-            const angle = (Math.PI * 2 * index) / 12;
-            this.spawn({
-                x, y,
-                vx: Math.cos(angle) * 90,
-                vy: Math.sin(angle) * 90,
-                life: 0.55, maxLife: 0.55,
-                size: 4, sizeEnd: 1,
-                color: '#C084FC', alpha: 0.9, alphaEnd: 0,
-                shape: 'spark',
-                rotation: angle,
-            });
-        }
-    }
-}
-
-// --- End Particle System ---
 
 interface MouseState {
     x: number;
@@ -504,16 +111,17 @@ class Game {
     private renderer: GameRenderer;
     private loop: GameLoop;
     private mouse: MouseState;
-    private audio: AudioManager;
-    private particles: ParticleSystem;
+    private audio: BrowserGameAudio;
+    private combatEffects: CombatEffectPool;
+    private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
     private lastRenderTime: number = 0;
     private showingMenu: boolean = true;
     private menuAnimTime: number = 0;
-    private lastTrackedWaveIndex: number = -1;
     private onboarding: OnboardingState = createOnboardingState(true);
     private onboardingPulseUntil: number = 0;
     private onboardingCompletionStartedAt: number | null = null;
+    private onboardingEntranceStartedAt: number | null = null;
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -527,8 +135,9 @@ class Game {
         this.loop = createGameLoop(this.game, this.renderer);
 
         this.mouse = { x: 0, y: 0, down: false };
-        this.audio = createAudioManager();
-        this.particles = new ParticleSystem();
+        this.audio = createGameAudioDirector();
+        this.combatEffects = new CombatEffectPool();
+        this.towerSpriteCache = new TowerSpriteImageCache();
 
         this.setupEventListeners();
         this.renderer.setCamera(RELEASE_CAMERA);
@@ -621,8 +230,6 @@ class Game {
     private startGame(): void {
         if (!this.showingMenu) return;
         this.startReleaseRun();
-        this.audio.ensureInitialized();
-        this.audio.playNormalTrack();
         this.loop.start();
         this.loop.setRenderCallback(this.render.bind(this));
         // Player places towers first, then clicks "Start Wave"
@@ -636,6 +243,7 @@ class Game {
         }
         this.game.start();
         this.showingMenu = false;
+        this.onboardingEntranceStartedAt = performance.now();
         this.updatePrimaryHotkeyLabel();
     }
 
@@ -652,10 +260,12 @@ class Game {
     }
 
     private getCurrentOnboardingRenderData(): OnboardingRenderData {
+        const now = performance.now();
         return this.renderer.getOnboardingRenderData(
             this.game,
             this.onboarding,
-            performance.now() < this.onboardingPulseUntil,
+            now < this.onboardingPulseUntil,
+            getOnboardingEntranceProgress(this.onboardingEntranceStartedAt, now),
         );
     }
 
@@ -675,7 +285,7 @@ class Game {
         const path = this.game.getPath();
         const position = bloomPosition
             ?? path.getPointAtDistance(path.getTotalLength()).position;
-        this.particles.spawnNetworkBloom(position.x, position.y);
+        this.combatEffects.addCelebration(position);
     }
 
     private handleOnboardingControl(control: OnboardingControl): void {
@@ -690,6 +300,15 @@ class Game {
     private updatePrimaryHotkeyLabel(): void {
         const label = document.getElementById('primaryActionLabel');
         if (label) label.textContent = getPrimaryHotkeyLabel(this.showingMenu);
+        this.updateHotkeyBarVisibility(this.game.getState());
+    }
+
+    private updateHotkeyBarVisibility(state: GameState): void {
+        const bar = document.getElementById('hotkeyBar');
+        if (!bar) return;
+        const isObscured = getHotkeyBarVisibility(this.showingMenu, state) === 'obscured';
+        bar.classList?.toggle('is-obscured', isObscured);
+        bar.setAttribute?.('aria-hidden', String(isObscured));
     }
 
     private runOnboardingCommand<T>(
@@ -732,6 +351,7 @@ class Game {
 
     private setupEventListeners(): void {
         this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+        this.canvas.addEventListener('pointerdown', () => this.audio.unlock(), { once: true });
         this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
         this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
         window.addEventListener('keydown', this.onKeyDown.bind(this));
@@ -797,7 +417,6 @@ class Game {
                 if (btnId === 'resume') {
                     this.runOnboardingCommand(OnboardingAction.Pause, () => {
                         this.game.resume();
-                        this.audio.resume();
                     });
                 }
                 else if (btnId === 'restart') this.restartGame();
@@ -1005,6 +624,7 @@ class Game {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
+        this.audio.unlock();
         const layer = getActiveUiLayer(this.getUiGateState());
 
         if (layer === UiLayer.Menu) {
@@ -1032,7 +652,6 @@ class Game {
             if (action === HotkeyAction.Pause || action === HotkeyAction.Cancel) {
                 this.runOnboardingCommand(OnboardingAction.Pause, () => {
                     this.game.resume();
-                    this.audio.resume();
                 });
             }
             return;
@@ -1059,7 +678,6 @@ class Game {
         if (action === HotkeyAction.Pause) {
             this.runOnboardingCommand(OnboardingAction.Pause, () => {
                 this.game.pause();
-                this.audio.pause();
             });
             return;
         }
@@ -1142,11 +760,10 @@ class Game {
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
+        this.audio.enterMenu();
         this.game.reset();
         this.game.start();
-        this.lastTrackedWaveIndex = -1;
-        this.audio.playNormalTrack();
-        this.particles.clear();
+        this.combatEffects.clear();
     }
 
     private quitToMenu(): void {
@@ -1155,48 +772,38 @@ class Game {
             this.onboarding = createOnboardingState(true);
         }
         this.showingMenu = true;
+        this.onboardingEntranceStartedAt = null;
         this.updatePrimaryHotkeyLabel();
         this.loop.stop();
         this.game.reset();
-        this.lastTrackedWaveIndex = -1;
-        this.audio.stop();
-        this.particles.clear();
+        this.audio.enterMenu();
+        this.combatEffects.clear();
         this.drawMenu();
     }
 
     private render(renderData: GameFrameRenderData): void {
-        // Switch music based on wave changes
         const waveIndex = this.game.getCurrentWaveIndex();
-        if (waveIndex !== this.lastTrackedWaveIndex && waveIndex >= 0) {
-            this.lastTrackedWaveIndex = waveIndex;
-            const totalWaves = this.game.getGameStats().totalWaves ?? 10;
-            if (isBossWave(waveIndex, totalWaves)) {
-                this.audio.playBossTrack();
-            } else if (waveIndex > 0) {
-                // Only switch back to normal if we were on a boss track
-                this.audio.playNormalTrack();
-            }
-        }
-
-        // Stop music on game over / victory
         const state = this.game.getState();
-        if (state === GameState.GameOver || state === GameState.Victory) {
-            if (this.lastTrackedWaveIndex !== -2) {
-                this.audio.stop();
-                this.lastTrackedWaveIndex = -2; // sentinel to avoid repeated stops
-            }
-        }
+        this.updateHotkeyBarVisibility(state);
 
         // Update particles
         const now = performance.now() / 1000;
         const particleDt = this.lastRenderTime > 0 ? Math.min(now - this.lastRenderTime, 0.05) : 0.016;
         this.lastRenderTime = now;
-        const eventResult = drainGameEventsForOnboarding(
+        const eventResult = drainGameEventsForPresentation(
             this.onboarding,
             () => this.game.drainEvents(),
-            events => {
-                this.particles.processEvents(events);
-                this.audio.processGameEvents(events);
+            {
+                combat: events => {
+                    if (events.length > 0) {
+                        this.combatEffects.processEvents(
+                            events,
+                            renderData.towers.towers,
+                            renderData.environment.kernel.position,
+                        );
+                    }
+                },
+                audio: events => this.audio.director.update(events, state, waveIndex),
             },
         );
         this.transitionOnboarding(
@@ -1204,7 +811,7 @@ class Game {
             eventResult.completionBloom,
             eventResult.completionCause,
         );
-        this.particles.update(particleDt);
+        this.combatEffects.update(particleDt);
         renderData.onboarding = this.getCurrentOnboardingRenderData();
 
         this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1213,79 +820,39 @@ class Game {
         this.ctx.scale(renderData.camera.zoom, renderData.camera.zoom);
         this.ctx.translate(-renderData.camera.x, -renderData.camera.y);
 
-        this.drawPath(renderData.path);
-        this.drawLingeringFields(renderData.lingeringFields);
-        this.drawSeededPayloads(renderData.seededPayloads);
-        this.drawNetworkConnections(renderData.networkConnections);
-        this.drawPlacementPreview(renderData.placementPreview);
+        paintEnvironment(this.ctx, renderData.environment, renderData.viewport);
+        paintWorldEffects(this.ctx, {
+            fields: renderData.lingeringFields,
+            payloads: renderData.seededPayloads,
+            timestamp: renderData.timestamp,
+        });
+        paintNetworkConnections(this.ctx, {
+            connections: renderData.networkConnections,
+            transients: this.combatEffects.getTransientSlots(),
+            timestamp: renderData.timestamp,
+        });
+        this.drawPlacementPreview(renderData.placementPreview, renderData.timestamp);
         this.drawTowers(renderData);
         this.drawEnemies(renderData);
-        this.drawProjectiles(renderData.projectiles);
-        this.particles.render(this.ctx);
-        this.drawHealthBars(renderData.healthBars);
+        paintProjectiles(this.ctx, renderData.projectiles);
+        paintCombatEffects(this.ctx, {
+            particles: this.combatEffects.getParticleSlots(),
+            transients: this.combatEffects.getTransientSlots(),
+        });
         this.drawTowerSelection(renderData.towerSelection);
         this.drawSellButton(renderData.sellButton);
+        paintEnvironmentPathLabels(this.ctx, renderData.environment);
         
         this.ctx.restore();
-        
+
+        paintBossHealthBars(this.ctx, renderData.healthBars);
         this.drawHUD(renderData);
     }
 
-    private drawPath(pathData: PathRenderData): void {
-        for (const segment of pathData.segments) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(segment.start.x, segment.start.y);
-            this.ctx.lineTo(segment.end.x, segment.end.y);
-            this.ctx.strokeStyle = segment.isHighlighted ? segment.highlightColor : segment.color;
-            this.ctx.lineWidth = segment.width;
-            this.ctx.lineCap = 'round';
-            this.ctx.stroke();
-        }
-
-        // Direction arrows along path
-        const segs = pathData.segments;
-        for (let i = 0; i < segs.length; i++) {
-            const s = segs[i];
-            const mx = (s.start.x + s.end.x) / 2;
-            const my = (s.start.y + s.end.y) / 2;
-            const angle = Math.atan2(s.end.y - s.start.y, s.end.x - s.start.x);
-            const sz = 8;
-            this.ctx.save();
-            this.ctx.translate(mx, my);
-            this.ctx.rotate(angle);
-            this.ctx.beginPath();
-            this.ctx.moveTo(sz, 0);
-            this.ctx.lineTo(-sz, -sz * 0.6);
-            this.ctx.lineTo(-sz, sz * 0.6);
-            this.ctx.closePath();
-            this.ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
-            this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        // Start / End labels
-        if (segs.length > 0) {
-            const first = segs[0];
-            const last = segs[segs.length - 1];
-            this.ctx.font = 'bold 14px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = '#4ade80';
-            this.ctx.fillText(
-                'START',
-                clampReleaseWorldLabelX(first.start.x, 28),
-                first.start.y - 20,
-            );
-            this.ctx.fillStyle = '#f87171';
-            this.ctx.fillText(
-                'END',
-                clampReleaseWorldLabelX(last.end.x, 22),
-                last.end.y - 20,
-            );
-        }
-    }
-
-    private drawPlacementPreview(preview: PlacementPreviewWithTargetingRenderData | null): void {
+    private drawPlacementPreview(
+        preview: PlacementPreviewWithTargetingRenderData | null,
+        timestamp: number,
+    ): void {
         if (!preview || !preview.ghost) return;
         
         const ghost = preview.ghost;
@@ -1306,10 +873,6 @@ class Game {
         const size = ghost.size;
         const halfSize = size / 2;
         
-        this.ctx.fillStyle = ghost.isValid ? 'rgba(100, 255, 100, 0.3)' : 'rgba(255, 100, 100, 0.3)';
-        this.ctx.strokeStyle = ghost.isValid ? '#00ff00' : '#ff0000';
-        this.ctx.lineWidth = 2;
-        
         const typeMap: Record<TowerType, 'circle' | 'square' | 'diamond'> = {
             [TowerType.Puffball]: 'circle',
             [TowerType.Slimefungus]: 'diamond',
@@ -1319,25 +882,20 @@ class Game {
             [TowerType.Sporecap]: 'circle',
         };
         const shapeType = typeMap[ghost.towerType] || 'circle';
-        
-        if (shapeType === 'circle') {
-            this.ctx.beginPath();
-            this.ctx.arc(ghost.position.x, ghost.position.y, halfSize, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-        } else if (shapeType === 'square') {
-            this.ctx.fillRect(ghost.position.x - halfSize, ghost.position.y - halfSize, size, size);
-            this.ctx.strokeRect(ghost.position.x - halfSize, ghost.position.y - halfSize, size, size);
-        } else if (shapeType === 'diamond') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(ghost.position.x, ghost.position.y - halfSize);
-            this.ctx.lineTo(ghost.position.x + halfSize, ghost.position.y);
-            this.ctx.lineTo(ghost.position.x, ghost.position.y + halfSize);
-            this.ctx.lineTo(ghost.position.x - halfSize, ghost.position.y);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-        }
+        const spriteSize = Math.max(56, size * 3);
+        paintTowerIdentity(
+            this.ctx,
+            this.towerSpriteCache,
+            ghost.towerType,
+            ghost.stage,
+            ghost.evolution,
+            timestamp,
+            {
+                anchorX: ghost.position.x,
+                anchorY: ghost.position.y,
+                size: spriteSize,
+            },
+        );
         
         this.ctx.strokeStyle = ghost.glowColor;
         this.ctx.lineWidth = 3;
@@ -1423,37 +981,26 @@ class Game {
     private drawTowers(renderData: GameFrameRenderData): void {
         for (const tower of renderData.towers.towers) {
             const isSelected = tower.isSelected;
-            const primaryColor = tower.primaryColor;
-            const secondaryColor = tower.secondaryColor;
             const glowColor = tower.glowColor;
             const bodyRadius = tower.bodyRadius;
             const baseRadius = tower.baseRadius;
-            const bodyShape = getTowerBodyShape(tower.towerType);
             const growthStage = tower.growthStage;
             const growthProgress = tower.growthProgress;
             
-            this.ctx.beginPath();
-            switch (bodyShape) {
-                case 'circle':
-                    this.ctx.arc(tower.position.x, tower.position.y, bodyRadius, 0, Math.PI * 2);
-                    break;
-                case 'hexagon':
-                    this.drawHexagon(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                case 'diamond':
-                    this.drawDiamond(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                case 'star':
-                    this.drawStar(tower.position.x, tower.position.y, bodyRadius);
-                    break;
-                default:
-                    this.ctx.arc(tower.position.x, tower.position.y, bodyRadius, 0, Math.PI * 2);
-            }
-            this.ctx.fillStyle = primaryColor;
-            this.ctx.fill();
-            this.ctx.strokeStyle = secondaryColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+            const spriteSize = Math.max(56, baseRadius * 3);
+            paintTowerIdentity(
+                this.ctx,
+                this.towerSpriteCache,
+                tower.towerType,
+                tower.stage,
+                tower.evolution,
+                renderData.timestamp,
+                {
+                    anchorX: tower.position.x,
+                    anchorY: tower.position.y,
+                    size: spriteSize,
+                },
+            );
             
             if (growthStage === TowerGrowthStage.FullyMatured || growthStage === TowerGrowthStage.Mature) {
                 this.ctx.beginPath();
@@ -1476,26 +1023,13 @@ class Game {
             }
             
             if (isSelected) {
-                this.ctx.strokeStyle = '#FFD700';
-                this.ctx.lineWidth = 3;
-                this.ctx.beginPath();
-                switch (bodyShape) {
-                    case 'circle':
-                        this.ctx.arc(tower.position.x, tower.position.y, bodyRadius + 4, 0, Math.PI * 2);
-                        break;
-                    case 'hexagon':
-                        this.drawHexagon(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    case 'diamond':
-                        this.drawDiamond(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    case 'star':
-                        this.drawStar(tower.position.x, tower.position.y, bodyRadius + 4);
-                        break;
-                    default:
-                        this.ctx.arc(tower.position.x, tower.position.y, bodyRadius + 4, 0, Math.PI * 2);
-                }
-                this.ctx.stroke();
+                paintTowerSelectionOutline(
+                    this.ctx,
+                    tower.towerType,
+                    tower.position.x,
+                    tower.position.y,
+                    bodyRadius + 4,
+                );
             }
             
             if (tower.isFiring) {
@@ -1521,153 +1055,6 @@ class Game {
         }
     }
     
-    private drawNetworkConnections(connections: NetworkConnectionRenderData[]): void {
-        if (connections.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const connection of connections) {
-            const target = connection.targetPosition;
-
-            const pulseAlpha = 0.15 + Math.sin(time * 3) * 0.08;
-            ctx.beginPath();
-            ctx.arc(target.x, target.y, 18, 0, Math.PI * 2);
-            ctx.fillStyle = connection.sourceType === 'kernel'
-                ? `rgba(74, 222, 128, ${pulseAlpha})`
-                : `rgba(142, 68, 173, ${pulseAlpha})`;
-            ctx.fill();
-
-            const source = connection.sourcePosition;
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const dashOffset = (time * 40) % 20;
-
-            ctx.beginPath();
-            ctx.moveTo(source.x, source.y);
-            ctx.lineTo(target.x, target.y);
-            const glowAlpha = 0.15 + Math.sin(time * 2 + dist * 0.01) * 0.08;
-            ctx.strokeStyle = connection.sourceType === 'kernel'
-                ? `rgba(74, 222, 128, ${glowAlpha})`
-                : `rgba(142, 68, 173, ${glowAlpha})`;
-            ctx.lineWidth = connection.width + 4;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(source.x, source.y);
-            ctx.lineTo(target.x, target.y);
-            ctx.strokeStyle = connection.color;
-            ctx.lineWidth = connection.width;
-            ctx.setLineDash([8, 12]);
-            ctx.lineDashOffset = -dashOffset;
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.lineDashOffset = 0;
-        }
-    }
-
-    private drawLingeringFields(fields: LingeringFieldRenderData[]): void {
-        if (fields.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const field of fields) {
-            const pulse = 0.92 + Math.sin(time * 2.6 + field.id) * 0.08;
-            const radius = field.radius * pulse;
-
-            ctx.save();
-            ctx.globalAlpha = Math.min(0.85, field.alpha);
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = field.color;
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = field.borderColor;
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 6]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.beginPath();
-            ctx.arc(field.position.x, field.position.y, radius * 0.55, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(202, 255, 128, 0.16)';
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    private drawSeededPayloads(payloads: SeededPayloadRenderData[]): void {
-        if (payloads.length === 0) return;
-
-        const time = performance.now() / 1000;
-        const ctx = this.ctx;
-
-        for (const payload of payloads) {
-            const pulse = 0.85 + Math.sin(time * 8 + payload.id) * 0.15;
-            const coreRadius = 7 + pulse * 2;
-
-            ctx.save();
-            ctx.globalAlpha = Math.min(0.9, payload.alpha);
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, payload.radius, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 207, 102, 0.22)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 8]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, coreRadius, 0, Math.PI * 2);
-            ctx.fillStyle = payload.color;
-            ctx.fill();
-            ctx.strokeStyle = payload.borderColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(payload.position.x, payload.position.y, coreRadius * 0.45, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(90, 54, 20, 0.55)';
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    private drawHexagon(x: number, y: number, radius: number): void {
-        this.ctx.moveTo(x + radius * Math.cos(0), y + radius * Math.sin(0));
-        for (let i = 1; i <= 6; i++) {
-            const angle = (i * Math.PI) / 3;
-            this.ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
-        }
-        this.ctx.closePath();
-    }
-    
-    private drawDiamond(x: number, y: number, radius: number): void {
-        this.ctx.moveTo(x, y - radius);
-        this.ctx.lineTo(x + radius, y);
-        this.ctx.lineTo(x, y + radius);
-        this.ctx.lineTo(x - radius, y);
-        this.ctx.closePath();
-    }
-    
-    private drawStar(x: number, y: number, radius: number): void {
-        const points = 5;
-        const innerRadius = radius * 0.5;
-        for (let i = 0; i < points * 2; i++) {
-            const r = i % 2 === 0 ? radius : innerRadius;
-            const angle = (i * Math.PI) / points - Math.PI / 2;
-            if (i === 0) {
-                this.ctx.moveTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-            } else {
-                this.ctx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
-            }
-        }
-        this.ctx.closePath();
-    }
-
     private isEnemyRevealed(ex: number, ey: number): boolean {
         for (const placed of this.game.getPlacedTowers()) {
             if (placed.tower.towerType === TowerType.LumenOracle) {
@@ -1682,378 +1069,10 @@ class Game {
     }
 
     private drawEnemies(renderData: GameFrameRenderData): void {
-        for (const enemy of renderData.enemies.enemies) {
-            this.ctx.save();
-
-            const radius = enemy.bodyRadius;
-
-            // Camo enemies: semi-transparent unless revealed by Lumen Oracle
-            let camoRevealed = false;
-            if (enemy.isCamo) {
-                camoRevealed = this.isEnemyRevealed(enemy.position.x, enemy.position.y);
-                if (!camoRevealed) {
-                    // Shimmer effect - barely visible
-                    const shimmer = 0.15 + Math.sin(performance.now() / 400 + enemy.id) * 0.05;
-                    this.ctx.globalAlpha = shimmer;
-                } else {
-                    // Revealed - yellow highlight pulse
-                    const revealPulse = 0.8 + Math.sin(performance.now() / 300) * 0.2;
-                    this.ctx.globalAlpha = revealPulse;
-                    // Reveal glow
-                    this.ctx.shadowColor = '#F1C40F';
-                    this.ctx.shadowBlur = 12;
-                }
-            }
-
-            this.ctx.beginPath();
-            const bodyShape = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.bodyShape || 'circle';
-            if (bodyShape === 'circle') {
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius, 0, Math.PI * 2);
-            } else if (bodyShape === 'oval') {
-                this.ctx.ellipse(enemy.position.x, enemy.position.y, radius * 1.3, radius, 0, 0, Math.PI * 2);
-            } else {
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius, 0, Math.PI * 2);
-            }
-            this.ctx.fillStyle = enemy.primaryColor;
-            this.ctx.fill();
-            this.ctx.strokeStyle = enemy.secondaryColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
-
-            // Reset shadow/alpha for decorations
-            this.ctx.shadowBlur = 0;
-            if (enemy.isCamo && !camoRevealed) {
-                // Keep low alpha for decorations too
-            } else {
-                this.ctx.globalAlpha = 1;
-            }
-
-            const decorations = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.decorations || [];
-            const hasShell = decorations.some(d => d.type === 'shell');
-            if (hasShell) {
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y - radius * 0.2, radius * 0.7, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.secondaryColor || 'transparent';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-            }
-
-            if (enemy.isMetal) {
-                this.ctx.save();
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 4, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.armorColor || '#C8D0D8';
-                this.ctx.lineWidth = 3;
-                this.ctx.setLineDash([3, 3]);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-                this.ctx.restore();
-            }
-
-            if (enemy.shieldActive) {
-                this.ctx.save();
-                const shieldPulse = 0.65 + Math.sin(performance.now() / 260 + enemy.id) * 0.2;
-                this.ctx.globalAlpha = shieldPulse;
-                this.ctx.shadowColor = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
-                this.ctx.shadowBlur = 10;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 8, 0, Math.PI * 2);
-                this.ctx.strokeStyle = enemy.shieldColor || 'rgba(124, 218, 255, 0.75)';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-                this.ctx.restore();
-            }
-
-            if (enemy.swarmLinkedActive) {
-                this.ctx.save();
-                const linkColor = enemy.swarmLinkColor || 'rgba(245, 94, 121, 0.72)';
-                const swarmPulse = 0.35 + Math.sin(performance.now() / 220 + enemy.id) * 0.12;
-                this.ctx.globalAlpha = swarmPulse;
-                this.ctx.strokeStyle = linkColor;
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 12, 0, Math.PI * 2);
-                this.ctx.stroke();
-
-                for (const other of renderData.enemies.enemies) {
-                    if (!other.swarmLinkedActive || other.id <= enemy.id) {
-                        continue;
-                    }
-
-                    const dx = other.position.x - enemy.position.x;
-                    const dy = other.position.y - enemy.position.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance <= 80) {
-                        this.ctx.globalAlpha = 0.18;
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(enemy.position.x, enemy.position.y);
-                        this.ctx.lineTo(other.position.x, other.position.y);
-                        this.ctx.stroke();
-                    }
-                }
-                this.ctx.restore();
-            }
-
-            // Camo indicator - dashed outline for revealed enemies
-            if (enemy.isCamo && camoRevealed) {
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, radius + 5, 0, Math.PI * 2);
-                this.ctx.strokeStyle = '#F1C40F';
-                this.ctx.lineWidth = 2;
-                this.ctx.setLineDash([4, 4]);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-            }
-            
-            // Reset alpha for status indicators (always visible even on camo)
-            this.ctx.globalAlpha = 1;
-
-            // Status effect indicators
-            const auras = renderData.enemies.enemyTypeInfo?.get(enemy.id)?.statusEffectAuras || [];
-            const time = performance.now() / 1000;
-            if (auras.length > 0) {
-                // Aura ring for strongest effect
-                const mainAura = auras[0];
-                const pulse = 0.3 + Math.sin(time * mainAura.pulseSpeed) * 0.15;
-                this.ctx.beginPath();
-                this.ctx.arc(enemy.position.x, enemy.position.y, mainAura.radius, 0, Math.PI * 2);
-                this.ctx.strokeStyle = mainAura.color;
-                this.ctx.globalAlpha = pulse;
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-                this.ctx.globalAlpha = 1;
-            }
-            // Small colored dots above enemy for each active effect
-            const effects = enemy.statusEffects || [];
-            if (effects.length > 0) {
-                const dotY = enemy.position.y - radius - 8;
-                const totalWidth = effects.length * 8;
-                const startX = enemy.position.x - totalWidth / 2 + 4;
-                for (let ei = 0; ei < effects.length; ei++) {
-                    const eff = effects[ei];
-                    const dotX = startX + ei * 8;
-                    const effPulse = 0.7 + Math.sin(time * 5 + ei) * 0.3;
-                    this.ctx.globalAlpha = effPulse;
-                    this.ctx.beginPath();
-                    this.ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
-                    this.ctx.fillStyle = eff.color;
-                    this.ctx.fill();
-                    this.ctx.globalAlpha = 1;
-                }
-            }
-
-            if (!enemy.showHealthBar && enemy.totalLayers > 1) {
-                const indicatorY = enemy.position.y + radius + 7;
-                const indicatorWidth = 12;
-                const remainingRatio = enemy.layersRemaining / enemy.totalLayers;
-                this.ctx.fillStyle = 'rgba(18, 24, 31, 0.8)';
-                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth, 3);
-                this.ctx.fillStyle = enemy.secondaryColor;
-                this.ctx.fillRect(enemy.position.x - indicatorWidth / 2, indicatorY, indicatorWidth * remainingRatio, 3);
-            }
-            
-            this.ctx.restore();
-        }
-    }
-
-    private drawProjectiles(projectiles: any[]): void {
-        for (const p of projectiles) {
-            const x = p.position.x;
-            const y = p.position.y;
-            const size = p.size || 5;
-            const color = p.color || '#fff';
-            const glowColor = p.glowColor || color;
-            
-            this.ctx.save();
-
-            // Trail points are in world coordinates.
-            if (p.hasTrail && p.trailPoints && p.trailPoints.length > 0) {
-                this.drawProjectileTrail(p.trailPoints, color, glowColor, size, p.trailStyle || 'ribbon');
-            }
-
-            const animationState = p.animationState || { scale: 1, rotation: 0, pulsePhase: 0 };
-            const stretch = p.stretch || { scaleX: 1, scaleY: 1 };
-
-            this.ctx.translate(x, y);
-            this.ctx.rotate(animationState.rotation);
-            this.ctx.scale(stretch.scaleX * animationState.scale, stretch.scaleY * animationState.scale);
-            
-            if (p.glowColor) {
-                this.ctx.shadowColor = glowColor;
-                this.ctx.shadowBlur = size * 2;
-            }
-            
-            this.drawProjectileShape(p.shape || 'orb', size, color, p.accentColor || glowColor);
-            
-            if (p.specialEffect === 'area_damage') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.6, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'poison') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(150, 0, 150, 0.7)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'slow') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(100, 150, 255, 0.5)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'instakill') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.8, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 200, 0, 0.6)';
-                this.ctx.fill();
-            } else if (p.specialEffect === 'reveal_camo') {
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(0, 255, 200, 0.6)';
-                this.ctx.fill();
-            }
-            
-            this.ctx.shadowBlur = 0;
-            this.ctx.restore();
-        }
-    }
-
-    private drawProjectileShape(shape: string, size: number, color: string, accentColor: string): void {
-        this.ctx.fillStyle = color;
-        this.ctx.strokeStyle = accentColor;
-        this.ctx.lineWidth = Math.max(2, size * 0.22);
-
-        if (shape === 'cloud') {
-            for (const puff of [
-                { x: -size * 0.45, y: 0, r: size * 0.62 },
-                { x: size * 0.25, y: -size * 0.2, r: size * 0.7 },
-                { x: size * 0.42, y: size * 0.28, r: size * 0.5 },
-            ]) {
-                this.ctx.beginPath();
-                this.ctx.arc(puff.x, puff.y, puff.r, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'drop') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, -size * 1.15);
-            this.ctx.bezierCurveTo(size, -size * 0.25, size * 0.55, size, 0, size);
-            this.ctx.bezierCurveTo(-size * 0.55, size, -size, -size * 0.25, 0, -size * 1.15);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'jaw') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size, -size * 0.7);
-            this.ctx.lineTo(size * 0.15, 0);
-            this.ctx.lineTo(-size, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.beginPath();
-            this.ctx.moveTo(size, -size * 0.7);
-            this.ctx.lineTo(-size * 0.15, 0);
-            this.ctx.lineTo(size, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size * 0.15, 0);
-            this.ctx.lineTo(size * 0.15, 0);
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'bolt') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(-size * 0.35, -size * 1.1);
-            this.ctx.lineTo(size * 0.28, -size * 0.18);
-            this.ctx.lineTo(-size * 0.04, -size * 0.18);
-            this.ctx.lineTo(size * 0.42, size * 1.1);
-            this.ctx.lineTo(-size * 0.42, size * 0.08);
-            this.ctx.lineTo(-size * 0.08, size * 0.08);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        if (shape === 'needle') {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, -size * 1.25);
-            this.ctx.lineTo(size * 0.36, size * 0.7);
-            this.ctx.lineTo(0, size * 1.05);
-            this.ctx.lineTo(-size * 0.36, size * 0.7);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            return;
-        }
-
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, size, 0, Math.PI * 2);
-        this.ctx.fill();
-    }
-
-    private drawProjectileTrail(trailPoints: any[], color: string, glowColor: string, size: number, style: string): void {
-        if (trailPoints.length < 2) return;
-
-        for (let i = 1; i < trailPoints.length; i++) {
-            const prev = trailPoints[i - 1];
-            const curr = trailPoints[i];
-            const opacity = curr.opacity || 0.3;
-
-            if (style === 'spore' || style === 'toxin') {
-                this.ctx.beginPath();
-                this.ctx.arc(curr.position.x, curr.position.y, Math.max(1.5, size * opacity * 0.35), 0, Math.PI * 2);
-                this.ctx.fillStyle = style === 'toxin' ? color : glowColor;
-                this.ctx.globalAlpha = opacity * 0.65;
-                this.ctx.fill();
-                this.ctx.globalAlpha = 1;
-                continue;
-            }
-
-            this.ctx.beginPath();
-            this.ctx.moveTo(prev.position.x, prev.position.y);
-            if (style === 'spark') {
-                const midX = (prev.position.x + curr.position.x) / 2 + Math.sin(i * 2.3) * size * 0.35;
-                const midY = (prev.position.y + curr.position.y) / 2 + Math.cos(i * 1.7) * size * 0.35;
-                this.ctx.lineTo(midX, midY);
-            }
-            this.ctx.lineTo(curr.position.x, curr.position.y);
-            this.ctx.strokeStyle = style === 'snap' ? color : glowColor;
-            this.ctx.lineWidth = Math.max(1, size * opacity * (style === 'pulse' ? 0.8 : 0.5));
-            this.ctx.globalAlpha = opacity * (style === 'pulse' ? 0.65 : 0.5);
-            this.ctx.stroke();
-            this.ctx.globalAlpha = 1;
-        }
-    }
-
-    private drawHealthBars(healthBars: HealthBarRenderData[]): void {
-        for (const hb of healthBars) {
-            if (!hb.isVisible) continue;
-            
-            const x = hb.position.x - hb.width / 2;
-            const y = hb.position.y - hb.height / 2;
-            
-            this.ctx.fillStyle = '#333';
-            this.ctx.fillRect(x, y, hb.width, hb.height);
-            
-            const fillWidth = hb.width * hb.healthPercent;
-            let fillColor = '#00ff00';
-            if (hb.healthState === 'damaged') fillColor = '#ffff00';
-            if (hb.healthState === 'critical') fillColor = '#ff0000';
-            
-            this.ctx.fillStyle = fillColor;
-            this.ctx.fillRect(x, y, fillWidth, hb.height);
-            
-            this.ctx.strokeStyle = '#666';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x, y, hb.width, hb.height);
-        }
+        paintEnemies(this.ctx, renderData.enemies, {
+            timestamp: renderData.timestamp,
+            isRevealed: (x, y) => this.isEnemyRevealed(x, y),
+        });
     }
 
     private drawTowerSelection(selection: TowerSelectionPreviewRenderData | null): void {
@@ -2072,22 +1091,6 @@ class Game {
             this.ctx.globalAlpha = 1;
         }
 
-    }
-
-    private drawTargetingModeButtons(buttons: any[]): void {
-        for (const btn of buttons) {
-            this.ctx.fillStyle = btn.isSelected ? btn.color : '#333';
-            this.ctx.fillRect(btn.position.x, btn.position.y, btn.size.width, btn.size.height);
-            this.ctx.strokeStyle = btn.isSelected ? '#fff' : '#555';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(btn.position.x, btn.position.y, btn.size.width, btn.size.height);
-            
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '12px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(btn.label, btn.position.x + btn.size.width / 2, btn.position.y + btn.size.height / 2);
-        }
     }
 
     private drawSellButton(button: any | null): void {
@@ -2113,7 +1116,7 @@ class Game {
     private drawHUD(renderData: GameFrameRenderData): void {
         this.drawWaveAnnouncement(renderData.waveAnnouncement);
         this.drawWaveProgress(renderData.waveProgress);
-        this.drawTowerInfoPanel(renderData.towerInfoPanel);
+        this.drawTowerInfoPanel(renderData.towerInfoPanel, renderData.timestamp);
         this.drawLivesMoney(renderData.livesMoneyDisplay);
         this.drawEnemyCount(renderData.enemyCountDisplay);
         this.drawTowerPurchase(renderData.towerPurchase);
@@ -2132,6 +1135,8 @@ class Game {
         if (!onboarding.isVisible || onboarding.promptRect === null || onboarding.prompt === null) return;
 
         this.ctx.save();
+        this.ctx.globalAlpha = onboarding.entryProgress;
+        this.ctx.translate(0, (1 - onboarding.entryProgress) * -12);
         if (onboarding.reach) {
             this.ctx.font = 'bold 12px sans-serif';
             const projection = projectOnboardingReach({
@@ -2254,9 +1259,13 @@ class Game {
 
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#9EE6C8';
+        this.ctx.font = 'bold 10px sans-serif';
+        this.ctx.fillText('BUILD PHASE', contentX, panel.y + 12, contentWidth);
+
         this.ctx.fillStyle = '#FFD700';
         this.ctx.font = 'bold 13px sans-serif';
-        this.ctx.fillText(`Wave ${preview.waveNumber}: ${preview.name}`, contentX, panel.y + 16, contentWidth);
+        this.ctx.fillText(`Wave ${preview.waveNumber}: ${preview.name}`, contentX, panel.y + 29, contentWidth);
 
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.font = '11px sans-serif';
@@ -2264,7 +1273,7 @@ class Game {
             this.ctx.fillText(
                 `${enemy.count}× ${enemy.displayName}`,
                 contentX,
-                panel.y + 36 + index * 15,
+                panel.y + 48 + index * 15,
                 contentWidth,
             );
         });
@@ -2525,9 +1534,14 @@ class Game {
         }
 
         const { musicVolumeBar, soundVolumeBar, muteButton, speedButtons } = RELEASE_HUD_LAYOUT.pauseSettings;
+        const audioSettings = getPauseAudioSettings(
+            this.audio.getMusicVolume(),
+            this.audio.getSoundVolume(),
+            this.audio.isMuted(),
+        );
         const volumeControls = [
-            { label: 'Music Volume', volume: this.audio.getMusicVolume(), rect: musicVolumeBar },
-            { label: 'Sound Volume', volume: this.audio.getSoundVolume(), rect: soundVolumeBar },
+            { label: 'Music Volume', volume: audioSettings.musicVolume, rect: musicVolumeBar },
+            { label: 'Sound Volume', volume: audioSettings.soundVolume, rect: soundVolumeBar },
         ] as const;
 
         for (const control of volumeControls) {
@@ -2551,7 +1565,7 @@ class Game {
             this.ctx.stroke();
         }
 
-        this.ctx.fillStyle = this.audio.isMuted() ? '#E74C3C' : '#2a2a3e';
+        this.ctx.fillStyle = audioSettings.musicMuted ? '#E74C3C' : '#2a2a3e';
         this.ctx.fillRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
         this.ctx.strokeStyle = '#666';
         this.ctx.strokeRect(muteButton.x, muteButton.y, muteButton.width, muteButton.height);
@@ -2559,7 +1573,7 @@ class Game {
         this.ctx.font = '13px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(
-            this.audio.isMuted() ? 'Unmute Music' : 'Mute Music',
+            audioSettings.musicMuted ? 'Unmute Music' : 'Mute Music',
             muteButton.x + muteButton.width / 2,
             muteButton.y + muteButton.height / 2 + 1,
         );
@@ -2678,7 +1692,10 @@ class Game {
         this.ctx.restore();
     }
 
-    private drawTowerInfoPanel(panel: TowerInfoPanelRenderData | null): void {
+    private drawTowerInfoPanel(
+        panel: TowerInfoPanelRenderData | null,
+        timestamp: number,
+    ): void {
         if (!panel || !panel.isVisible) return;
 
         const width = panel.size.width;
@@ -2698,7 +1715,22 @@ class Game {
         this.ctx.font = 'bold 18px sans-serif';
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'top';
-        this.ctx.fillText(this.truncateText(panel.towerName, width - 30), x + 15, y + 14);
+        this.ctx.fillText(this.truncateText(panel.towerName, width - 90), x + 15, y + 14);
+
+        const previewSize = 44;
+        paintTowerIdentity(
+            this.ctx,
+            this.towerSpriteCache,
+            panel.towerType,
+            panel.growth.stage,
+            panel.growth.evolution,
+            timestamp,
+            {
+                anchorX: x + width - 30,
+                anchorY: y + 52,
+                size: previewSize,
+            },
+        );
 
         this.ctx.font = '14px sans-serif';
         this.ctx.fillStyle = '#aaa';
@@ -2861,14 +1893,19 @@ class Game {
 
     private drawEnemyCount(ec: EnemyCountDisplayRenderData): void {
         if (!ec.isVisible) return;
-        
+
+        const { x, y } = ec.position;
+        const { width, height } = ec.size;
+        this.ctx.save();
+        this.ctx.globalAlpha = ec.enemyCount.opacity;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(CANVAS_WIDTH / 2 - 60, 75, 120, 30);
-        
+        this.ctx.fillRect(x, y, width, height);
+
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '16px sans-serif';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(ec.enemyCount.countText, CANVAS_WIDTH / 2, 95);
+        this.ctx.fillText(ec.enemyCount.countText, x + width / 2, y + height * 2 / 3);
+        this.ctx.restore();
     }
 
     private drawTowerPurchase(purchase: TowerPurchaseRenderData | null): void {
@@ -2896,14 +1933,25 @@ class Game {
             this.ctx.fillStyle = button.canAfford ? '#9EE6C8' : '#777';
             this.ctx.font = 'bold 11px sans-serif';
             this.ctx.fillText(button.role, x + width / 2, y + 21);
+
+            const iconSize = 32;
+            paintTowerIconIdentity(
+                this.ctx,
+                this.towerSpriteCache,
+                button.towerType,
+                x + 8,
+                y + 33,
+                iconSize,
+            );
             
             this.ctx.fillStyle = button.canAfford ? '#4CAF50' : '#F44336';
             this.ctx.font = 'bold 13px sans-serif';
-            this.ctx.fillText(button.costText, x + width / 2, y + 36);
+            this.ctx.textAlign = 'right';
+            this.ctx.fillText(button.costText, x + width - 7, y + 36);
 
             this.ctx.fillStyle = button.canAfford ? '#B8C7D9' : '#666';
             this.ctx.font = '10px sans-serif';
-            this.ctx.fillText(button.counterTags.join(' / '), x + width / 2, y + 53);
+            this.ctx.fillText(button.counterTags.join(' / '), x + width - 7, y + 53);
             
             this.ctx.fillStyle = button.canAfford ? '#aaa' : '#666';
             this.ctx.font = '10px sans-serif';

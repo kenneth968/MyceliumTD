@@ -3,7 +3,13 @@ import { Path, createDefaultPath } from './path';
 import { Vec2 } from '../utils/vec2';
 import { getTowerRenderData, TowerRenderData, getTowersRenderData, TowerRenderCollection } from './towerRender';
 import { EnemyRenderData, getEnemyRenderData, getEnemiesRenderData, EnemyRenderCollection } from './enemyRender';
-import { ProjectileRenderData, getProjectileRenderData, getProjectilesRenderData, ProjectileTrailTracker, createProjectileTrailTracker } from './projectileRender';
+import {
+  ProjectileRenderBuffer,
+  ProjectileRenderData,
+  ProjectileTrailTracker,
+  createProjectileRenderBuffer,
+  createProjectileTrailTracker,
+} from './projectileRender';
 import { TOWER_STATS, TowerType, Tower, Projectile } from '../entities/tower';
 import { Enemy, StatusEffectType } from '../entities/enemy';
 import { getTowerSellButton, PlacementPreviewWithTargetingRenderData, TowerSelectionPreviewRenderData } from './placementPreview';
@@ -30,6 +36,11 @@ import {
   type OnboardingRenderData,
 } from './onboardingRender';
 import { createOnboardingState, type OnboardingState } from './onboarding';
+import {
+  getEnvironmentRenderData,
+  type EnvironmentRenderData,
+} from '../presentation/environmentRender';
+import { VISUAL_THEME } from '../presentation/visualTheme';
 
 export interface PathRenderData {
   points: Vec2[];
@@ -53,9 +64,10 @@ export interface GameFrameRenderData {
   placementState: PlacementState;
   
   path: PathRenderData;
+  environment: EnvironmentRenderData;
   towers: TowerRenderCollection;
   enemies: EnemyRenderCollection;
-  projectiles: ProjectileRenderData[];
+  projectiles: readonly ProjectileRenderData[];
   networkConnections: NetworkConnectionRenderData[];
   lingeringFields: LingeringFieldRenderData[];
   seededPayloads: SeededPayloadRenderData[];
@@ -166,22 +178,23 @@ const DEFAULT_VIEWPORT: ViewportSize = {
   height: 720,
 };
 
-const PATH_COLOR = '#4A4A4A';
+const PATH_COLOR = VISUAL_THEME.pathBase;
 const PATH_HIGHLIGHT_COLOR = '#FFD700';
-const PATH_WIDTH = 20;
+const PATH_WIDTH = VISUAL_THEME.pathWidth;
 const DISABLED_ONBOARDING = Object.freeze(createOnboardingState(false));
 
 export class GameRenderer {
-  private trailTracker: ProjectileTrailTracker;
-  private previousProjectilePositions: Map<number, Vec2>;
-  private previousEnemyPositions: Map<number, Vec2>;
+  private readonly trailTracker: ProjectileTrailTracker;
+  private readonly projectileRenderBuffer: ProjectileRenderBuffer;
+  private readonly previousProjectilePositions: Map<number, Vec2>;
+  private readonly aliveProjectileIds = new Set<number>();
   private camera: CameraState;
   private viewport: ViewportSize;
 
   constructor() {
     this.trailTracker = createProjectileTrailTracker();
+    this.projectileRenderBuffer = createProjectileRenderBuffer();
     this.previousProjectilePositions = new Map();
-    this.previousEnemyPositions = new Map();
     this.camera = { ...DEFAULT_CAMERA };
     this.viewport = { ...DEFAULT_VIEWPORT };
   }
@@ -210,6 +223,7 @@ export class GameRenderer {
     game: GameRunner,
     state: OnboardingState,
     promptPulsing: boolean,
+    entryProgress: number = 1,
   ): OnboardingRenderData {
     const path = game.getPath();
     const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
@@ -220,24 +234,45 @@ export class GameRenderer {
       kernelPosition,
       firstTowerPosition,
       promptPulsing,
+      entryProgress,
     });
   }
 
-  updateTrails(projectiles: Projectile[], deltaTime: number): void {
-    const aliveIds = new Set(projectiles.map(p => p.id));
-    this.trailTracker.clearDeadProjectiles(aliveIds);
+  /** Updates fixed trail storage using millisecond delta and timestamp values. */
+  updateTrails(projectiles: Projectile[], deltaTime: number, timestamp: number): void {
+    this.aliveProjectileIds.clear();
+    for (const projectile of projectiles) {
+      if (projectile.alive) this.aliveProjectileIds.add(projectile.id);
+    }
+    this.trailTracker.clearDeadProjectiles(this.aliveProjectileIds);
+    for (const projectileId of this.previousProjectilePositions.keys()) {
+      if (!this.aliveProjectileIds.has(projectileId)) this.previousProjectilePositions.delete(projectileId);
+    }
 
     for (const projectile of projectiles) {
       if (projectile.alive) {
         const prevPos = this.previousProjectilePositions.get(projectile.id);
         if (prevPos) {
-          this.trailTracker.addPoint(projectile.id, prevPos, Date.now());
+          this.trailTracker.addPoint(projectile.id, prevPos, timestamp);
+          prevPos.x = projectile.position.x;
+          prevPos.y = projectile.position.y;
+        } else {
+          this.previousProjectilePositions.set(projectile.id, { ...projectile.position });
         }
-        this.previousProjectilePositions.set(projectile.id, { ...projectile.position });
       }
     }
 
     this.trailTracker.updateTrails(deltaTime);
+  }
+
+  /** Returns the bounded projectile-history count used by trail rendering. */
+  getTrackedProjectilePositionCount(): number {
+    return this.previousProjectilePositions.size;
+  }
+
+  /** Returns a borrowed position view that remains valid until its projectile is pruned. */
+  getTrackedProjectilePosition(projectileId: number): Readonly<Vec2> | undefined {
+    return this.previousProjectilePositions.get(projectileId);
   }
 
   private getPathRenderData(path: Path, highlightedSegments?: Set<number>): PathRenderData {
@@ -274,7 +309,7 @@ export class GameRenderer {
     const towers = placedTowers.map(pt => ({
       ...pt.tower,
       position: { x: pt.x, y: pt.y },
-    } as Tower));
+    }));
 
     return getTowersRenderData(towers, {
       showRangeForSelected: true,
@@ -318,8 +353,8 @@ export class GameRenderer {
   private getProjectileRenderDataList(
     projectiles: Projectile[],
     previousPositions: Map<number, Vec2>
-  ): ProjectileRenderData[] {
-    return getProjectilesRenderData(projectiles, previousPositions, this.trailTracker);
+  ): readonly ProjectileRenderData[] {
+    return this.projectileRenderBuffer.update(projectiles, previousPositions, this.trailTracker);
   }
 
   render(game: GameRunner, timestamp: number = 0): GameFrameRenderData {
@@ -329,6 +364,8 @@ export class GameRenderer {
 
     const path = game.getPath();
     const pathRenderData = this.getPathRenderData(path);
+    const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
+    const environment = getEnvironmentRenderData(path, kernelPosition, timestamp);
 
     const placedTowers = game.getPlacedTowers();
     const selectedTowerId = game.getSelectedTowerId();
@@ -368,7 +405,7 @@ export class GameRenderer {
     const lingeringFields = this.getLingeringFieldRenderData(game.getLingeringFields());
     const seededPayloads = this.getSeededPayloadRenderData(game.getSeededPayloads());
 
-    this.updateTrails(activeProjectiles, deltaTime);
+    this.updateTrails(activeProjectiles, deltaTime, timestamp);
 
     const placementPreview = game.getPlacementPreviewRenderData(timestamp);
     const towerSelection = game.getTowerSelectionPreviewRenderData();
@@ -405,6 +442,7 @@ export class GameRenderer {
       gameState: state,
       placementState,
       path: pathRenderData,
+      environment,
       towers: towerCollection,
       enemies: enemyCollection,
       projectiles: projectileRenderData,
