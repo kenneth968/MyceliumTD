@@ -56,6 +56,10 @@ assert(tower3.damage === 3, 'Bulb Shooter damage should be 3');
 assert(tower3.specialEffect === 'area_damage', 'Bulb Shooter specialEffect should be area_damage');
 console.log('  ✓ createTower with BulbShooter');
 
+const lumen = createTower(4, 150, 150, TowerType.LumenOracle, TargetingMode.First);
+assert(lumen.damage === 3, 'Lumen Oracle release damage should be 3');
+assert(lumen.fireRate === 650, 'Lumen Oracle release fire rate should be 650 ms');
+
 const enemies: Enemy[] = [
   createEnemy(1, EnemyType.ScoutBeetle, path),
   createEnemy(2, EnemyType.DartWasp, path),
@@ -199,7 +203,7 @@ assert(secondKill === false, 'Should not kill already dead enemy');
 console.log('  ✓ applyDamage ignores dead enemy');
 
 const reward = getKillReward(armoredEnemy);
-assert(reward === 45, `Bulwark Beetle reward should be 45, got ${reward}`);
+assert(reward === 26, `Bulwark Beetle reward should be 26, got ${reward}`);
 console.log('  ✓ getKillReward returns correct reward');
 
 const noRewardEnemy = createTargetingEnemy(500, 0, 999, 50);

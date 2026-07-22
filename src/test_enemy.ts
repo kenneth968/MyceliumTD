@@ -92,8 +92,8 @@ console.assert(enemy3.hp === 3, 'HP should be 3');
 console.log('  PASS\n');
 
 console.log('Test 8: Reward calculation');
-console.log('  Enemy3 reward:', getReward(enemy3), '(ShellBeetle has reward 18)');
-console.assert(getReward(enemy3) === 18, 'ShellBeetle reward should be 18');
+console.log('  Enemy3 reward:', getReward(enemy3), '(ShellBeetle has reward 10)');
+console.assert(getReward(enemy3) === 10, 'ShellBeetle reward should be 10');
 console.log('  PASS\n');
 
 console.log('Test 9: Health percent');
@@ -144,6 +144,8 @@ const nonCamoEnemy = createEnemy(7, EnemyType.ScoutBeetle, path);
 console.log('  VeilWasp is camo:', isCamo(camoEnemy), 'ScoutBeetle is camo:', isCamo(nonCamoEnemy));
 console.assert(isCamo(camoEnemy) === true, 'VeilWasp should be camo');
 console.assert(isCamo(nonCamoEnemy) === false, 'ScoutBeetle should not be camo');
+assertTest(camoEnemy.speed === 55, 'Veil Wasp should use the release control-counter speed');
+assertTest(createEnemy(71, EnemyType.PaleMoth, path).speed === 40, 'Pale Moth should use the release control-counter speed');
 console.log('  PASS\n');
 
 console.log('Test 15: Metal trait soft-counters non-explosive damage');

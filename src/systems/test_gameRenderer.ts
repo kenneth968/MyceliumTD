@@ -30,7 +30,7 @@ function test(name: string, fn: () => boolean): void {
 
 function completeCurrentWave(game: GameRunner, startTime: number): number {
   let currentTime = startTime;
-  for (let step = 0; step < 30 && game.getRoundManager().getState() === RoundState.Active; step++) {
+  for (let step = 0; step < 80 && game.getRoundManager().getState() === RoundState.Active; step++) {
     game.update(currentTime);
     game.getActiveEnemies().splice(0);
     currentTime += 1000;
@@ -114,7 +114,7 @@ test('idle frame includes the complete next-wave preview payload', () =>
   idlePreview.enemies[0]?.count === 8 &&
   idlePreview.enemies[0]?.traits.length === 0 &&
   idlePreview.traits.length === 0 &&
-  idlePreview.rewardLabel === '+75 Nutrients'
+  idlePreview.rewardLabel === '+43 Nutrients'
 );
 previewGame.getRoundManager().startFirstRound();
 const firstIntermissionPreview = renderer.render(previewGame).wavePreview;
@@ -128,7 +128,7 @@ test('completed Wave 1 transitions to an intermission previewing Wave 2', () =>
   previewGame.getRoundManager().getState() === RoundState.Intermission &&
   secondIntermissionPreview?.waveNumber === 2 &&
   secondIntermissionPreview.name === 'Wings on the Path' &&
-  secondIntermissionPreview.rewardLabel === '+85 Nutrients'
+  secondIntermissionPreview.rewardLabel === '+48 Nutrients'
 );
 
 for (let waveNumber = 2; waveNumber <= 9; waveNumber++) {

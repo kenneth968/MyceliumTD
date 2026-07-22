@@ -1,4 +1,5 @@
 import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
+import { EnemyTrait, EnemyType } from '../content/enemyDefinitions';
 import { TowerType } from '../entities/tower';
 import type { Vec2 } from '../utils/vec2';
 import { GameRunner, GameState } from './gameRunner';
@@ -22,9 +23,20 @@ export interface BalanceResult {
   readonly kernelIntegrity: number;
   readonly nutrientsRemaining: number;
   readonly nutrientsSpent: number;
+  readonly nutrientsEarned: number;
+  readonly minimumNutrientsAfterCommand: number;
   readonly towerCount: number;
+  readonly towerTypes: readonly TowerType[];
   readonly matureTowerCount: number;
   readonly evolvedTowerCount: number;
+  readonly defeatedEnemyTypes: readonly EnemyType[];
+  readonly leakedEnemyCount: number;
+  readonly purchasedTowerAfterLeak: boolean;
+  readonly separatedSwarmEnemyCount: number;
+  readonly revealedEnemyCount: number;
+  readonly bossTraits: readonly EnemyTrait[];
+  readonly bossMaximumPathDistance: number;
+  readonly bossDefeated: boolean;
   readonly simulatedCombatMilliseconds: number;
   readonly estimatedRunMilliseconds: number;
 }
@@ -63,6 +75,7 @@ export const RELEASE_BALANCE_SCENARIOS = Object.freeze({
       { beforeWave: 5, kind: 'mature', towerIndex: 1 },
       { beforeWave: 6, kind: 'evolve', towerIndex: 1, path: EvolutionPath.Specialist },
       { beforeWave: 6, kind: 'place', towerType: TowerType.Slimefungus, position: { x: 300, y: 380 } },
+      { beforeWave: 7, kind: 'place', towerType: TowerType.LumenOracle, position: { x: 520, y: 460 } },
       { beforeWave: 7, kind: 'mature', towerIndex: 2 },
       { beforeWave: 8, kind: 'evolve', towerIndex: 0, path: EvolutionPath.Symbiote },
       { beforeWave: 8, kind: 'place', towerType: TowerType.Puffball, position: { x: 640, y: 415 } },
@@ -179,10 +192,25 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
   let simulatedMilliseconds = 0;
   let reachedIntermissions = 0;
   let waveNumber = 1;
+  const defeatedEnemyTypes = new Set<EnemyType>();
+  const linkedSwarmEnemyIds = new Set<number>();
+  const separatedSwarmEnemyIds = new Set<number>();
+  const leakedEnemyIds = new Set<number>();
+  let leakedEnemyCount = 0;
+  let purchasedTowerAfterLeak = false;
+  let revealedEnemyCount = 0;
+  let bossId: number | null = null;
+  let bossTraits: readonly EnemyTrait[] = [];
+  let bossMaximumPathDistance = 0;
+  let minimumNutrientsAfterCommand = Number.POSITIVE_INFINITY;
 
   while (!game.isTerminal() && simulatedMilliseconds < MAX_SIMULATION_MS) {
     for (const command of scenario.commands) {
-      if (command.beforeWave === waveNumber) applyCommand(game, scenario, command);
+      if (command.beforeWave === waveNumber) {
+        applyCommand(game, scenario, command);
+        minimumNutrientsAfterCommand = Math.min(minimumNutrientsAfterCommand, game.getEconomy().getMoney());
+        if (command.kind === 'place' && leakedEnemyCount > 0) purchasedTowerAfterLeak = true;
+      }
     }
     if (!game.startWave()) {
       throw new BalanceScenarioError(scenario.id, `wave ${waveNumber} failed to start`);
@@ -191,6 +219,25 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
     while (!game.isTerminal() && simulatedMilliseconds < MAX_SIMULATION_MS) {
       game.update(SIMULATION_EPOCH_MS + simulatedMilliseconds);
       simulatedMilliseconds += FIXED_STEP_MS;
+      for (const enemy of game.getActiveEnemies()) {
+        if (enemy.enemyType === EnemyType.SwarmWasp) {
+          if (enemy.swarmLinkedActive) linkedSwarmEnemyIds.add(enemy.id);
+          else if (linkedSwarmEnemyIds.has(enemy.id)) separatedSwarmEnemyIds.add(enemy.id);
+        }
+        if (enemy.isBoss) {
+          bossId = enemy.id;
+          bossTraits = [...enemy.traits];
+          bossMaximumPathDistance = Math.max(bossMaximumPathDistance, enemy.pathDistance);
+        }
+      }
+      for (const event of game.drainEvents()) {
+        if (event.type === 'death' && event.enemyType !== undefined) defeatedEnemyTypes.add(event.enemyType);
+        if (event.type === 'enemy_revealed') revealedEnemyCount += 1;
+        if (event.type === 'enemy_leaked') {
+          leakedEnemyCount += 1;
+          leakedEnemyIds.add(event.enemyId);
+        }
+      }
       if (game.isIntermission()) {
         reachedIntermissions += 1;
         waveNumber += 1;
@@ -219,9 +266,22 @@ export function runBalanceScenario(scenario: BalanceScenario): BalanceResult {
     kernelIntegrity: economy.getLives(),
     nutrientsRemaining: economy.getMoney(),
     nutrientsSpent: economy.getTotalSpent(),
+    nutrientsEarned: economy.getMoney() + economy.getTotalSpent(),
+    minimumNutrientsAfterCommand: Number.isFinite(minimumNutrientsAfterCommand)
+      ? minimumNutrientsAfterCommand
+      : economy.getMoney(),
     towerCount: towers.length,
+    towerTypes: towers.map(({ tower }) => tower.towerType),
     matureTowerCount,
     evolvedTowerCount,
+    defeatedEnemyTypes: [...defeatedEnemyTypes],
+    leakedEnemyCount,
+    purchasedTowerAfterLeak,
+    separatedSwarmEnemyCount: separatedSwarmEnemyIds.size,
+    revealedEnemyCount,
+    bossTraits,
+    bossMaximumPathDistance,
+    bossDefeated: bossId !== null && !leakedEnemyIds.has(bossId),
     simulatedCombatMilliseconds: simulatedMilliseconds,
     estimatedRunMilliseconds: simulatedMilliseconds
       + reachedIntermissions * scenario.decisionMillisecondsPerWave,

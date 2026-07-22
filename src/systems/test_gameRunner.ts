@@ -806,8 +806,8 @@ tenWaveReleaseGame.startWave(0);
 const tenWaveReleaseStartTime = Date.now();
 tenWaveReleaseGame.update(tenWaveReleaseStartTime);
 tenWaveReleaseGame.getActiveEnemies().length = 0;
-tenWaveReleaseGame.getWaveSpawner().update(tenWaveReleaseStartTime + 7000);
-tenWaveReleaseGame.update(tenWaveReleaseStartTime + 7016);
+tenWaveReleaseGame.getWaveSpawner().update(tenWaveReleaseStartTime + 40000);
+tenWaveReleaseGame.update(tenWaveReleaseStartTime + 40016);
 assert(
   tenWaveReleaseGame.getState() !== GameState.Victory,
   'release cannot reach Victory after Wave 1 when maxWaves is overridden'
@@ -827,8 +827,8 @@ roundCompletionGame.startWave(0);
 const roundCompletionStartTime = Date.now();
 roundCompletionGame.update(roundCompletionStartTime);
 roundCompletionGame.getActiveEnemies().length = 0;
-roundCompletionGame.getWaveSpawner().update(roundCompletionStartTime + 7000);
-roundCompletionGame.update(roundCompletionStartTime + 7016);
+roundCompletionGame.getWaveSpawner().update(roundCompletionStartTime + 40000);
+roundCompletionGame.update(roundCompletionStartTime + 40016);
 assertEqual(
   roundCompletionGame.getRoundManager().getState(),
   RoundState.Intermission,
