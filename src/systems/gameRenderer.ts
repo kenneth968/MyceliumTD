@@ -223,6 +223,7 @@ export class GameRenderer {
     game: GameRunner,
     state: OnboardingState,
     promptPulsing: boolean,
+    entryProgress: number = 1,
   ): OnboardingRenderData {
     const path = game.getPath();
     const kernelPosition = path.getPointAtDistance(path.getTotalLength()).position;
@@ -233,6 +234,7 @@ export class GameRenderer {
       kernelPosition,
       firstTowerPosition,
       promptPulsing,
+      entryProgress,
     });
   }
 

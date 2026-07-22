@@ -73,6 +73,7 @@ import {
 } from './systems/onboardingInput';
 import {
     getOnboardingCompletionNotice,
+    getOnboardingEntranceProgress,
     paintOnboardingReach,
     projectOnboardingReach,
     type OnboardingRenderData,
@@ -120,6 +121,7 @@ class Game {
     private onboarding: OnboardingState = createOnboardingState(true);
     private onboardingPulseUntil: number = 0;
     private onboardingCompletionStartedAt: number | null = null;
+    private onboardingEntranceStartedAt: number | null = null;
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -241,6 +243,7 @@ class Game {
         }
         this.game.start();
         this.showingMenu = false;
+        this.onboardingEntranceStartedAt = performance.now();
         this.updatePrimaryHotkeyLabel();
     }
 
@@ -257,10 +260,12 @@ class Game {
     }
 
     private getCurrentOnboardingRenderData(): OnboardingRenderData {
+        const now = performance.now();
         return this.renderer.getOnboardingRenderData(
             this.game,
             this.onboarding,
-            performance.now() < this.onboardingPulseUntil,
+            now < this.onboardingPulseUntil,
+            getOnboardingEntranceProgress(this.onboardingEntranceStartedAt, now),
         );
     }
 
@@ -766,6 +771,7 @@ class Game {
             this.onboarding = createOnboardingState(true);
         }
         this.showingMenu = true;
+        this.onboardingEntranceStartedAt = null;
         this.updatePrimaryHotkeyLabel();
         this.loop.stop();
         this.game.reset();
@@ -1128,6 +1134,8 @@ class Game {
         if (!onboarding.isVisible || onboarding.promptRect === null || onboarding.prompt === null) return;
 
         this.ctx.save();
+        this.ctx.globalAlpha = onboarding.entryProgress;
+        this.ctx.translate(0, (1 - onboarding.entryProgress) * -12);
         if (onboarding.reach) {
             this.ctx.font = 'bold 12px sans-serif';
             const projection = projectOnboardingReach({

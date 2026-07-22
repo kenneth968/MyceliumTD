@@ -37,6 +37,7 @@ export type OnboardingCompletionNotice = Readonly<{
 
 export type OnboardingRenderData = Readonly<{
   isVisible: boolean;
+  entryProgress: number;
   prompt: string | null;
   promptRect: Rect | null;
   promptPulsing: boolean;
@@ -51,6 +52,7 @@ export type OnboardingRenderContext = Readonly<{
   kernelPosition: Readonly<Vec2>;
   firstTowerPosition: Readonly<Vec2> | null;
   promptPulsing: boolean;
+  entryProgress?: number;
 }>;
 
 export type OnboardingReachProjection = Readonly<{
@@ -103,6 +105,7 @@ const COMPLETION_NOTICE = Object.freeze({
 });
 
 const COMPLETION_NOTICE_DURATION_MS = 2200;
+const ONBOARDING_ENTRANCE_DURATION_MS = 300;
 
 const SKIP_BUTTON = Object.freeze({
   rect: ONBOARDING_LAYOUT.skipButton,
@@ -123,6 +126,7 @@ export function getOnboardingRenderData(
   const active = prompt !== null;
   return Object.freeze({
     isVisible: active,
+    entryProgress: active ? clamp(context.entryProgress ?? 1, 0, 1) : 1,
     prompt,
     promptRect: active ? ONBOARDING_LAYOUT.prompt : null,
     promptPulsing: active && context.promptPulsing,
@@ -133,6 +137,16 @@ export function getOnboardingRenderData(
       ? REPLAY_BUTTON
       : null,
   });
+}
+
+export function getOnboardingEntranceProgress(startedAtMs: number | null, nowMs: number): number {
+  if (startedAtMs === null) return 1;
+  const linearProgress = clamp(
+    (nowMs - startedAtMs) / ONBOARDING_ENTRANCE_DURATION_MS,
+    0,
+    1,
+  );
+  return 1 - Math.pow(1 - linearProgress, 3);
 }
 
 export function projectOnboardingReach(
