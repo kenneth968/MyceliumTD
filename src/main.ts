@@ -39,6 +39,10 @@ import {
 import { MapSelectionRenderData } from './systems/mapSelectionRender';
 import { getMapSelectionButtonAtPosition } from './systems/mapSelectionRender';
 import { BrowserGameAudio, createGameAudioDirector } from './systems/gameAudioDirector';
+import {
+    PlaytestMetricsLifecycle,
+    exposePlaytestSummaryInDevelopment,
+} from './systems/playtestMetrics';
 import { RELEASE_FEATURES, RELEASE_MAP_ID } from './systems/releaseScope';
 import { canHandleGameplayInput, getActiveUiLayer, UiGateState, UiLayer } from './systems/uiInputGate';
 import {
@@ -112,6 +116,8 @@ class Game {
     private loop: GameLoop;
     private mouse: MouseState;
     private audio: BrowserGameAudio;
+    private playtestMetrics: PlaytestMetricsLifecycle = new PlaytestMetricsLifecycle('local-run-0');
+    private playtestRunNumber: number = 0;
     private combatEffects: CombatEffectPool;
     private towerSpriteCache: TowerSpriteImageCache;
     private lastTime: number = 0;
@@ -138,6 +144,7 @@ class Game {
         this.audio = createGameAudioDirector();
         this.combatEffects = new CombatEffectPool();
         this.towerSpriteCache = new TowerSpriteImageCache();
+        exposePlaytestSummaryInDevelopment(window, () => this.playtestMetrics.toJson());
 
         this.setupEventListeners();
         this.renderer.setCamera(RELEASE_CAMERA);
@@ -237,6 +244,7 @@ class Game {
 
     private startReleaseRun(): void {
         this.clearOnboardingCompletionNotice();
+        this.resetPlaytestMetrics();
         this.game.reset();
         if (!this.game.setMap(RELEASE_MAP_ID)) {
             throw new Error(`Unable to start release map: ${RELEASE_MAP_ID}`);
@@ -245,6 +253,16 @@ class Game {
         this.showingMenu = false;
         this.onboardingEntranceStartedAt = performance.now();
         this.updatePrimaryHotkeyLabel();
+    }
+
+    private resetPlaytestMetrics(restartingTerminalRun: boolean = false): void {
+        this.playtestRunNumber += 1;
+        const sessionId = `local-run-${this.playtestRunNumber}`;
+        if (restartingTerminalRun) {
+            this.playtestMetrics.restartRun(sessionId);
+        } else {
+            this.playtestMetrics.startRun(sessionId);
+        }
     }
 
     private startNextWave(): boolean {
@@ -756,11 +774,14 @@ class Game {
     }
 
     private restartGame(): void {
+        const restartingTerminalRun = this.game.getState() === GameState.Victory
+            || this.game.getState() === GameState.GameOver;
         this.clearOnboardingCompletionNotice();
         if (this.onboarding.enabled && this.onboarding.step !== OnboardingStep.Complete) {
             this.onboarding = createOnboardingState(true);
         }
         this.audio.enterMenu();
+        this.resetPlaytestMetrics(restartingTerminalRun);
         this.game.reset();
         this.game.start();
         this.combatEffects.clear();
@@ -804,6 +825,9 @@ class Game {
                     }
                 },
                 audio: events => this.audio.director.update(events, state, waveIndex),
+                metrics: events => {
+                    for (const event of events) this.playtestMetrics.accept(event);
+                },
             },
         );
         this.transitionOnboarding(
