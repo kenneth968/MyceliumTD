@@ -166,6 +166,18 @@ for (const fixture of fixtures) {
 const resolvedCommand = createCombatEffectCommandBuffer();
 assert(writeCombatEffectCommand(evolvedEvent, context, resolvedCommand) === 'tower_evolved' && resolvedCommand.x === 300, 'tower event resolves tower position');
 assert(writeCombatEffectCommand(leakedEvent, context, resolvedCommand) === 'kernel_damaged' && resolvedCommand.x === 900, 'leak resolves Kernel position');
+const blockedSlowEvent: GameEvent = {
+  type: 'hit',
+  timestamp: 10,
+  position,
+  effectType: 'slow',
+  blockedByShield: true,
+};
+assertEqual(
+  writeCombatEffectCommand(blockedSlowEvent, context, resolvedCommand),
+  'enemy_struck',
+  'shield-blocked slow hit retains generic strike feedback',
+);
 
 console.log('Testing complete semantic event sequences...');
 const brokenTraitEvent: GameEvent = {

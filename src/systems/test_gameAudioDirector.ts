@@ -5,6 +5,7 @@ import { SoundCue } from './soundCues';
 import type { GameEvent } from './gameEvents';
 import { createOnboardingState } from './onboarding';
 import { drainGameEventsForPresentation } from './onboardingIntegration';
+import { EnemyType } from './wave';
 
 function assert(condition: boolean, message: string): void { if (!condition) throw new Error(`FAIL: ${message}`); }
 function assertEqual<T>(actual: T, expected: T, message: string): void {
@@ -82,6 +83,33 @@ assertEqual(effects.cues.at(-1), SoundCue.Victory, 'terminal cue routes before s
 assertEqual(music.calls.at(-1), 'stop', 'victory stops gameplay music');
 director.update([], GameState.Victory, 9);
 assertEqual(music.calls.filter(call => call === 'stop').length, 1, 'terminal state stops once');
+
+const victoryEffects = new FakeEffects();
+const victoryDirector = new GameAudioDirector(new FakeMusic(), victoryEffects);
+const waveCompleted: GameEvent = {
+  type: 'wave_completed',
+  timestamp: 0,
+  waveNumber: 10,
+  completion: 1,
+  perfect: 1,
+  total: 1,
+};
+victoryDirector.update([waveCompleted, victory], GameState.Victory, 9);
+assertEqual(victoryEffects.cues.join(','), SoundCue.Victory, 'victory suppresses nonterminal cues from the same batch');
+
+const leaked: GameEvent = {
+  type: 'enemy_leaked',
+  timestamp: 0,
+  position: { x: 0, y: 0 },
+  enemyId: 1,
+  enemyType: EnemyType.DartWasp,
+  waveNumber: 10,
+};
+const defeat: GameEvent = { type: 'defeat', timestamp: 0, waveNumber: 10 };
+const defeatEffects = new FakeEffects();
+const defeatDirector = new GameAudioDirector(new FakeMusic(), defeatEffects);
+defeatDirector.update([leaked, defeat], GameState.GameOver, 9);
+assertEqual(defeatEffects.cues.join(','), SoundCue.Defeat, 'defeat suppresses nonterminal cues from the same batch');
 const menuMusic = new FakeMusic();
 const menuEffects = new FakeEffects();
 const menuDirector = new GameAudioDirector(menuMusic, menuEffects);

@@ -608,6 +608,32 @@ test('GameRunner projectiles should hit enemies and apply effects', () => {
   );
 });
 
+test('GameRunner marks a shield-blocked slow hit for generic presentation feedback', () => {
+  const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
+  game.start();
+
+  const tower = game.placeTower(TowerType.Slimefungus, 720, 250, TargetingMode.First);
+  assert(tower !== null, 'Tower should be placed');
+
+  const enemy = createEnemy(1901, EnemyType.WardMoth, game.getPath());
+  enemy.pathDistance = 1420;
+  enemy.pathProgress = enemy.pathDistance;
+  enemy.position = { ...game.getPath().getPointAtDistance(enemy.pathDistance).position };
+  enemy.speed = 0;
+  enemy.baseSpeed = 0;
+  game.getActiveEnemies().push(enemy);
+  game.drainEvents();
+  game.update(0);
+  game.update(2000);
+
+  const events = game.drainEvents();
+  assert(!events.some(event => event.type === 'enemy_slowed' && event.enemyId === enemy.id), 'Shielded target should not emit applied-slow feedback');
+  assert(
+    events.some(event => event.type === 'hit' && event.effectType === 'slow' && event.blockedByShield === true),
+    'Shield-blocked slow hit should retain the blocked marker for generic strike feedback',
+  );
+});
+
 test('GameRunner Puffball projectiles should deal area damage', () => {
   const game = createGameRunner({ startingMoney: 1000, startingLives: 20 });
   game.start();

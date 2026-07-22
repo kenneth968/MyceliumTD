@@ -38,7 +38,9 @@ export class GameAudioDirector {
 
   /** Applies one frame; `waveIndex` is zero-based and terminal cues route before music stops. */
   update(events: readonly GameEvent[], gameState: GameState, waveIndex: number): void {
-    for (const event of events) {
+    const terminalEvent = events.find(event => event.type === 'victory' || event.type === 'defeat');
+    const audibleEvents = terminalEvent === undefined ? events : [terminalEvent];
+    for (const event of audibleEvents) {
       for (const cue of getSoundCuesForEvent(event)) this.effects.play(cue);
     }
     if (gameState === GameState.Idle) {

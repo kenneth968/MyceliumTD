@@ -162,6 +162,19 @@ async function runPlaybackTests(): Promise<void> {
     assertEqual(fallback.cues.at(-1), SoundCue.Evolve, 'rejected play uses matching fallback');
     effects.play(SoundCue.Evolve);
     assertEqual(warnings.length, 3, 'rejected play warns once for its cue');
+
+    const pausedPrototypes = new Map<string, FakeVoice>();
+    const pausedFallback = new FakeFallback();
+    const pausedEffects = new SoundEffects({ volume: 0.5 }, url => {
+      const voice = new FakeVoice();
+      pausedPrototypes.set(url, voice);
+      return voice;
+    }, pausedFallback);
+    pausedEffects.play(SoundCue.TraitBreak);
+    const pausedTraitVoice = pausedPrototypes.get(SOUND_ASSET_URLS[SoundCue.TraitBreak])?.clones[0];
+    pausedEffects.pause();
+    pausedTraitVoice?.failLoad();
+    assertEqual(pausedFallback.cues.length, 0, 'asset failure after pause keeps synthesis fallback muted');
   } finally {
     console.warn = originalWarn;
   }

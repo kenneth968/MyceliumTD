@@ -125,7 +125,7 @@ export function writeCombatEffectCommand(
       command.seed = event.timestamp;
       return prepareImpact(command, 'area_impact', event.position);
     case 'hit':
-      if (event.effectType === 'slow' || event.effectType === 'reveal_camo') return null;
+      if ((event.effectType === 'slow' || event.effectType === 'reveal_camo') && event.blockedByShield !== true) return null;
       command.intensity = event.effectType === 'instakill' ? 9 : event.effectType === 'poison' ? 5 : 3;
       command.seed = event.timestamp;
       return prepareImpact(

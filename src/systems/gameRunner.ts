@@ -1263,6 +1263,7 @@ export class GameRunner {
           position: { ...projectile.position },
           towerType: projectile.towerType,
           effectType: TOWER_STATS[projectile.towerType].specialEffect,
+          blockedByShield: directResolution?.shieldConsumed === true,
           timestamp: this.currentTime,
         });
 

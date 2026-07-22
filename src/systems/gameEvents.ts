@@ -13,6 +13,7 @@ type ImpactEvent = Readonly<{
   enemyColor?: string;
   radius?: number;
   effectType?: string;
+  blockedByShield?: boolean;
 }>;
 
 export type GameEvent =

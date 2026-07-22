@@ -140,7 +140,7 @@ export class SoundEffects {
   private retireFailedVoice(ownership: ActiveVoice, error: unknown, playFallback: boolean): void {
     if (!ownership.retire()) return;
     this.markFailed(ownership.cue, error);
-    if (playFallback) this.fallback.play(ownership.cue);
+    if (playFallback && !this.paused) this.fallback.play(ownership.cue);
   }
 
   private markFailed(cue: SoundCueValue, error?: unknown): void {
