@@ -42,9 +42,9 @@ assertEqual(Object.keys(SOUND_ASSET_URLS).length, Object.keys(SoundCue).length, 
 assertEqual(new Set(Object.values(SOUND_ASSET_URLS)).size, Object.keys(SoundCue).length, 'cue URLs are unique');
 for (const url of Object.values(SOUND_ASSET_URLS)) {
   assert(url.startsWith('./assets/sfx/') && url.endsWith('.mp3'), 'runtime cues use public-relative packaged MP3 files');
-  const browserPath = new URL(url, 'http://localhost:8080/public/index.html').pathname;
-  assert(browserPath.startsWith('/public/assets/sfx/'), 'runtime cue resolves beneath the served public page');
-  assert(existsSync(join(process.cwd(), browserPath.slice(1))), `runtime cue exists at ${browserPath}`);
+  const browserPath = new URL(url, 'http://localhost:8080/').pathname;
+  assert(browserPath.startsWith('/assets/sfx/'), 'runtime cue resolves beneath the served public root');
+  assert(existsSync(join(process.cwd(), 'public', browserPath.slice(1))), `runtime cue exists at ${browserPath}`);
 }
 
 class FakeVoice implements SoundAssetVoice {
