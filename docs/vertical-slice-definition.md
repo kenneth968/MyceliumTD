@@ -5,10 +5,16 @@ the scope gate for [the report-derived backlog](https://github.com/kenneth968/My
 
 ## Required before calling the slice playable
 
-- One selected map is polished into a complete encounter, with its intended
-  beats and presentation ([#6](https://github.com/kenneth968/MyceliumTD/issues/6)).
-- The map is playable through all ten waves, with threat pacing and actionable
-  player hints ([#20](https://github.com/kenneth968/MyceliumTD/issues/20)).
+- Garden Path, the current release map, is polished into a complete encounter
+  with its intended beats and presentation ([#6](https://github.com/kenneth968/MyceliumTD/issues/6)).
+- The release includes the six canonical towers and their Evolution choices,
+  ten canonical insect enemies with four readable traits, and the Symbiosis
+  Kernel defense objective.
+- The map is playable through all ten waves. A first-time player can recognize
+  the first four tower roles, predict the next threat, choose at least two
+  viable strategies for trait waves, and see upgrades change behavior or
+  visuals ([#2](https://github.com/kenneth968/MyceliumTD/issues/2),
+  [#20](https://github.com/kenneth968/MyceliumTD/issues/20)).
 - Players can read lives, resources, wave state, and useful counter guidance
   while making tower decisions ([#2](https://github.com/kenneth968/MyceliumTD/issues/2)).
 - A clear progression objective is present, including a medal or mastery goal
