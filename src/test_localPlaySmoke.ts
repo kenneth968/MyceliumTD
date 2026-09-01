@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert';
 import { resolve } from 'node:path';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
+const serverScript = resolve(PROJECT_ROOT, 'scripts', 'serve.mjs');
 const command = process.platform === 'win32' ? (process.env.ComSpec ?? 'cmd.exe') : 'npm';
 const commandArguments = process.platform === 'win32' ? ['/d', '/s', '/c', 'npm run serve'] : ['run', 'serve'];
 const musicPaths = [
@@ -54,7 +55,26 @@ function stopServer(server: ChildProcessWithoutNullStreams): void {
   }
 }
 
+async function assertInvalidPortRejected(): Promise<void> {
+  const server = spawn(process.execPath, [serverScript], {
+    env: { ...process.env, PORT: '0junk' },
+    stdio: 'pipe',
+  });
+  const exit = await Promise.race([
+    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolveExit => {
+      server.once('exit', (code, signal) => resolveExit({ code, signal }));
+    }),
+    new Promise<null>(resolveTimeout => setTimeout(() => resolveTimeout(null), 1000)),
+  ]);
+  if (exit === null) {
+    stopServer(server);
+    assert.fail('PORT values with trailing characters must be rejected before listening');
+  }
+  assert.notEqual(exit.code, 0, 'invalid PORT values must exit with an error');
+}
+
 async function main(): Promise<void> {
+  await assertInvalidPortRejected();
   const server = spawn(command, commandArguments, {
     cwd: PROJECT_ROOT,
     detached: process.platform !== 'win32',
@@ -68,6 +88,9 @@ async function main(): Promise<void> {
     assert.match(await index.text(), /id="gameCanvas"/, 'the local play root should serve the game page');
     await assertLoads(baseUrl, '/bundle.js');
     for (const musicPath of musicPaths) await assertLoads(baseUrl, musicPath);
+    const malformedPath = await fetch(`${baseUrl}/%E0%A4%A`, { signal: AbortSignal.timeout(2000) });
+    assert.equal(malformedPath.status, 400, 'malformed URL escapes should return a bad request response');
+    await assertLoads(baseUrl, '/');
     console.log('local play smoke test passed');
   } finally {
     stopServer(server);

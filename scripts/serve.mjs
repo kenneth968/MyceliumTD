@@ -4,9 +4,10 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const publicDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const port = Number.parseInt(process.env.PORT ?? '8080', 10);
+const rawPort = process.env.PORT ?? '8080';
+const port = Number(rawPort);
 
-if (!Number.isInteger(port) || port < 0 || port > 65535) {
+if (!/^\d+$/.test(rawPort) || !Number.isInteger(port) || port < 0 || port > 65535) {
   throw new Error('PORT must be an integer from 0 through 65535.');
 }
 
@@ -26,10 +27,14 @@ function sendStatus(response, statusCode) {
 }
 
 function getFilePath(requestUrl) {
-  const pathname = decodeURIComponent(new URL(requestUrl, 'http://127.0.0.1').pathname);
-  const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
-  const filePath = resolve(publicDirectory, relativePath);
-  return filePath === publicDirectory || filePath.startsWith(`${publicDirectory}${sep}`) ? filePath : null;
+  try {
+    const pathname = decodeURIComponent(new URL(requestUrl, 'http://127.0.0.1').pathname);
+    const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
+    const filePath = resolve(publicDirectory, relativePath);
+    return filePath === publicDirectory || filePath.startsWith(`${publicDirectory}${sep}`) ? filePath : null;
+  } catch {
+    return undefined;
+  }
 }
 
 const server = createServer((request, response) => {
@@ -40,6 +45,10 @@ const server = createServer((request, response) => {
   }
 
   const filePath = getFilePath(request.url ?? '/');
+  if (filePath === undefined) {
+    sendStatus(response, 400);
+    return;
+  }
   if (filePath === null) {
     sendStatus(response, 403);
     return;
