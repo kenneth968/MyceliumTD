@@ -684,6 +684,14 @@ export class GameRunner {
     return this.waveSpawner.isWaveActive();
   }
 
+  isIntermission(): boolean {
+    return this.roundManager.isInIntermission();
+  }
+
+  isTerminal(): boolean {
+    return this.state === GameState.GameOver || this.state === GameState.Victory;
+  }
+
   getCurrentWave(): Wave | null {
     return this.waveSpawner.getCurrentWave();
   }
@@ -915,6 +923,7 @@ export class GameRunner {
         this.eventQueue.push({
           type: 'death',
           position: { ...enemy.position },
+          enemyId: enemy.id,
           enemyType: enemy.enemyType,
           timestamp: this.currentTime,
         });

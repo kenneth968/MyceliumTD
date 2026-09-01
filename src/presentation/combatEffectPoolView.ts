@@ -1,4 +1,5 @@
 import type { Vec2 } from '../utils/vec2';
+import { EffectPriority, type EffectPriority as EffectPriorityValue } from '../systems/performanceBudget';
 import type { ImpactOverlayKind, ImpactParticleKind } from './combatEffectModel';
 
 /** Read-only particle view owned and reused by a CombatEffectPool. */
@@ -14,6 +15,8 @@ export type CombatParticleSlot = Readonly<{
   remainingMs: number;
   durationMs: number;
   gravity: number;
+  priority: EffectPriorityValue;
+  admissionSequence: number;
 }>;
 
 /** Read-only transient view owned and reused by a CombatEffectPool. */
@@ -31,6 +34,7 @@ export type CombatTransientSlot = Readonly<{
   fromId: number | null;
   toId: number;
   ageMs: number;
+  priority: EffectPriorityValue;
 }>;
 
 /** Mutable particle storage used only by the owning pool. */
@@ -70,12 +74,12 @@ export type NetworkPulseRenderBuffer = {
 
 /** Creates one inactive particle slot for fixed-pool initialization. */
 export function createParticleSlot(): MutableParticleSlot {
-  return { active: false, kind: 'spark', x: 0, y: 0, velocityX: 0, velocityY: 0, color: '#FFFFFF', size: 0, remainingMs: 0, durationMs: 0, gravity: 0 };
+  return { active: false, kind: 'spark', x: 0, y: 0, velocityX: 0, velocityY: 0, color: '#FFFFFF', size: 0, remainingMs: 0, durationMs: 0, gravity: 0, priority: EffectPriority.Ambient, admissionSequence: 0 };
 }
 
 /** Creates one inactive transient slot for fixed-pool initialization. */
 export function createTransientSlot(): MutableTransientSlot {
-  return { active: false, kind: 'impact_flash', x: 0, y: 0, color: '#FFFFFF', radius: 0, remainingMs: 0, durationMs: 0, sequence: 0, admissionSequence: 0, fromId: null, toId: -1, ageMs: 0 };
+  return { active: false, kind: 'impact_flash', x: 0, y: 0, color: '#FFFFFF', radius: 0, remainingMs: 0, durationMs: 0, sequence: 0, admissionSequence: 0, fromId: null, toId: -1, ageMs: 0, priority: EffectPriority.Ambient };
 }
 
 /** Creates a mutable pulse projection buffer for repeated paint-time reuse. */

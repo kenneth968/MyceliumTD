@@ -6,6 +6,7 @@ import { createTowerWithGrowth } from './upgrade';
 import { EvolutionPath, TowerStage } from '../content/evolutionDefinitions';
 import { TargetingMode } from './targeting';
 import { getTowerInfoPanelRenderData as buildTowerInfoPanel } from './towerInfoPanel';
+import type { GameEventCallback } from './gameLoop';
 
 const releaseScopeModule: typeof import('./releaseScope') = require('./releaseScope');
 
@@ -17,8 +18,12 @@ function assertEqual<T>(actual: T, expected: T, message: string): void {
 
 const windowListeners = new Map<string, EventListenerOrEventListenerObject>();
 const canvasListeners = new Map<string, EventListenerOrEventListenerObject>();
+let visibilityListenerRegistrations = 0;
+let performanceEventCallbackRegistrations = 0;
+let performanceResetCalls = 0;
 
 const fakeWindow = {
+  location: { hostname: 'example.com', search: '' },
   addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
     windowListeners.set(type, listener);
   },
@@ -67,9 +72,12 @@ function invoke(listener: EventListenerOrEventListenerObject | undefined, event:
   else listener.handleEvent(event);
 }
 
-function pressKey(key: string): void {
+function pressKey(key: string, shiftKey: boolean = false): void {
   const event = new Event('keydown');
-  Object.defineProperty(event, 'key', { value: key });
+  Object.defineProperties(event, {
+    key: { value: key },
+    shiftKey: { value: shiftKey },
+  });
   invoke(windowListeners.get('keydown'), event);
 }
 
@@ -133,10 +141,20 @@ let forcedTowerInfoPanel: ReturnType<GameRunner['getTowerInfoPanelRenderData']> 
 Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
 Object.defineProperty(globalThis, 'document', {
   configurable: true,
-  value: { getElementById: (): object => fakeCanvas },
+  value: {
+    hidden: false,
+    getElementById: (): object => fakeCanvas,
+    addEventListener(type: string): void {
+      if (type === 'visibilitychange') visibilityListenerRegistrations++;
+    },
+  },
 });
 Object.defineProperty(globalThis, 'requestAnimationFrame', { configurable: true, value: (): number => 1 });
 Object.defineProperty(globalThis, 'Audio', { configurable: true, value: FakeAudio });
+const gameLoopModule: typeof import('./gameLoop') = require('./gameLoop');
+const originalSetEventCallback = gameLoopModule.GameLoop.prototype.setEventCallback;
+const performanceBudgetModule: typeof import('./performanceBudget') = require('./performanceBudget');
+const originalPerformanceReset = performanceBudgetModule.PerformanceBudgetMonitor.prototype.reset;
 
 GameRunner.prototype.getState = function (): GameState {
   return forcedState ?? originalGetState.call(this);
@@ -195,6 +213,14 @@ GameRunner.prototype.setGameSpeed = function (speed: GameSpeed): void {
   speedCalls++;
   originalSetGameSpeed.call(this, speed);
 };
+gameLoopModule.GameLoop.prototype.setEventCallback = function (callback: GameEventCallback): void {
+  performanceEventCallbackRegistrations++;
+  originalSetEventCallback.call(this, callback);
+};
+performanceBudgetModule.PerformanceBudgetMonitor.prototype.reset = function (): void {
+  performanceResetCalls++;
+  originalPerformanceReset.call(this);
+};
 GameRunner.prototype.showMapSelectionUI = function (): void {
   showMapCalls++;
   originalShowMapSelectionUI.call(this);
@@ -237,6 +263,8 @@ try {
   };
 
   createRunningGame();
+  assertEqual(visibilityListenerRegistrations, 0, 'disabled hosts install no performance visibility listener');
+  assertEqual(performanceEventCallbackRegistrations, 0, 'disabled hosts install no performance event callback');
   forcedPlacementState = PlacementState.None;
   forcedTowerInfoPanel = hiddenPanel;
   selectionCalls = 0;
@@ -250,6 +278,38 @@ try {
   pressKey('s');
   pressKey('F2');
   assertEqual(speedCalls, 1, 'speed hotkey becomes available after Skip');
+  pressKey('F3', true);
+  assertEqual(speedCalls, 2, 'Shift+F3 preserves shipped speed routing outside the opted-in development gate');
+
+  fakeWindow.location.hostname = 'localhost';
+  fakeWindow.location.search = '?performanceBudget=1';
+  createRunningGame();
+  assertEqual(visibilityListenerRegistrations, 1, 'opted-in hosts install one performance visibility listener');
+  assertEqual(performanceEventCallbackRegistrations, 1, 'opted-in hosts install one performance event callback');
+  assertEqual(performanceResetCalls, 1, 'starting an opted-in run resets performance evidence');
+  pressKey('s');
+  speedCalls = 0;
+  pressKey('F3', true);
+  assertEqual(speedCalls, 0, 'opted-in Shift+F3 toggles diagnostics without changing game speed');
+  assertEqual(performanceResetCalls, 2, 'enabling the overlay starts a fresh measurement session');
+  pressKey('Space');
+  clickCanvas(640, 390);
+  assertEqual(performanceResetCalls, 3, 'nonterminal restart resets performance evidence');
+  pressKey('Space');
+  clickCanvas(640, 440);
+  assertEqual(performanceResetCalls, 4, 'quit to menu resets performance evidence');
+
+  createRunningGame();
+  pressKey('s');
+  assertEqual(performanceResetCalls, 5, 'starting another opted-in run resets performance evidence');
+  forcedState = GameState.Victory;
+  pressKey('Enter');
+  assertEqual(performanceResetCalls, 6, 'terminal restart resets performance evidence');
+  pressKey('Escape');
+  assertEqual(performanceResetCalls, 7, 'terminal quit resets performance evidence');
+  forcedState = null;
+  fakeWindow.location.hostname = 'example.com';
+  fakeWindow.location.search = '';
 
   createRunningGame();
   showMapCalls = 0;
@@ -456,6 +516,8 @@ try {
   GameRunner.prototype.matureTower = originalMatureTower;
   GameRunner.prototype.evolveTower = originalEvolveTower;
   GameRunner.prototype.setGameSpeed = originalSetGameSpeed;
+  gameLoopModule.GameLoop.prototype.setEventCallback = originalSetEventCallback;
+  performanceBudgetModule.PerformanceBudgetMonitor.prototype.reset = originalPerformanceReset;
   GameRunner.prototype.showMapSelectionUI = originalShowMapSelectionUI;
   GameRunner.prototype.hideMapSelectionUI = originalHideMapSelectionUI;
   GameRunner.prototype.selectMap = originalSelectMap;

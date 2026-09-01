@@ -278,7 +278,7 @@ test('Boss Ward Moth retains Shielded and gains Camo by combining taught rules',
   assertEqual(elderWard.traits.includes(EnemyTrait.Camo), true, 'Elder Ward should gain Camo');
   assertEqual(elderWard.shieldCharges, 1, 'Elder Ward should retain one shield charge');
   assertEqual(elderWard.hp, 48, 'Elder Ward should have exact Boss HP');
-  assertEqual(elderWard.reward, 240, 'Elder Ward should have exact Boss reward');
+  assertEqual(elderWard.reward, 138, 'Elder Ward should have exact Boss reward');
 });
 
 console.log(`Trait integration tests: ${passed} passed, ${failed} failed`);

@@ -146,6 +146,7 @@ assertEqual(recoveryMusic.getCurrentTrack(), MusicTrack.Chantarelle, 'successful
 let drainCount = 0;
 let combatBatch: readonly GameEvent[] | null = null;
 let audioBatch: readonly GameEvent[] | null = null;
+let metricsBatch: readonly GameEvent[] | null = null;
 const exactBatch = Object.freeze([victory]);
 const drained = drainGameEventsForPresentation(
   createOnboardingState(false),
@@ -153,10 +154,12 @@ const drained = drainGameEventsForPresentation(
   {
     combat: events => { combatBatch = events; },
     audio: events => { audioBatch = events; },
+    metrics: events => { metricsBatch = events; },
   },
 );
 assertEqual(drainCount, 1, 'simulation events drain exactly once');
 assert(drained.events === exactBatch, 'onboarding receives exact batch identity');
 assert(combatBatch === exactBatch, 'combat receives exact batch identity');
 assert(audioBatch === exactBatch, 'audio receives exact batch identity');
+assert(metricsBatch === exactBatch, 'metrics receives exact batch identity');
 console.log('game audio director tests passed');

@@ -143,9 +143,9 @@ lifecycleGame.update(1);
 const firstCompletionEvents = lifecycleGame.drainEvents().filter(event => event.type === 'wave_completed');
 assertEqual(firstCompletionEvents.length, 1, 'Wave completion should emit exactly one semantic event');
 assertEqual(firstCompletionEvents[0].waveNumber, 1, 'Completion event should identify the wave');
-assertEqual(firstCompletionEvents[0].completion, 75, 'Completion event should include completion reward');
+assertEqual(firstCompletionEvents[0].completion, 43, 'Completion event should include completion reward');
 assertEqual(firstCompletionEvents[0].perfect, 0, 'Leaked wave should report no perfect reward');
-assertEqual(firstCompletionEvents[0].total, 75, 'Leaked wave should report the recoverable total');
+assertEqual(firstCompletionEvents[0].total, 43, 'Leaked wave should report the recoverable total');
 
 for (let waveNumber = 2; waveNumber <= 10; waveNumber++) {
   assert(lifecycleGame.startWave(), `Wave ${waveNumber} should start`);

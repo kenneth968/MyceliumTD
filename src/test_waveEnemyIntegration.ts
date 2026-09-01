@@ -88,7 +88,7 @@ test('WaveSpawner generates unique enemy IDs across multiple spawns', () => {
   const waveStartTime = Date.now();
   const ids = new Set<number>();
   
-  for (let t = 0; t < 10000; t += 16) {
+  for (let t = 0; t < 40000; t += 16) {
     const newEnemies = spawner.update(waveStartTime + t);
     for (const enemy of newEnemies) {
       assert(!ids.has(enemy.id), `Enemy ID ${enemy.id} is unique`);
@@ -109,7 +109,7 @@ test('WaveSpawner tracks all spawned enemies via getSpawnedEnemies', () => {
   
   const waveStartTime = Date.now();
   
-  for (let t = 0; t < 10000; t += 16) {
+  for (let t = 0; t < 40000; t += 16) {
     spawner.update(waveStartTime + t);
     if (!spawner.isWaveActive()) break;
   }

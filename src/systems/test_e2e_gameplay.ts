@@ -174,13 +174,6 @@ test('Recommended build order can reach victory across all 10 waves', () => {
     { type: TowerType.Puffball, x: 340, y: 300, mode: TargetingMode.First },
     { type: TowerType.LumenOracle, x: 660, y: 360, mode: TargetingMode.First },
     { type: TowerType.BulbShooter, x: 540, y: 440, mode: TargetingMode.First },
-    { type: TowerType.Puffball, x: 460, y: 300, mode: TargetingMode.First },
-    { type: TowerType.ThornSniper, x: 660, y: 240, mode: TargetingMode.Strong },
-    { type: TowerType.BulbShooter, x: 340, y: 560, mode: TargetingMode.First },
-    { type: TowerType.LumenOracle, x: 700, y: 360, mode: TargetingMode.First },
-    { type: TowerType.Puffball, x: 700, y: 240, mode: TargetingMode.First },
-    { type: TowerType.Slimefungus, x: 500, y: 300, mode: TargetingMode.First },
-    { type: TowerType.ThornSniper, x: 460, y: 160, mode: TargetingMode.Strong },
   ];
   let nextBuildIndex = 0;
   let wavesStarted = 0;

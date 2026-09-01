@@ -3,6 +3,7 @@ import { createGameRunner } from './gameRunner';
 import { createGameRenderer } from './gameRenderer';
 import {
   applyGameEventsToOnboarding,
+  drainGameEventsForPresentation,
   drainGameEventsForOnboarding,
   integrateGameEventsWithOnboarding,
   isNewOnboardingCompletion,
@@ -25,6 +26,7 @@ import {
   applyOnboardingControl,
   routeOnboardingCommand,
 } from './onboardingInput';
+import { PlaytestMetricsCoordinator, PlaytestMetricsLifecycle } from './playtestMetrics';
 import { RELEASE_HUD_LAYOUT, type Rect } from './releaseHudLayout';
 import { MYCELIUM_NETWORK_REACH } from './myceliumNetworkConfig';
 import { readFileSync } from 'fs';
@@ -159,6 +161,42 @@ assertSame(drainCount, 1, 'simulation events drain exactly once');
 assertSame(particleBatch, exactBatch, 'particles receive the exact drained batch object');
 assertSame(drained.events, exactBatch, 'onboarding integration reports the exact drained batch object');
 assertSame(drained.state.step, OnboardingStep.StartFirstWave, 'the shared batch advances onboarding');
+
+// Given the live presentation seam and one metrics lifecycle
+let presentationDrainCount = 0;
+let combatBatch: readonly unknown[] | null = null;
+let audioBatch: readonly unknown[] | null = null;
+let metricsBatch: readonly unknown[] | null = null;
+const playtestMetrics = new PlaytestMetricsCoordinator(
+  new PlaytestMetricsLifecycle('presentation-session'),
+  () => 'next-session',
+);
+
+// When one frame drains and fans out its semantic events
+const presentationDrain = drainGameEventsForPresentation(
+  initial,
+  () => {
+    presentationDrainCount += 1;
+    return exactBatch;
+  },
+  {
+    combat: events => { combatBatch = events; },
+    audio: events => { audioBatch = events; },
+    metrics: events => {
+      metricsBatch = events;
+      playtestMetrics.acceptBatch(events);
+    },
+  },
+);
+
+// Then every consumer receives the exact batch without a second drain
+assertSame(presentationDrainCount, 1, 'presentation and metrics share one simulation drain');
+assertSame(combatBatch, exactBatch, 'combat receives the exact semantic batch');
+assertSame(audioBatch, exactBatch, 'audio receives the exact semantic batch');
+assertSame(metricsBatch, exactBatch, 'metrics receives the exact semantic batch');
+assertSame(presentationDrain.events, exactBatch, 'onboarding receives the exact semantic batch');
+assertSame(playtestMetrics.exportSnapshot().currentRun.towerPlacements, 1, 'shared batch records the placement once');
+assertSame(playtestMetrics.exportSnapshot().currentRun.connectionsCreated, 1, 'shared batch records the connection once');
 
 // Given a renderer and a runner with a confirmed first tower
 const renderer = createGameRenderer();

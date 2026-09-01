@@ -24,6 +24,7 @@ type EventConsumer = (events: readonly GameEvent[]) => void;
 type PresentationConsumers = Readonly<{
   combat: EventConsumer;
   audio: EventConsumer;
+  metrics: EventConsumer;
 }>;
 
 export function applyGameEventsToOnboarding(
@@ -75,6 +76,7 @@ export function drainGameEventsForPresentation(
   const events = drainEvents();
   consumers.combat(events);
   consumers.audio(events);
+  consumers.metrics(events);
   return createDrainedResult(state, events);
 }
 
