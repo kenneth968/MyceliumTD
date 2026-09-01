@@ -1270,8 +1270,9 @@ class Game {
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.font = '11px sans-serif';
         preview.enemies.forEach((enemy, index) => {
+            const threatLabel = enemy.threatLabels.length === 0 ? '' : ` (${enemy.threatLabels.join(', ')})`;
             this.ctx.fillText(
-                `${enemy.count}× ${enemy.displayName}`,
+                `${enemy.count}× ${enemy.displayName}${threatLabel}`,
                 contentX,
                 panel.y + 48 + index * 15,
                 contentWidth,
@@ -1294,6 +1295,13 @@ class Game {
                 this.ctx.font = '10px sans-serif';
                 this.ctx.fillText(trait.label, traitX + 16, traitY, columnWidth - 18);
             });
+        }
+
+        const counterRoles = [...new Set(preview.counterHints.map(hint => hint.role))].slice(0, 3);
+        if (counterRoles.length > 0) {
+            this.ctx.fillStyle = '#9EE6C8';
+            this.ctx.font = 'bold 10px sans-serif';
+            this.ctx.fillText(`Use: ${counterRoles.join(' / ')}`, contentX, panel.y + 137, contentWidth);
         }
 
         this.ctx.fillStyle = '#FFD700';
