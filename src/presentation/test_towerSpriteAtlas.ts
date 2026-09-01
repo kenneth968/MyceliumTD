@@ -49,14 +49,14 @@ const formOrder = [
 for (const type of Object.values(TowerType)) {
   const atlas = TOWER_SPRITE_ATLASES[type];
   assert(atlas.url.startsWith('./assets/sprites/towers/'), `${type} has a public-relative packaged URL`);
-  const browserPath = new URL(atlas.url, 'http://localhost:8080/public/index.html').pathname;
-  assert(browserPath.startsWith('/public/assets/sprites/towers/'), `${type} resolves beneath the served public page`);
+  const browserPath = new URL(atlas.url, 'http://localhost:8080/').pathname;
+  assert(browserPath.startsWith('/assets/sprites/towers/'), `${type} resolves beneath the served public root`);
   const cells = formOrder.flatMap(form => atlas.forms[form].frames.map(frame => frame.cellIndex));
   assertEqual(cells.join(','), '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14', `${type} uses fixed form cells`);
   assertEqual(atlas.icon.cellIndex, 15, `${type} uses cell 16 for its card icon`);
   assertEqual(new Set([...cells, atlas.icon.cellIndex]).size, 16, `${type} uses every cell once`);
 
-  const png = readFileSync(join(process.cwd(), browserPath.slice(1)));
+  const png = readFileSync(join(process.cwd(), 'public', browserPath.slice(1)));
   assertEqual(png.toString('ascii', 1, 4), 'PNG', `${type} is a PNG`);
   assertEqual(png.readUInt32BE(16), 1024, `${type} atlas width`);
   assertEqual(png.readUInt32BE(20), 1024, `${type} atlas height`);
