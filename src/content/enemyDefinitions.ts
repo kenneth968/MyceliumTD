@@ -53,3 +53,20 @@ export const ENEMY_DEFINITIONS: Record<EnemyType, EnemyDefinition> = {
   [EnemyType.WardMoth]: { type: EnemyType.WardMoth, displayName: 'Ward Moth', family: EnemyFamily.Moth, layers: [4, 4], speed: 40, reward: 40, traits: [EnemyTrait.Shielded] },
   [EnemyType.PaleMoth]: { type: EnemyType.PaleMoth, displayName: 'Pale Moth', family: EnemyFamily.Moth, layers: [6], speed: 55, reward: 45, traits: [EnemyTrait.Camo] },
 };
+
+export const ENEMY_VARIANT_LAYER_MULTIPLIERS: Readonly<Record<EnemyVariant, number>> = Object.freeze({
+  [EnemyVariant.Normal]: 1,
+  [EnemyVariant.Elite]: 2,
+  [EnemyVariant.Boss]: 6,
+});
+
+export function getEnemyTraitsForVariant(
+  type: EnemyType,
+  variant: EnemyVariant,
+): readonly EnemyTrait[] {
+  const traits = ENEMY_DEFINITIONS[type].traits;
+  if (variant === EnemyVariant.Boss && type === EnemyType.WardMoth && !traits.includes(EnemyTrait.Camo)) {
+    return Object.freeze([...traits, EnemyTrait.Camo]);
+  }
+  return traits;
+}

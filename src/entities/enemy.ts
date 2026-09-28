@@ -1,6 +1,13 @@
 import { Vec2, vec2Distance } from '../utils/vec2';
 import { Path } from '../systems/path';
-import { ENEMY_DEFINITIONS, EnemyTrait, EnemyType, EnemyVariant } from '../content/enemyDefinitions';
+import {
+  ENEMY_DEFINITIONS,
+  ENEMY_VARIANT_LAYER_MULTIPLIERS,
+  EnemyTrait,
+  EnemyType,
+  EnemyVariant,
+  getEnemyTraitsForVariant,
+} from '../content/enemyDefinitions';
 
 export { EnemyTrait } from '../content/enemyDefinitions';
 
@@ -321,23 +328,11 @@ export function createEnemy(
   };
 }
 
-const VARIANT_LAYER_MULTIPLIER: Record<EnemyVariant, number> = {
-  [EnemyVariant.Normal]: 1,
-  [EnemyVariant.Elite]: 2,
-  [EnemyVariant.Boss]: 6,
-};
-
 export function applyEnemyVariant(enemy: Enemy, variant: EnemyVariant): void {
-  const multiplier = VARIANT_LAYER_MULTIPLIER[variant];
+  const multiplier = ENEMY_VARIANT_LAYER_MULTIPLIERS[variant];
   enemy.variant = variant;
   enemy.isBoss = variant === EnemyVariant.Boss;
-  if (
-    variant === EnemyVariant.Boss &&
-    enemy.enemyType === EnemyType.WardMoth &&
-    !enemy.traits.includes(EnemyTrait.Camo)
-  ) {
-    enemy.traits = [...enemy.traits, EnemyTrait.Camo];
-  }
+  enemy.traits = [...getEnemyTraitsForVariant(enemy.enemyType, variant)];
   enemy.layers = enemy.layers.map(layer => ({
     hp: layer.maxHp * multiplier,
     maxHp: layer.maxHp * multiplier,

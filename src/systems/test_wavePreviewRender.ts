@@ -23,6 +23,10 @@ assert(
   releasePreview.enemies.some(enemy => enemy.type === EnemyType.IronCaterpillar && enemy.count === 8),
   'enemy groups are represented',
 );
+assert(
+  releasePreview.enemies.find(enemy => enemy.type === EnemyType.IronCaterpillar)?.threatLabels.includes('Tank') === true,
+  'durable enemies advertise the Tank threat before the wave starts',
+);
 assert(releasePreview.traits.some(trait => trait.trait === EnemyTrait.Metal), 'Metal warning is shown');
 assert(
   releasePreview.traits.every(trait => trait.shape.length > 0 && trait.color.length > 0 && trait.label.length > 0),
@@ -32,6 +36,23 @@ assertEqual(releasePreview.rewardLabel, '+130 Nutrients', 'reward uses player-fa
 assert(
   releasePreview.enemies.every(enemy => enemy.displayName !== enemy.type),
   'enemy display names do not expose internal values',
+);
+assert(
+  releasePreview.counterHints.some(hint => hint.role === 'Burst' && hint.threat === 'Metal'),
+  'Metal warnings recommend the existing Burst arsenal role',
+);
+
+// Given a release wave led by fast enemies
+const fastPreview = getWavePreviewRenderData(RELEASE_WAVES[1], 85);
+
+// Then the preview exposes the threat and directly recommends its arsenal role
+assert(
+  fastPreview.enemies.find(enemy => enemy.type === EnemyType.DartWasp)?.threatLabels.includes('Fast') === true,
+  'fast enemies advertise the Fast threat before the wave starts',
+);
+assert(
+  fastPreview.counterHints.some(hint => hint.role === 'Control' && hint.threat === 'Fast'),
+  'Fast warnings recommend the existing Control arsenal role',
 );
 
 // Given the release waves containing an elite and a boss group
@@ -45,8 +66,10 @@ const bossEnemy = bossPreview.enemies.find(enemy => enemy.type === EnemyType.War
 // Then the preview communicates the same variants that spawning applies
 assertEqual(eliteEnemy?.variant, EnemyVariant.Elite, 'wave 6 preserves the elite variant');
 assertEqual(eliteEnemy?.displayName, 'Elite Shell Beetle', 'wave 6 labels the elite threat');
+assert(eliteEnemy?.threatLabels.includes('Tank') === true, 'wave 6 labels scaled elite durability as Tank');
 assertEqual(bossEnemy?.variant, EnemyVariant.Boss, 'wave 10 preserves the boss variant');
 assertEqual(bossEnemy?.displayName, 'Boss Ward Moth', 'wave 10 labels the boss threat');
+assert(bossEnemy?.traits.includes(EnemyTrait.Camo) === true, 'boss preview includes its spawned Camo trait');
 
 // Given the release wave with the maximum enemy and trait row counts
 const finalWavePreview = getWavePreviewRenderData(RELEASE_WAVES[9], 0);
@@ -58,9 +81,9 @@ const expectedFinalEnemies = [
 ] as const;
 const expectedFinalTraits = [
   { trait: EnemyTrait.Shielded, label: 'Shielded', shape: 'shield', color: '#6BD7FF' },
+  { trait: EnemyTrait.Camo, label: 'Camo', shape: 'eye', color: '#B58CFF' },
   { trait: EnemyTrait.SwarmLinked, label: 'Swarm-linked', shape: 'links', color: '#FFB84D' },
   { trait: EnemyTrait.Metal, label: 'Metal', shape: 'hexagon', color: '#B8C2CC' },
-  { trait: EnemyTrait.Camo, label: 'Camo', shape: 'eye', color: '#B58CFF' },
 ] as const;
 
 // When its preview rows and visual traits are inspected
@@ -94,7 +117,7 @@ const contentWidth = previewPanel.width - 24;
 const enemyRowYs = finalWavePreview.enemies.map((_, index) => previewPanel.y + 36 + index * 15);
 const traitRowYs = finalWavePreview.traits.map((_, index) => previewPanel.y + 104 + Math.floor(index / 2) * 17);
 const traitColumnXs = finalWavePreview.traits.map((_, index) => contentX + index % 2 * contentWidth / 2);
-const verticalPositions = [previewPanel.y + 16, ...enemyRowYs, ...traitRowYs, previewBottom - 11];
+const verticalPositions = [previewPanel.y + 16, ...enemyRowYs, ...traitRowYs, previewPanel.y + 137, previewBottom - 11];
 
 // When worst-case row and column coordinates are calculated
 // Then every anchor remains within the shared wave preview rectangle
